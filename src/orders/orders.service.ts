@@ -15,7 +15,7 @@ export class OrdersService {
     return `RIV-${timestamp}-${random}`;
   }
 
-  async create(dto: CreateOrderDto) {
+  async create(dto: CreateOrderDto, userId?: string) {
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('Order must include at least one item');
     }
@@ -61,6 +61,7 @@ export class OrdersService {
       const createdOrder = await tx.order.create({
         data: {
           orderNumber,
+          userId, // Store userId if user is authenticated
           status: OrderStatus.PENDING,
           totalAmount: totalAmount.toString(),
           customerName: dto.customerName,

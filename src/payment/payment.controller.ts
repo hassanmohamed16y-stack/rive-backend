@@ -40,9 +40,9 @@ export class PaymentController {
   @ApiOperation({ summary: 'Handle raw payment provider webhook events' })
   @ApiResponse({ status: 200, description: 'Webhook received and processed.' })
   @ApiResponse({ status: 400, description: 'Invalid webhook payload.' })
-  async handleWebhook(@Req() req: Request, @Body() body: any) {
+  async handleWebhook(@Req() req: Request) {
     const signature = req.headers['stripe-signature'] as string | undefined;
-    const rawBody = (req as any).rawBody as string | undefined;
-    return this.paymentService.handleWebhook(body, signature, rawBody);
+    const rawBody = req.body as Buffer; // express.raw() provides Buffer
+    return this.paymentService.handleWebhook(rawBody, signature);
   }
 }

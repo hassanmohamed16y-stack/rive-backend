@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as bodyParser from 'body-parser';
+import * as express from 'express';
 import * as helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -12,21 +13,8 @@ async function bootstrap() {
   // Apply Helmet middleware for HTTP security headers
   app.use(helmet.default());
 
-  // Preserve raw body for Stripe webhook signature verification
-  app.use((req, res, next) => {
-    if (req.path === '/api/v1/payments/webhook') {
-      let rawBody = '';
-      req.on('data', (chunk) => {
-        rawBody += chunk;
-      });
-      req.on('end', () => {
-        (req as any).rawBody = rawBody;
-        next();
-      });
-    } else {
-      next();
-    }
-  });
+  // Use express.raw() for Stripe webhook to preserve raw body
+  app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
 
   app.use(bodyParser.json());
 
