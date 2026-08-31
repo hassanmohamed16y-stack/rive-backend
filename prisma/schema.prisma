@@ -71,6 +71,8 @@ model Product {
   variants         ProductVariant[]
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
+
+  @@index([categoryId])
 }
 
 model ProductImage {
@@ -81,6 +83,8 @@ model ProductImage {
   altText    String?
   isPrimary  Boolean  @default(false)
   createdAt  DateTime @default(now())
+
+  @@index([productId])
 }
 
 model ProductVariant {
@@ -96,6 +100,9 @@ model ProductVariant {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   orderItems  OrderItem[]
+
+  @@index([productId])
+  @@index([productId, colorHex])
 }
 
 model Order {
@@ -121,4 +128,7 @@ model OrderItem {
   unitPrice       Decimal        @db.Decimal(10, 2)
   totalPrice      Decimal        @db.Decimal(10, 2)
   createdAt       DateTime       @default(now())
+
+  @@index([orderId])
+  @@index([productVariantId])
 }

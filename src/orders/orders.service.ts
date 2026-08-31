@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { OrderStatus, Prisma } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 
@@ -36,20 +37,23 @@ export class OrdersService {
           );
         }
 
-        const unitPrice = Number(variant.price);
-        const totalPrice = unitPrice * item.quantity;
+        const unitPrice = new Decimal(variant.price);
+        const totalPrice = unitPrice.times(item.quantity);
 
         return {
           productVariantId: variant.id,
           quantity: item.quantity,
-          unitPrice: unitPrice.toFixed(2),
-          totalPrice: totalPrice.toFixed(2),
+          unitPrice: unitPrice.toString(),
+          totalPrice: totalPrice.toString(),
           productName: variant.product.name,
         };
       }),
     );
 
-    const totalAmount = orderItemsData.reduce((sum, item) => sum + Number(item.totalPrice), 0);
+    const totalAmount = orderItemsData.reduce(
+      (sum, item) => sum.plus(new Decimal(item.totalPrice)),
+      new Decimal(0),
+    );
 
     const orderNumber = this.generateOrderNumber();
 
@@ -58,7 +62,7 @@ export class OrdersService {
         data: {
           orderNumber,
           status: OrderStatus.PENDING,
-          totalAmount: totalAmount.toFixed(2),
+          totalAmount: totalAmount.toString(),
           customerName: dto.customerName,
           customerEmail: dto.customerEmail,
           notes: dto.notes,

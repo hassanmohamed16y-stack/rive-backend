@@ -8,11 +8,17 @@ import { CreateProductDto } from './dto/create-product.dto';
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(filters?: {
-    category?: string;
-    isFeatured?: string;
-    search?: string;
-  }) {
+  async findAll(
+    filters?: {
+      category?: string;
+      isFeatured?: string;
+      search?: string;
+    },
+    pagination?: {
+      skip?: number;
+      take?: number;
+    },
+  ) {
     const where: Prisma.ProductWhereInput = {};
 
     if (filters?.category) {
@@ -47,6 +53,8 @@ export class ProductsService {
         },
       },
       orderBy: { createdAt: 'desc' },
+      skip: pagination?.skip || 0,
+      take: pagination?.take || undefined,
     });
   }
 

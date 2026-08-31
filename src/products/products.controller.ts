@@ -12,16 +12,27 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List all products with filters' })
+  @ApiOperation({ summary: 'List all products with filters and pagination' })
   @ApiQuery({ name: 'category', required: false, type: String })
   @ApiQuery({ name: 'isFeatured', required: false, type: Boolean })
   @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (1-indexed)', example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page', example: 20 })
   async findAll(
     @Query('category') category?: string,
     @Query('isFeatured') isFeatured?: string,
     @Query('search') search?: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
   ) {
-    return this.productsService.findAll({ category, isFeatured, search });
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
+    const skip = (pageNum - 1) * limitNum;
+
+    return this.productsService.findAll(
+      { category, isFeatured, search },
+      { skip, take: limitNum },
+    );
   }
 
   @Get(':slug')

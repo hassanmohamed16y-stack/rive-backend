@@ -2,11 +2,15 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as bodyParser from 'body-parser';
+import * as helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Apply Helmet middleware for HTTP security headers
+  app.use(helmet.default());
 
   // Preserve raw body for Stripe webhook signature verification
   app.use((req, res, next) => {
@@ -32,10 +36,6 @@ async function bootstrap() {
     'http://localhost:3001',
     'http://127.0.0.1:3000',
     'http://127.0.0.1:3001',
-    'https://*.vercel.app',
-    'https://*.netlify.app',
-    'https://*.bolt.new',
-    'https://*.localhost',
   ].filter(Boolean);
 
   app.enableCors({
@@ -45,15 +45,7 @@ async function bootstrap() {
         return;
       }
 
-      const isAllowed =
-        allowedOrigins.some((allowedOrigin) => {
-          if (!allowedOrigin) return false;
-          if (allowedOrigin.includes('*')) {
-            const pattern = allowedOrigin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*');
-            return new RegExp(`^${pattern}$`).test(origin);
-          }
-          return allowedOrigin === origin;
-        }) || origin.includes('localhost') || origin.includes('127.0.0.1');
+      const isAllowed = allowedOrigins.includes(origin);
 
       if (isAllowed) {
         callback(null, true);

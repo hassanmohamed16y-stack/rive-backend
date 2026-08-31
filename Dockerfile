@@ -27,4 +27,8 @@ COPY --from=builder /app/.env.example ./.env.example
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma db push && node dist/main.js"]
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && adduser -S node -u 1001
+USER node
+
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]

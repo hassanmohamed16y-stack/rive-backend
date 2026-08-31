@@ -7,7 +7,7 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 export class CategoriesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(pagination?: { skip?: number; take?: number }) {
     return this.prisma.category.findMany({
       include: {
         _count: {
@@ -15,6 +15,8 @@ export class CategoriesService {
         },
       },
       orderBy: { createdAt: 'desc' },
+      skip: pagination?.skip || 0,
+      take: pagination?.take || undefined,
     });
   }
 

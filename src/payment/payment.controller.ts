@@ -6,11 +6,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Request } from 'express';
+import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { PaymentService } from './payment.service';
-
-class CreateCheckoutSessionDto {
-  orderId!: string;
-}
 
 @ApiTags('payments')
 @Controller('api/v1/payments')
