@@ -85,14 +85,23 @@ export class OrdersService {
       });
 
       await Promise.all(
-        orderItemsData.map((item) =>
-          tx.productVariant.update({
-            where: { id: item.productVariantId },
+        orderItemsData.map(async (item) => {
+          const updated = await tx.productVariant.updateMany({
+            where: {
+              id: item.productVariantId,
+              stock: { gte: item.quantity },
+            },
             data: {
               stock: { decrement: item.quantity },
             },
-          }),
-        ),
+          });
+
+          if (updated.count === 0) {
+            throw new BadRequestException(
+              `Insufficient stock for variant ${item.productVariantId}. Transaction rolled back.`,
+            );
+          }
+        }),
       );
 
       return createdOrder;

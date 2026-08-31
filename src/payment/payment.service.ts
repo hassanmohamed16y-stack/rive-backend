@@ -1,10 +1,17 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
+import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class PaymentService {
-  constructor(private readonly prisma: PrismaService) {}
+  private stripe: Stripe;
+
+  constructor(private readonly prisma: PrismaService) {
+    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+      apiVersion: '2024-04-10',
+    });
+  }
 
   async createCheckoutSession(orderId: string) {
     const order = await this.prisma.order.findUnique({
@@ -34,13 +41,26 @@ export class PaymentService {
     };
   }
 
-  async handleWebhook(body: any, signature?: string) {
-    if (!body || typeof body !== 'object') {
-      throw new BadRequestException('Invalid webhook payload.');
+  async handleWebhook(body: any, signature?: string, rawBody?: string) {
+    // Verify Stripe webhook signature
+    if (!signature || !rawBody) {
+      throw new BadRequestException('Webhook signature or raw body missing.');
     }
 
-    const eventType = body.type;
-    const eventData = body.data?.object;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      throw new BadRequestException('Webhook secret not configured.');
+    }
+
+    let event: Stripe.Event;
+    try {
+      event = this.stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+    } catch (err) {
+      throw new BadRequestException(`Webhook verification failed: ${(err as Error).message}`);
+    }
+
+    const eventType = event.type;
+    const eventData = event.data.object as any;
 
     if (!eventType || !eventData) {
       throw new BadRequestException('Webhook payload missing required event data.');
@@ -48,7 +68,7 @@ export class PaymentService {
 
     const orderId = eventData.metadata?.orderId ?? eventData.orderId;
 
-    if (eventType === 'payment.succeeded' || eventType === 'checkout.session.completed') {
+    if (eventType === 'payment_intent.succeeded' || eventType === 'checkout.session.completed') {
       if (!orderId) {
         return {
           received: true,

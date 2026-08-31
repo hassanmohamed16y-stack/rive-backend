@@ -30,7 +30,7 @@ export class AuthService {
         fullName: dto.fullName,
         email: dto.email,
         passwordHash: hashedPassword,
-        role: dto.role ?? 'CUSTOMER',
+        role: 'CUSTOMER',
       },
     });
 

@@ -1,11 +1,30 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as bodyParser from 'body-parser';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Preserve raw body for Stripe webhook signature verification
+  app.use((req, res, next) => {
+    if (req.path === '/api/v1/payments/webhook') {
+      let rawBody = '';
+      req.on('data', (chunk) => {
+        rawBody += chunk;
+      });
+      req.on('end', () => {
+        (req as any).rawBody = rawBody;
+        next();
+      });
+    } else {
+      next();
+    }
+  });
+
+  app.use(bodyParser.json());
 
   const allowedOrigins = [
     process.env.FRONTEND_URL,

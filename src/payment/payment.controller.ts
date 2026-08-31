@@ -45,6 +45,7 @@ export class PaymentController {
   @ApiResponse({ status: 400, description: 'Invalid webhook payload.' })
   async handleWebhook(@Req() req: Request, @Body() body: any) {
     const signature = req.headers['stripe-signature'] as string | undefined;
-    return this.paymentService.handleWebhook(body, signature);
+    const rawBody = (req as any).rawBody as string | undefined;
+    return this.paymentService.handleWebhook(body, signature, rawBody);
   }
 }
