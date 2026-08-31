@@ -1,0 +1,51 @@
+{
+  "name": "rive-backend",
+  "version": "1.0.0",
+  "description": "RIVÉ luxury e-commerce backend",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main",
+    "prisma:generate": "prisma generate",
+    "prisma:seed": "ts-node prisma/seed.ts",
+    "seed": "prisma db seed",
+    "save": "bash scripts/auto-save.sh"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.2.0",
+    "@nestjs/core": "^10.2.0",
+    "@nestjs/jwt": "^10.2.0",
+    "@nestjs/passport": "^10.0.3",
+    "@nestjs/platform-express": "^10.2.0",
+    "@nestjs/swagger": "^7.0.0",
+    "@prisma/client": "^5.18.0",
+    "@types/bcrypt": "^6.0.0",
+    "@types/multer": "^2.2.0",
+    "@types/passport": "^1.0.17",
+    "@types/passport-jwt": "^4.0.1",
+    "bcrypt": "^5.1.1",
+    "class-transformer": "^0.1.10",
+    "class-validator": "^0.14.4",
+    "cloudinary": "^2.11.0",
+    "multer": "^2.3.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.0.0",
+    "streamifier": "^0.1.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.2.0",
+    "@nestjs/schematics": "^10.2.0",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.10",
+    "prisma": "^5.18.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  }
+}
