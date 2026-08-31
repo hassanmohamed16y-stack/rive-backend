@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ProductStatus, Size } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEnum,
@@ -118,12 +119,14 @@ export class CreateProductDto {
 
   @ApiProperty({ type: [ProductImageDto] })
   @IsArray()
+  @ArrayMinSize(1, { message: 'At least one product image is required' })
   @ValidateNested({ each: true })
   @Type(() => ProductImageDto)
   images!: ProductImageDto[];
 
   @ApiProperty({ type: [ProductVariantDto] })
   @IsArray()
+  @ArrayMinSize(1, { message: 'At least one product variant is required' })
   @ValidateNested({ each: true })
   @Type(() => ProductVariantDto)
   variants!: ProductVariantDto[];
