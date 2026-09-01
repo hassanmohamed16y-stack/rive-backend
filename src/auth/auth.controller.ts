@@ -16,7 +16,7 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Register a new customer account' })
   @ApiResponse({ status: 201, description: 'User registered successfully.' })
-  @ApiResponse({ status: 401, description: 'User already exists.' })
+  @ApiResponse({ status: 409, description: 'User already exists.' })
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }

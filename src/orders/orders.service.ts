@@ -27,6 +27,8 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     await this.expirePendingReservations().catch((error: unknown) => {
       this.logger.error('Unable to expire pending order reservations', error instanceof Error ? error.stack : undefined);
     });
+    // Multi-instance deployments should replace this with an external cron/queue and distributed lock.
+    // The conditional PENDING transition keeps duplicate workers safe, but an external scheduler avoids redundant work.
     this.expirationTimer = setInterval(() => {
       void this.expirePendingReservations().catch((error: unknown) => {
         this.logger.error('Unable to expire pending order reservations', error instanceof Error ? error.stack : undefined);
@@ -178,6 +180,23 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     let expiredCount = 0;
     for (const order of orders) if (await this.expireOrder(order.id, now)) expiredCount += 1;
     return expiredCount;
+  }
+
+  async findAll(filters: { status?: OrderStatus }, pagination: { page?: number; limit?: number }) {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? 20;
+    const where = filters.status ? { status: filters.status } : {};
+    const [data, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        include: { items: { include: { productVariant: { include: { product: true } } } } },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
   async cancelPendingOrderInTransaction(

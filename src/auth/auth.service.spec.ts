@@ -1,5 +1,5 @@
 import { JwtService } from '@nestjs/jwt';
-import { UnauthorizedException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 
@@ -46,7 +46,7 @@ describe('AuthService', () => {
     const { service, prisma } = createService();
     prisma.user.findUnique.mockResolvedValueOnce(baseUser);
     await expect(service.register({ fullName: 'Aisha Rahman', email: baseUser.email, password: 'StrongPassword123!' }))
-      .rejects.toBeInstanceOf(UnauthorizedException);
+      .rejects.toBeInstanceOf(ConflictException);
 
     prisma.user.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(baseUser);
     await expect(service.login({ email: 'missing@example.com', password: 'wrong' })).rejects.toThrow('Invalid credentials');

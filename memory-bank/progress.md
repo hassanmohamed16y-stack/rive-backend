@@ -10,6 +10,7 @@
 - HTTP integration verifies that the production raw-body middleware passes a Stripe SDK-signed request through the controller to the PAID transition.
 - Phase 4 added production environment validation, `/health`, safe request ID logging, strict production CORS, Multer limits, pagination DTO validation, reproducible Docker/npm deployment, and dependency remediation.
 - Verified locally: `npm ci`, Prisma generate/migrations, typecheck, lint, 56 tests including PostgreSQL integrations, production startup and health/CORS, Docker image build, and zero production dependency audit vulnerabilities.
+- Added public ACTIVE-product filtering, admin product/order/category API operations, standard pagination metadata, password complexity, production Swagger restriction, and Docker dev-dependency pruning. Final verification: Prisma valid/up-to-date, typecheck/lint/build pass, 64 tests pass, Docker image build passes.
 
 **Not started / backlog**
 

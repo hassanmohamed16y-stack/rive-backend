@@ -11,6 +11,17 @@ import { CreateCheckoutSessionDto } from '../payment/dto/create-checkout-session
 
 describe('Backend security regression tests', () => {
   describe('Authentication - Role injection prevention', () => {
+    it('rejects a password without uppercase, lowercase, and numeric characters', async () => {
+      const dto = plainToInstance(RegisterDto, {
+        fullName: 'Aisha Rahman',
+        email: 'aisha@example.com',
+        password: 'alllowercase',
+      });
+
+      const errors = await validate(dto);
+      expect(errors.some((error) => error.property === 'password')).toBe(true);
+    });
+
     it('rejects role injection attempt in register payload', async () => {
       const dto = plainToInstance(RegisterDto, {
         fullName: 'Aisha Rahman',

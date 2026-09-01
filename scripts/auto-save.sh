@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -u
+set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT" || exit 1
@@ -9,7 +9,10 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   exit 1
 fi
 
-STATUS_OUTPUT="$(git status --porcelain)"
+if ! STATUS_OUTPUT="$(git status --porcelain)"; then
+  echo "[auto-save] Unable to read the repository status."
+  exit 1
+fi
 if [ -z "$STATUS_OUTPUT" ]; then
   echo "[auto-save] No changes to commit."
   exit 0
@@ -19,13 +22,16 @@ TIMESTAMP="$(date '+%Y-%m-%d %H:%M:%S')"
 COMMIT_MESSAGE="Auto-save: $TIMESTAMP"
 
 echo "[auto-save] Staging changes..."
-git add .
+if ! git add .; then
+  echo "[auto-save] Staging changes failed."
+  exit 1
+fi
 
 if ! git diff --cached --quiet; then
   echo "[auto-save] Creating commit: $COMMIT_MESSAGE"
   if ! git commit -m "$COMMIT_MESSAGE"; then
-    echo "[auto-save] Commit failed. There may be nothing new to commit after staging."
-    exit 0
+    echo "[auto-save] Commit failed. Resolve Git errors and retry."
+    exit 1
   fi
 else
   echo "[auto-save] No staged changes detected after add."
@@ -38,10 +44,18 @@ if [ -z "$CURRENT_BRANCH" ]; then
   exit 0
 fi
 
-echo "[auto-save] Pushing to origin/$CURRENT_BRANCH..."
-if ! git push origin "$CURRENT_BRANCH"; then
-  echo "[auto-save] Push failed. This is usually due to no remote, auth issues, or offline mode."
-  exit 0
+REMOTE_NAME="$(git config --get "branch.$CURRENT_BRANCH.remote" || true)"
+REMOTE_NAME="${REMOTE_NAME:-origin}"
+
+if ! git remote get-url "$REMOTE_NAME" >/dev/null 2>&1; then
+  echo "[auto-save] Remote '$REMOTE_NAME' is not configured."
+  exit 1
+fi
+
+echo "[auto-save] Pushing to $REMOTE_NAME/$CURRENT_BRANCH..."
+if ! git push "$REMOTE_NAME" "$CURRENT_BRANCH"; then
+  echo "[auto-save] Push failed. Check your network connection, remote access, and branch protection, then retry."
+  exit 1
 fi
 
 echo "[auto-save] Auto-save complete."

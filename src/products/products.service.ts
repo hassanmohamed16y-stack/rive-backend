@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, ProductStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 
@@ -12,13 +12,17 @@ export class ProductsService {
       category?: string;
       isFeatured?: string;
       search?: string;
+      status?: ProductStatus;
     },
     pagination?: {
-      skip?: number;
-      take?: number;
+      page?: number;
+      limit?: number;
     },
+    includeAllStatuses = false,
   ) {
-    const where: Prisma.ProductWhereInput = {};
+    const where: Prisma.ProductWhereInput = includeAllStatuses
+      ? { ...(filters?.status ? { status: filters.status } : {}) }
+      : { status: ProductStatus.ACTIVE };
 
     if (filters?.category) {
       where.category = {
@@ -39,7 +43,10 @@ export class ProductsService {
       ];
     }
 
-    return this.prisma.product.findMany({
+    const page = pagination?.page ?? 1;
+    const limit = pagination?.limit ?? 20;
+    const [data, total] = await Promise.all([
+      this.prisma.product.findMany({
       where,
       include: {
         category: true,
@@ -52,14 +59,18 @@ export class ProductsService {
         },
       },
       orderBy: { createdAt: 'desc' },
-      skip: pagination?.skip || 0,
-      take: pagination?.take || undefined,
-    });
+      skip: (page - 1) * limit,
+      take: limit,
+      }),
+      this.prisma.product.count({ where }),
+    ]);
+
+    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findOneBySlug(slug: string) {
-    const product = await this.prisma.product.findUnique({
-      where: { slug },
+  async findOneBySlug(slug: string, includeAllStatuses = false) {
+    const product = await this.prisma.product.findFirst({
+      where: includeAllStatuses ? { slug } : { slug, status: ProductStatus.ACTIVE },
       include: {
         category: true,
         images: {
@@ -126,5 +137,17 @@ export class ProductsService {
     });
 
     return product;
+  }
+
+  async update(id: string, data: Prisma.ProductUpdateInput) {
+    try {
+      return await this.prisma.product.update({ where: { id }, data, include: { category: true, images: true, variants: true } });
+    } catch {
+      throw new NotFoundException(`Product ${id} was not found`);
+    }
+  }
+
+  async archive(id: string) {
+    return this.update(id, { status: ProductStatus.ARCHIVED });
   }
 }

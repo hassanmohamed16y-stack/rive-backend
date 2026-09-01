@@ -10,5 +10,6 @@ Document **architecture** and **recurring patterns** so Copilot stays aligned.
 - Concurrent Checkout creation that returns the same Stripe idempotency-key result must re-read and return the stored session instead of reporting an avoidable error.
 - Webhook signature tests use Stripe SDK test-header generation and the production `constructEvent` path, rather than mocking successful signature verification.
 - Production startup validates all required configuration, public `/health` performs a Prisma reachability query, and request logs/errors use a request ID without recording payloads or authorization headers.
+- Public product queries always scope to `ProductStatus.ACTIVE`; administrative status visibility uses controllers protected with both JWT and ADMIN role guards. List APIs return `{ data, meta: { page, limit, total, totalPages } }`.
 
 _Link to key files or packages when it saves repetition._

@@ -2,13 +2,16 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Auto Save Git",
+      "label": "Git: Auto Save and Push",
       "type": "shell",
       "command": "npm run save",
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "group": "build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
       "problemMatcher": []
     }
   ]
