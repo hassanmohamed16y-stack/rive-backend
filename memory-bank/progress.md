@@ -1,0 +1,23 @@
+# Progress
+
+**What works**
+
+- Phase 1 security controls remain in place.
+- Phase 2 order reservation lifecycle, schema constraints, migration, and tests implemented and verified.
+- Phase 3 Stripe Checkout idempotency, verified raw webhooks, persistent event idempotency, and payment-flow integration tests implemented and verified.
+- Checkout-session persistence race handled and verified with focused Stripe tests.
+- Stripe SDK cryptographic webhook-signature acceptance is verified locally; invalid signatures remain covered.
+- HTTP integration verifies that the production raw-body middleware passes a Stripe SDK-signed request through the controller to the PAID transition.
+- Phase 4 added production environment validation, `/health`, safe request ID logging, strict production CORS, Multer limits, pagination DTO validation, reproducible Docker/npm deployment, and dependency remediation.
+- Verified locally: `npm ci`, Prisma generate/migrations, typecheck, lint, 56 tests including PostgreSQL integrations, production startup and health/CORS, Docker image build, and zero production dependency audit vulnerabilities.
+
+**Not started / backlog**
+
+- Live Stripe-account webhook delivery remains a deployment-environment verification item.
+
+**Known issues**
+
+- Default VS Code sandboxed terminal reports missing `rg`; direct execution works. Node emits a third-party `url.parse()` deprecation warning during some tests.
+- A real Stripe CLI/account test is unavailable in this workspace; Stripe SDK cryptographic and HTTP-path tests pass locally.
+
+_Keep bullets factual and small; link issues or PRs when useful._

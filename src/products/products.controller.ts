@@ -5,6 +5,7 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductsService } from './products.service';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('products')
 @Controller('api/v1/products')
@@ -22,16 +23,13 @@ export class ProductsController {
     @Query('category') category?: string,
     @Query('isFeatured') isFeatured?: string,
     @Query('search') search?: string,
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '20',
+    @Query() pagination: PaginationDto = new PaginationDto(),
   ) {
-    const pageNum = Math.max(1, parseInt(page, 10) || 1);
-    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
-    const skip = (pageNum - 1) * limitNum;
+    const skip = (pagination.page - 1) * pagination.limit;
 
     return this.productsService.findAll(
       { category, isFeatured, search },
-      { skip, take: limitNum },
+      { skip, take: pagination.limit },
     );
   }
 

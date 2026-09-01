@@ -3,7 +3,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY prisma ./prisma
 COPY tsconfig*.json ./
@@ -23,12 +23,10 @@ COPY package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/.env.example ./.env.example
+COPY .env.example ./.env.example
 
 EXPOSE 3000
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && adduser -S node -u 1001
 USER node
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]

@@ -1,34 +1,43 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { AuthService } from './auth.service';
+
+const jwtSecret = process.env.JWT_SECRET ?? 'development-only-secret';
+const isProduction = process.env.NODE_ENV === 'production';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   private readonly logger = new Logger(JwtStrategy.name);
 
   constructor(private readonly authService: AuthService) {
-    const secret = process.env.JWT_SECRET;
-
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: secret ?? 'dev-secret-key',
+      secretOrKey: jwtSecret,
     });
 
-    if (!secret && process.env.NODE_ENV === 'production') {
-      this.logger.error('JWT_SECRET is not set in production. Exiting.');
+    if (isProduction && !process.env.JWT_SECRET) {
+      this.logger.error('JWT_SECRET is required in production.');
       throw new Error('JWT_SECRET is required in production');
     }
   }
 
-  async validate(payload: { userId: string; role: string }) {
-    const user = await this.authService.validateUser(payload.userId);
-
-    if (!user) {
-      return null;
+  async validate(payload: { userId?: string; sub?: string; role?: string; email?: string }) {
+    const userId = payload.userId ?? payload.sub;
+    if (!userId) {
+      throw new UnauthorizedException('Invalid token payload');
     }
 
-    return { userId: user.id, email: user.email, role: user.role };
+    const user = await this.authService.validateUser(userId);
+    if (!user) {
+      throw new UnauthorizedException('User no longer exists');
+    }
+
+    return {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    };
   }
 }

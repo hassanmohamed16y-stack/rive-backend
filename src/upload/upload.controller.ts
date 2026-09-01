@@ -35,7 +35,7 @@ export class UploadController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @ApiBearerAuth()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload an image to Cloudinary (ADMIN only)' })
   @ApiResponse({ status: 201, description: 'Image uploaded successfully.' })

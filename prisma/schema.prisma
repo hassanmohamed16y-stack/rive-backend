@@ -19,6 +19,7 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+  EXPIRED
 }
 
 enum UserRole {
@@ -42,6 +43,7 @@ model User {
   role         UserRole @default(CUSTOMER)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  orders       Order[]
 }
 
 model Category {
@@ -66,7 +68,7 @@ model Product {
   isFeatured       Boolean         @default(false)
   status           ProductStatus   @default(ACTIVE)
   categoryId       String
-  category         Category        @relation(fields: [categoryId], references: [id])
+  category         Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   images           ProductImage[]
   variants         ProductVariant[]
   createdAt        DateTime        @default(now())
@@ -106,19 +108,24 @@ model ProductVariant {
 }
 
 model Order {
-  id            String      @id @default(cuid())
-  orderNumber   String      @unique
-  userId        String?
-  status        OrderStatus @default(PENDING)
-  totalAmount   Decimal     @db.Decimal(10, 2)
-  customerName  String?
-  customerEmail String?
-  notes         String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  items         OrderItem[]
+  id               String      @id @default(cuid())
+  orderNumber      String      @unique
+  guestAccessToken String?     @unique
+  userId           String?
+  user             User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status           OrderStatus @default(PENDING)
+  totalAmount      Decimal     @db.Decimal(10, 2)
+  customerName     String?
+  customerEmail    String?
+  notes            String?
+  reservationExpiresAt DateTime?
+  paymentSessionId String?     @unique
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  items            OrderItem[]
 
   @@index([userId])
+  @@index([status, reservationExpiresAt])
 }
 
 model OrderItem {
@@ -126,7 +133,7 @@ model OrderItem {
   orderId         String
   order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productVariantId String        
-  productVariant  ProductVariant @relation(fields: [productVariantId], references: [id])
+  productVariant  ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
   quantity        Int
   unitPrice       Decimal        @db.Decimal(10, 2)
   totalPrice      Decimal        @db.Decimal(10, 2)
@@ -134,4 +141,17 @@ model OrderItem {
 
   @@index([orderId])
   @@index([productVariantId])
+  @@unique([orderId, productVariantId])
+}
+
+model ProcessedStripeEvent {
+  id            String   @id @default(cuid())
+  stripeEventId String   @unique
+  eventType     String
+  orderId       String?
+  createdAt     DateTime @default(now())
+  processedAt   DateTime @default(now())
+
+  @@index([orderId])
+  @@index([eventType, processedAt])
 }

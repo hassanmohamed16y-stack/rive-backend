@@ -4,7 +4,10 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-  const adminPassword = process.env.ADMIN_INITIAL_PASSWORD || 'Admin123!';
+  if (!process.env.ADMIN_INITIAL_PASSWORD && process.env.NODE_ENV === 'production') {
+    throw new Error('ADMIN_INITIAL_PASSWORD is required in production');
+  }
+  const adminPassword = process.env.ADMIN_INITIAL_PASSWORD ?? 'development-only-admin-password';
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
   await prisma.user.upsert({

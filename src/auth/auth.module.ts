@@ -1,4 +1,4 @@
-import { Logger, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -8,21 +8,15 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
 import { JwtStrategy } from './jwt.strategy';
 
+const jwtSecret = process.env.JWT_SECRET ?? (process.env.NODE_ENV === 'production' ? undefined : 'development-only-secret');
+
 @Module({
   imports: [
     PrismaModule,
     PassportModule,
     JwtModule.register({
-      secret: (() => {
-        const secret = process.env.JWT_SECRET;
-        if (!secret && process.env.NODE_ENV === 'production') {
-          const logger = new Logger('AuthModule');
-          logger.error('JWT_SECRET is not set in production. Exiting.');
-          throw new Error('JWT_SECRET is required in production');
-        }
-        return secret ?? 'dev-secret-key';
-      })(),
-      signOptions: { expiresIn: '1h' },
+      secret: jwtSecret,
+      signOptions: { expiresIn: (process.env.JWT_EXPIRATION ?? '1h') as `${number}${'s' | 'm' | 'h' | 'd'}` },
     }),
   ],
   controllers: [AuthController],

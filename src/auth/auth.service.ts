@@ -16,26 +16,28 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const existingUser = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { email: dto.email.toLowerCase() },
     });
 
     if (existingUser) {
       throw new UnauthorizedException('User already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const hashedPassword = await bcrypt.hash(dto.password, 12);
 
     const user = await this.prisma.user.create({
       data: {
-        fullName: dto.fullName,
-        email: dto.email,
+        fullName: dto.fullName.trim(),
+        email: dto.email.toLowerCase(),
         passwordHash: hashedPassword,
         role: 'CUSTOMER',
       },
     });
 
     const token = this.jwtService.sign({
+      sub: user.id,
       userId: user.id,
+      email: user.email,
       role: user.role,
     });
 
@@ -48,8 +50,9 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
+    const normalizedEmail = dto.email.toLowerCase();
     const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { email: normalizedEmail },
     });
 
     if (!user) {
@@ -63,7 +66,9 @@ export class AuthService {
     }
 
     const token = this.jwtService.sign({
+      sub: user.id,
       userId: user.id,
+      email: user.email,
       role: user.role,
     });
 

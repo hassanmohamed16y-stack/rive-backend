@@ -5,6 +5,7 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('categories')
 @Controller('api/v1/categories')
@@ -16,14 +17,11 @@ export class CategoriesController {
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (1-indexed)', example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page', example: 20 })
   async findAll(
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '20',
+    @Query() pagination: PaginationDto,
   ) {
-    const pageNum = Math.max(1, parseInt(page, 10) || 1);
-    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
-    const skip = (pageNum - 1) * limitNum;
+    const skip = (pagination.page - 1) * pagination.limit;
 
-    const categories = await this.categoriesService.findAll({ skip, take: limitNum });
+    const categories = await this.categoriesService.findAll({ skip, take: pagination.limit });
 
     return categories.map((category) => ({
       ...category,
