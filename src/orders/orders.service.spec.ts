@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { OrderStatus, ProductStatus } from '@prisma/client';
 import { OrdersService } from './orders.service';
 
@@ -13,7 +13,15 @@ function transactionPrisma(stock = 1) {
     id: 'variant-1', stock, isAvailable: true, price: '25.00',
     product: { status: ProductStatus.ACTIVE },
   };
-  const order: { id: string; status: OrderStatus } = { id: 'order-1', status: OrderStatus.PENDING };
+  const order: any = {
+    id: 'order-1',
+    orderNumber: 'RIV-1000-ABC',
+    userId: null,
+    guestAccessToken: 'guest-token',
+    status: OrderStatus.PENDING,
+    reservationExpiresAt: new Date(Date.now() + 60_000),
+    items: [{ productVariantId: 'variant-1', quantity: 1, productVariant: variant }],
+  };
   const tx = {
     productVariant: {
       findMany: jest.fn().mockResolvedValue([variant]),
@@ -25,28 +33,49 @@ function transactionPrisma(stock = 1) {
       update: jest.fn(async ({ data }) => ({ ...variant, stock: variant.stock += data.stock.increment })),
     },
     order: {
-      create: jest.fn(async ({ data }) => ({ ...order, ...data, items: [] })),
-      findUnique: jest.fn(async () => order),
-      findUniqueOrThrow: jest.fn(async () => order),
+      create: jest.fn(async ({ data }) => ({ ...order, ...data, items: order.items })),
+      findUnique: jest.fn(async ({ where }) => {
+        if (where.id && where.id !== order.id) return null;
+        if (where.orderNumber && where.orderNumber !== order.orderNumber) return null;
+        return order;
+      }),
+      findUniqueOrThrow: jest.fn(async ({ where }) => {
+        if (where.id !== order.id) throw new NotFoundException('Order not found');
+        return order;
+      }),
       updateMany: jest.fn(async ({ where, data }) => {
-        if (order.status !== where.status) return { count: 0 };
-        if (where.reservationExpiresAt?.lte && new Date() > where.reservationExpiresAt.lte) return { count: 0 };
+        if (order.id !== where.id || order.status !== where.status) return { count: 0 };
+        if (where.reservationExpiresAt?.lte && order.reservationExpiresAt > where.reservationExpiresAt.lte) return { count: 0 };
+        if (where.reservationExpiresAt?.gt && (!order.reservationExpiresAt || order.reservationExpiresAt <= new Date())) return { count: 0 };
         order.status = data.status;
+        order.reservationExpiresAt = data.reservationExpiresAt ?? null;
+        if (data.updatedById) order.updatedById = data.updatedById;
         return { count: 1 };
       }),
+      update: jest.fn(async ({ data }) => {
+        order.status = data.status;
+        if (data.updatedById) order.updatedById = data.updatedById;
+        return order;
+      }),
       findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
     },
     orderItem: {
       findMany: jest.fn().mockResolvedValue([{ productVariantId: 'variant-1', quantity: 1 }]),
     },
   };
-  return { prisma: { $transaction: (callback: any) => callback(tx), order: tx.order }, tx, variant, order };
+  const prisma = {
+    $transaction: (callback: any) => callback(tx),
+    order: tx.order,
+  };
+  const auditLogService = { record: jest.fn().mockResolvedValue(undefined) };
+  return { prisma, tx, variant, order, auditLogService };
 }
 
 describe('OrdersService inventory reservations', () => {
   it('allows exactly one of two simultaneous reservations when stock is one', async () => {
     const context = transactionPrisma(1);
-    const service = new OrdersService(context.prisma as any);
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
 
     const results = await Promise.allSettled([service.create(dto), service.create(dto)]);
 
@@ -57,7 +86,7 @@ describe('OrdersService inventory reservations', () => {
 
   it('rolls back a reservation when stock is insufficient', async () => {
     const context = transactionPrisma(0);
-    const service = new OrdersService(context.prisma as any);
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
 
     await expect(service.create(dto)).rejects.toBeInstanceOf(BadRequestException);
     expect(context.tx.order.create).not.toHaveBeenCalled();
@@ -66,7 +95,7 @@ describe('OrdersService inventory reservations', () => {
 
   it('rejects duplicate variants before reserving stock', async () => {
     const context = transactionPrisma();
-    const service = new OrdersService(context.prisma as any);
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
 
     await expect(service.create({ ...dto, items: [dto.items[0], dto.items[0]] })).rejects.toThrow('Duplicate');
     expect(context.tx.productVariant.updateMany).not.toHaveBeenCalled();
@@ -74,8 +103,8 @@ describe('OrdersService inventory reservations', () => {
 
   it('restores an expired reservation exactly once', async () => {
     const context = transactionPrisma(0);
-    const service = new OrdersService(context.prisma as any);
-    const expirationMoment = new Date(Date.now() + 1_000);
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
+    const expirationMoment = new Date(Date.now() + 120_000);
 
     await expect(service.expireOrder('order-1', expirationMoment)).resolves.toBe(true);
     await expect(service.expireOrder('order-1', expirationMoment)).resolves.toBe(false);
@@ -86,7 +115,7 @@ describe('OrdersService inventory reservations', () => {
   it('does not expire or restore stock for paid orders', async () => {
     const context = transactionPrisma(0);
     context.order.status = OrderStatus.PAID;
-    const service = new OrdersService(context.prisma as any);
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
 
     await expect(service.expireOrder('order-1', new Date())).resolves.toBe(false);
     expect(context.variant.stock).toBe(0);
@@ -96,8 +125,24 @@ describe('OrdersService inventory reservations', () => {
   it('rejects invalid order state transitions', async () => {
     const context = transactionPrisma();
     context.order.status = OrderStatus.DELIVERED;
-    const service = new OrdersService(context.prisma as any);
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
 
-    await expect(service.transitionStatus('order-1', OrderStatus.PAID)).rejects.toThrow('Cannot transition');
+    await expect(service.transitionStatus('order-1', OrderStatus.PAID, 'admin-1')).rejects.toThrow('Cannot transition');
+  });
+
+  it('cancels a pending order by order number using shared stock restoration logic', async () => {
+    const context = transactionPrisma(0);
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
+
+    await expect(service.cancelByOrderNumber('RIV-1000-ABC')).resolves.toMatchObject({ status: OrderStatus.CANCELLED });
+    expect(context.variant.stock).toBe(1);
+  });
+
+  it('rejects cancellation when the order is no longer pending', async () => {
+    const context = transactionPrisma(0);
+    context.order.status = OrderStatus.PAID;
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
+
+    await expect(service.cancelByOrderNumber('RIV-1000-ABC')).rejects.toBeInstanceOf(ConflictException);
   });
 });

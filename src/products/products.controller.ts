@@ -1,12 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
-import { CreateProductDto } from './dto/create-product.dto';
-import { ProductsService } from './products.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { ProductsService } from './products.service';
 
 @ApiTags('products')
 @Controller('api/v1/products')
@@ -49,8 +49,8 @@ export class ProductsController {
   @ApiResponse({ status: 201, description: 'Product created successfully.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden. ADMIN role required.' })
-  async create(@Body() dto: CreateProductDto) {
-    return this.productsService.create(dto);
+  async create(@Body() dto: CreateProductDto, @Req() req: any) {
+    return this.productsService.create(dto, req.user.id);
   }
 
   @Patch(':id')
@@ -59,8 +59,8 @@ export class ProductsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update product details (Admin)' })
   @ApiResponse({ status: 200, description: 'Product updated successfully.' })
-  async update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
-    return this.productsService.update(id, dto);
+  async update(@Param('id') id: string, @Body() dto: UpdateProductDto, @Req() req: any) {
+    return this.productsService.update(id, dto, req.user.id);
   }
 
   @Delete(':id')
@@ -69,7 +69,7 @@ export class ProductsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Archive a product without deleting order history (Admin)' })
   @ApiResponse({ status: 200, description: 'Product archived successfully.' })
-  async archive(@Param('id') id: string) {
-    return this.productsService.archive(id);
+  async archive(@Param('id') id: string, @Req() req: any) {
+    return this.productsService.archive(id, req.user.id);
   }
 }

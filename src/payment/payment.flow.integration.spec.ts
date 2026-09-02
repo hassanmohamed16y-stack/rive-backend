@@ -8,7 +8,7 @@ const describeWithDatabase = process.env.RUN_DATABASE_INTEGRATION_TESTS === 'tru
 
 describeWithDatabase('Stripe payment flow with PostgreSQL', () => {
   const prisma = new PrismaClient();
-  const ordersService = new OrdersService(prisma as any);
+  const ordersService = new OrdersService(prisma as any, { record: jest.fn().mockResolvedValue(undefined) } as any);
   const paymentService = new PaymentService(prisma as any, ordersService);
   const orderIds: string[] = [];
   let categoryId: string;

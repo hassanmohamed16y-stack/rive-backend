@@ -1,11 +1,25 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, ProductStatus } from '@prisma/client';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 
+const productInclude = {
+  category: true,
+  images: {
+    orderBy: { createdAt: 'asc' as const },
+  },
+  variants: {
+    orderBy: { createdAt: 'asc' as const },
+  },
+} satisfies Prisma.ProductInclude;
+
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   async findAll(
     filters?: {
@@ -47,20 +61,20 @@ export class ProductsService {
     const limit = pagination?.limit ?? 20;
     const [data, total] = await Promise.all([
       this.prisma.product.findMany({
-      where,
-      include: {
-        category: true,
-        images: {
-          orderBy: { createdAt: 'asc' },
-          where: { isPrimary: true },
+        where,
+        include: {
+          category: true,
+          images: {
+            orderBy: { createdAt: 'asc' },
+            where: { isPrimary: true },
+          },
+          variants: {
+            orderBy: { createdAt: 'asc' },
+          },
         },
-        variants: {
-          orderBy: { createdAt: 'asc' },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
       }),
       this.prisma.product.count({ where }),
     ]);
@@ -71,15 +85,7 @@ export class ProductsService {
   async findOneBySlug(slug: string, includeAllStatuses = false) {
     const product = await this.prisma.product.findFirst({
       where: includeAllStatuses ? { slug } : { slug, status: ProductStatus.ACTIVE },
-      include: {
-        category: true,
-        images: {
-          orderBy: { createdAt: 'asc' },
-        },
-        variants: {
-          orderBy: { createdAt: 'asc' },
-        },
-      },
+      include: productInclude,
     });
 
     if (!product) {
@@ -89,7 +95,20 @@ export class ProductsService {
     return product;
   }
 
-  async create(dto: CreateProductDto) {
+  async findByIdForAdmin(id: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+      include: productInclude,
+    });
+
+    if (!product) {
+      throw new NotFoundException(`Product ${id} was not found`);
+    }
+
+    return product;
+  }
+
+  async create(dto: CreateProductDto, actorUserId?: string) {
     const category = await this.prisma.category.findUnique({
       where: { slug: dto.categorySlug },
     });
@@ -111,6 +130,12 @@ export class ProductsService {
         category: {
           connect: { id: category.id },
         },
+        ...(actorUserId
+          ? {
+              createdBy: { connect: { id: actorUserId } },
+              updatedBy: { connect: { id: actorUserId } },
+            }
+          : {}),
         images: {
           create: dto.images.map((image) => ({
             url: image.url,
@@ -129,25 +154,67 @@ export class ProductsService {
           })),
         },
       },
-      include: {
-        category: true,
-        images: true,
-        variants: true,
-      },
+      include: productInclude,
+    });
+
+    await this.auditLogService.record({
+      userId: actorUserId,
+      action: 'product.create',
+      entityType: 'Product',
+      entityId: product.id,
+      changes: dto,
     });
 
     return product;
   }
 
-  async update(id: string, data: Prisma.ProductUpdateInput) {
+  async update(id: string, data: Prisma.ProductUpdateInput, actorUserId?: string) {
     try {
-      return await this.prisma.product.update({ where: { id }, data, include: { category: true, images: true, variants: true } });
+      const product = await this.prisma.product.update({
+        where: { id },
+        data: {
+          ...data,
+          ...(actorUserId ? { updatedBy: { connect: { id: actorUserId } } } : {}),
+        },
+        include: productInclude,
+      });
+
+      await this.auditLogService.record({
+        userId: actorUserId,
+        action: 'product.update',
+        entityType: 'Product',
+        entityId: product.id,
+        changes: data,
+      });
+
+      return product;
     } catch {
       throw new NotFoundException(`Product ${id} was not found`);
     }
   }
 
-  async archive(id: string) {
-    return this.update(id, { status: ProductStatus.ARCHIVED });
+  async archive(id: string, actorUserId?: string) {
+    try {
+      const product = await this.prisma.product.update({
+        where: { id },
+        data: {
+          status: ProductStatus.ARCHIVED,
+          ...(actorUserId ? { updatedBy: { connect: { id: actorUserId } } } : {}),
+        },
+        include: productInclude,
+      });
+
+      await this.auditLogService.record({
+        userId: actorUserId,
+        action: 'product.archive',
+        entityType: 'Product',
+        entityId: product.id,
+        changes: { status: ProductStatus.ARCHIVED },
+      });
+
+      return product;
+    } catch {
+      throw new NotFoundException(`Product ${id} was not found`);
+    }
   }
 }

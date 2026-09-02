@@ -25,7 +25,9 @@ services:
       ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:?ADMIN_INITIAL_PASSWORD is required}
     depends_on:
       - db
-    command: sh -c "npx prisma migrate deploy && npm run prisma:seed && node dist/src/main.js"
+    # Run seeding manually once after first deploy via: docker compose exec api npm run prisma:seed.
+    # Auto-seeding on every restart would overwrite any manual admin password change.
+    command: sh -c "npx prisma migrate deploy && node dist/src/main.js"
 
   db:
     image: postgres:16-alpine
@@ -35,8 +37,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-    ports:
-      - "5432:5432"
+    # The api service reaches Postgres at db:5432 over Docker's internal network, so no public port is needed.
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

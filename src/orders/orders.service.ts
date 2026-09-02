@@ -2,6 +2,8 @@ import * as crypto from 'crypto';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { OrderStatus, Prisma, ProductStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 
@@ -16,12 +18,27 @@ const allowedTransitions: Record<OrderStatus, OrderStatus[]> = {
   EXPIRED: [],
 };
 
+const orderInclude = {
+  items: {
+    include: {
+      productVariant: {
+        include: {
+          product: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.OrderInclude;
+
 @Injectable()
 export class OrdersService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OrdersService.name);
   private expirationTimer?: NodeJS.Timeout;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   async onModuleInit() {
     await this.expirePendingReservations().catch((error: unknown) => {
@@ -39,6 +56,13 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy() {
     if (this.expirationTimer) clearInterval(this.expirationTimer);
+  }
+
+  private async findOrderDetailsById(client: PrismaService | Prisma.TransactionClient, orderId: string) {
+    return client.order.findUniqueOrThrow({
+      where: { id: orderId },
+      include: orderInclude,
+    });
   }
 
   private generateOrderNumber(): string {
@@ -112,12 +136,18 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       );
       return tx.order.create({
         data: {
-          orderNumber: this.generateOrderNumber(), userId, guestAccessToken,
-          status: OrderStatus.PENDING, totalAmount: totalAmount.toString(),
-          customerName: dto.customerName, customerEmail: dto.customerEmail, notes: dto.notes,
-          reservationExpiresAt, items: { create: orderItemsData },
+          orderNumber: this.generateOrderNumber(),
+          userId,
+          guestAccessToken,
+          status: OrderStatus.PENDING,
+          totalAmount: totalAmount.toString(),
+          customerName: dto.customerName,
+          customerEmail: dto.customerEmail,
+          notes: dto.notes,
+          reservationExpiresAt,
+          items: { create: orderItemsData },
         },
-        include: { items: { include: { productVariant: { include: { product: true } } } } },
+        include: orderInclude,
       });
     });
 
@@ -127,45 +157,101 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async markPaid(orderId: string) {
-    return this.prisma.$transaction((tx) => this.markPaidInTransaction(tx, orderId));
+  async markPaid(orderId: string, updatedById?: string) {
+    return this.prisma.$transaction((tx) => this.markPaidInTransaction(tx, orderId, updatedById));
   }
 
-  async markPaidInTransaction(tx: Prisma.TransactionClient, orderId: string) {
+  async markPaidInTransaction(tx: Prisma.TransactionClient, orderId: string, updatedById?: string) {
     const order = await tx.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Order not found');
-    if (order.status === OrderStatus.PAID) return order;
+    if (order.status === OrderStatus.PAID) return this.findOrderDetailsById(tx, orderId);
     this.assertTransition(order.status, OrderStatus.PAID);
     const updated = await tx.order.updateMany({
       where: { id: orderId, status: OrderStatus.PENDING, reservationExpiresAt: { gt: new Date() } },
-      data: { status: OrderStatus.PAID, reservationExpiresAt: null },
+      data: {
+        status: OrderStatus.PAID,
+        reservationExpiresAt: null,
+        ...(updatedById ? { updatedById } : {}),
+      },
     });
     if (updated.count !== 1) throw new ConflictException('Order reservation has expired');
-    return tx.order.findUniqueOrThrow({ where: { id: orderId } });
+    return this.findOrderDetailsById(tx, orderId);
   }
 
-  async transitionStatus(orderId: string, nextStatus: OrderStatus) {
-    if (nextStatus === OrderStatus.CANCELLED) {
-      return this.cancelPendingOrder(orderId, OrderStatus.CANCELLED);
-    }
-    if (nextStatus === OrderStatus.EXPIRED) {
-      return this.expireOrder(orderId);
-    }
-    if (nextStatus === OrderStatus.PAID) {
-      return this.markPaid(orderId);
-    }
+  async transitionStatus(orderId: string, nextStatus: OrderStatus, actorUserId?: string) {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const before = await tx.order.findUnique({ where: { id: orderId } });
+      if (!before) {
+        throw new NotFoundException('Order not found');
+      }
 
-    return this.prisma.$transaction(async (tx) => {
-      const order = await tx.order.findUnique({ where: { id: orderId } });
-      if (!order) throw new NotFoundException('Order not found');
-      if (order.status === nextStatus) return order;
-      this.assertTransition(order.status, nextStatus);
-      return tx.order.update({ where: { id: orderId }, data: { status: nextStatus } });
+      if (before.status === nextStatus) {
+        return { before, after: await this.findOrderDetailsById(tx, orderId) };
+      }
+
+      this.assertTransition(before.status, nextStatus);
+
+      let after;
+      if (nextStatus === OrderStatus.CANCELLED) {
+        const cancelled = await this.cancelPendingOrderInTransaction(tx, orderId, OrderStatus.CANCELLED, undefined, actorUserId);
+        if (!cancelled) {
+          throw new ConflictException('Order is no longer pending');
+        }
+        after = await this.findOrderDetailsById(tx, orderId);
+      } else if (nextStatus === OrderStatus.EXPIRED) {
+        const expired = await this.cancelPendingOrderInTransaction(tx, orderId, OrderStatus.EXPIRED, undefined, actorUserId);
+        if (!expired) {
+          throw new ConflictException('Order is no longer pending');
+        }
+        after = await this.findOrderDetailsById(tx, orderId);
+      } else if (nextStatus === OrderStatus.PAID) {
+        after = await this.markPaidInTransaction(tx, orderId, actorUserId);
+      } else {
+        after = await tx.order.update({
+          where: { id: orderId },
+          data: {
+            status: nextStatus,
+            ...(actorUserId ? { updatedById: actorUserId } : {}),
+          },
+          include: orderInclude,
+        });
+      }
+
+      return { before, after };
     });
+
+    if (actorUserId && result.before.status !== result.after.status) {
+      await this.auditLogService.record({
+        userId: actorUserId,
+        action: 'order.status-transition',
+        entityType: 'Order',
+        entityId: result.after.id,
+        changes: { from: result.before.status, to: result.after.status },
+      });
+    }
+
+    return result.after;
   }
 
-  async cancelPendingOrder(orderId: string, status: 'CANCELLED' | 'EXPIRED') {
-    return this.prisma.$transaction((tx) => this.cancelPendingOrderInTransaction(tx, orderId, status));
+  async cancelPendingOrder(orderId: string, status: 'CANCELLED' | 'EXPIRED', updatedById?: string) {
+    return this.prisma.$transaction((tx) => this.cancelPendingOrderInTransaction(tx, orderId, status, undefined, updatedById));
+  }
+
+  async cancelByOrderNumber(orderNumber: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({ where: { orderNumber } });
+      if (!order) {
+        throw new NotFoundException(`Order ${orderNumber} was not found`);
+      }
+      if (order.status !== OrderStatus.PENDING) {
+        throw new ConflictException('Only pending orders can be cancelled');
+      }
+      const cancelled = await this.cancelPendingOrderInTransaction(tx, order.id, OrderStatus.CANCELLED);
+      if (!cancelled) {
+        throw new ConflictException('Only pending orders can be cancelled');
+      }
+      return this.findOrderDetailsById(tx, order.id);
+    });
   }
 
   async expireOrder(orderId: string, now = new Date()) {
@@ -189,7 +275,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     const [data, total] = await Promise.all([
       this.prisma.order.findMany({
         where,
-        include: { items: { include: { productVariant: { include: { product: true } } } } },
+        include: orderInclude,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -199,25 +285,44 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
+  async findByIdForAdmin(id: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: orderInclude,
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order ${id} was not found`);
+    }
+
+    return order;
+  }
+
   async cancelPendingOrderInTransaction(
     tx: Prisma.TransactionClient,
     orderId: string,
     status: 'CANCELLED' | 'EXPIRED',
     now?: Date,
+    updatedById?: string,
   ) {
     const updated = await tx.order.updateMany({
-        where: {
-          id: orderId,
-          status: OrderStatus.PENDING,
-          ...(now ? { reservationExpiresAt: { lte: now } } : {}),
-        },
-        data: { status, reservationExpiresAt: null },
-      });
+      where: {
+        id: orderId,
+        status: OrderStatus.PENDING,
+        ...(now ? { reservationExpiresAt: { lte: now } } : {}),
+      },
+      data: {
+        status,
+        reservationExpiresAt: null,
+        ...(updatedById ? { updatedById } : {}),
+      },
+    });
     if (updated.count === 0) return false;
     const items = await tx.orderItem.findMany({ where: { orderId } });
     for (const item of items) {
       await tx.productVariant.update({
-        where: { id: item.productVariantId }, data: { stock: { increment: item.quantity } },
+        where: { id: item.productVariantId },
+        data: { stock: { increment: item.quantity } },
       });
     }
     return true;
@@ -226,24 +331,14 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
   async findOne(orderNumber: string, guestAccessToken?: string) {
     const order = await this.prisma.order.findUnique({
       where: { orderNumber },
-      include: {
-        items: {
-          include: {
-            productVariant: {
-              include: {
-                product: true,
-              },
-            },
-          },
-        },
-      },
+      include: orderInclude,
     });
 
     if (!order) {
       throw new NotFoundException(`Order ${orderNumber} was not found`);
     }
 
-    if (order.userId === null && order.guestAccessToken && guestAccessToken !== order.guestAccessToken) {
+    if (order.userId === null && order.guestAccessToken && !timingSafeStringEqual(order.guestAccessToken, guestAccessToken)) {
       throw new NotFoundException('Order access token is invalid');
     }
 

@@ -23,8 +23,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
   }
 
-  async validate(payload: { userId?: string; sub?: string; role?: string; email?: string }) {
-    const userId = payload.userId ?? payload.sub;
+  async validate(payload: { userId?: string; sub?: string; role?: string; email?: string; id?: string }) {
+    const userId = payload.userId ?? payload.sub ?? payload.id;
     if (!userId) {
       throw new UnauthorizedException('Invalid token payload');
     }
@@ -35,6 +35,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     return {
+      id: user.id,
       userId: user.id,
       email: user.email,
       role: user.role,

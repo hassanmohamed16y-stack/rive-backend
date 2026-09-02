@@ -7,7 +7,7 @@ const describeWithDatabase = process.env.RUN_DATABASE_INTEGRATION_TESTS === 'tru
 
 describeWithDatabase('OrdersService PostgreSQL concurrency', () => {
   const prisma = new PrismaClient();
-  const service = new OrdersService(prisma as any);
+  const service = new OrdersService(prisma as any, { record: jest.fn().mockResolvedValue(undefined) } as any);
   let variantId: string;
   let categoryId: string;
   let productId: string;

@@ -1,6 +1,6 @@
 # Active context
 
-**Current focus** (one short paragraph): Public product visibility, admin management APIs, pagination metadata, and deployment hardening are implemented and verified locally, preserving Phases 1 through 3.
+**Current focus** (one short paragraph): Deployment/runtime hardening, constant-time guest-token checks, admin detail APIs, category featured filtering, email verification, refresh tokens, account lockout, and best-effort audit logging are implemented and verified locally.
 
 **In progress**:
 
@@ -13,6 +13,9 @@
 - [x] Verify clean dependency install, migrations, typecheck, lint, all PostgreSQL tests, production runtime, and Docker image build.
 - [x] Restrict public product queries to ACTIVE and add protected admin product/order management APIs.
 - [x] Add paginated product/category responses, category conflict handling, password complexity, and production Swagger restriction.
+- [x] Add runtime Prisma CLI support, trust-proxy configuration, manual seed guidance, and internal-only Compose Postgres networking.
+- [x] Add admin actor tracking columns, refresh tokens, email verification tokens, login lockout, and best-effort audit logs.
+- [x] Add constant-time guest token comparison and authenticated order cancellation endpoint.
 
 **Decisions (recent)**:
 
@@ -26,6 +29,7 @@
 - Public products always filter to ACTIVE; `DRAFT` and `ARCHIVED` are available only through protected admin listing.
 - Categories use soft-safe deletion behavior by translating PostgreSQL FK restrictions to 409; products archive rather than delete.
 - Production CORS accepts configured origins and returns a sanitized 403 with request ID for denied origins; health probes are exempt from API throttling.
+- Guest order access-token checks now use constant-time comparison; admin mutations persist acting-user ids and write best-effort audit records.
 
 **Open questions**:
 
