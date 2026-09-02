@@ -186,6 +186,8 @@ model RefreshToken {
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model AuditLog {
@@ -197,4 +199,7 @@ model AuditLog {
   entityId   String
   changes    Json?
   createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
 }

@@ -50,6 +50,7 @@ export class AuthController {
     return this.authService.logout(dto.refreshToken);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('verify-email/request')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -59,6 +60,7 @@ export class AuthController {
     return this.authService.requestEmailVerification(req.user.id);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('verify-email/confirm')
   @ApiOperation({ summary: 'Confirm email verification using a token' })
   @ApiResponse({ status: 201, description: 'Email verified successfully.' })
