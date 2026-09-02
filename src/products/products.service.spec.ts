@@ -9,9 +9,11 @@ describe('ProductsService public visibility and pagination', () => {
         findMany: jest.fn().mockResolvedValue([{ id: 'active-product', status: ProductStatus.ACTIVE }]),
         count: jest.fn().mockResolvedValue(1),
         findFirst: jest.fn(),
+        findUnique: jest.fn(),
       },
     };
-    return { service: new ProductsService(prisma as any), prisma };
+    const auditLogService = { record: jest.fn().mockResolvedValue(undefined) };
+    return { service: new ProductsService(prisma as any, auditLogService as any), prisma, auditLogService };
   }
 
   it('limits public lists to ACTIVE products and returns pagination metadata', async () => {
@@ -40,12 +42,15 @@ describe('ProductsService public visibility and pagination', () => {
   it('allows the protected admin path to list and retrieve all statuses', async () => {
     const { service, prisma } = createService();
     prisma.product.findFirst.mockResolvedValue({ id: 'draft-product', status: ProductStatus.DRAFT });
+    prisma.product.findUnique.mockResolvedValue({ id: 'draft-product', status: ProductStatus.DRAFT, images: [], variants: [] });
 
     await service.findAll({ status: ProductStatus.DRAFT }, { page: 1, limit: 20 }, true);
     await expect(service.findOneBySlug('draft-product', true)).resolves.toMatchObject({ status: ProductStatus.DRAFT });
+    await expect(service.findByIdForAdmin('draft-product')).resolves.toMatchObject({ status: ProductStatus.DRAFT });
     expect(prisma.product.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { status: ProductStatus.DRAFT },
     }));
     expect(prisma.product.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { slug: 'draft-product' } }));
+    expect(prisma.product.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'draft-product' } }));
   });
 });

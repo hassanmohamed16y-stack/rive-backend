@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ProductStatus } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -21,5 +21,13 @@ export class AdminProductsController {
   @ApiResponse({ status: 200, description: 'Paginated products returned.', schema: { properties: { data: { type: 'array', items: { type: 'object' } }, meta: { type: 'object' } } } })
   async findAll(@Query('status') status: ProductStatus | undefined, @Query() pagination: PaginationDto) {
     return this.productsService.findAll({ status }, { page: pagination.page, limit: pagination.limit }, true);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a product in any status by id (Admin)' })
+  @ApiResponse({ status: 200, description: 'Product returned successfully.' })
+  @ApiResponse({ status: 404, description: 'Product not found.' })
+  async findOne(@Param('id') id: string) {
+    return this.productsService.findByIdForAdmin(id);
   }
 }

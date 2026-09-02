@@ -1,7 +1,7 @@
 {
   "name": "rive-backend",
   "version": "1.0.0",
-  "description": "RIVÉ luxury e-commerce backend",
+  "description": "RIV\u00c9 luxury e-commerce backend",
   "private": true,
   "scripts": {
     "build": "nest build",
@@ -45,6 +45,7 @@
     "multer": "^2.3.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "prisma": "^5.18.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.0.0",
     "streamifier": "^0.1.1",
@@ -62,7 +63,6 @@
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.0.0",
     "jest": "^30.0.0",
-    "prisma": "^5.18.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.0.0",
     "ts-node": "^10.9.2",

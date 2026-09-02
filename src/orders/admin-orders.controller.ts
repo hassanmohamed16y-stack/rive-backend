@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { OrderStatus } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -24,11 +24,19 @@ export class AdminOrdersController {
     return this.ordersService.findAll({ status }, pagination);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get an order by id with full detail (Admin)' })
+  @ApiResponse({ status: 200, description: 'Order returned successfully.' })
+  @ApiResponse({ status: 404, description: 'Order not found.' })
+  async findOne(@Param('id') id: string) {
+    return this.ordersService.findByIdForAdmin(id);
+  }
+
   @Patch(':id/status')
   @ApiOperation({ summary: 'Transition an order to a valid status (Admin)' })
   @ApiResponse({ status: 200, description: 'Order status updated.' })
   @ApiResponse({ status: 409, description: 'Invalid order status transition.' })
-  async updateStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto) {
-    return this.ordersService.transitionStatus(id, dto.status);
+  async updateStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto, @Req() req: any) {
+    return this.ordersService.transitionStatus(id, dto.status, req.user.id);
   }
 }

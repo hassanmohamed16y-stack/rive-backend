@@ -36,14 +36,26 @@ enum Size {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  fullName     String
-  email        String   @unique
-  passwordHash String
-  role         UserRole @default(CUSTOMER)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  orders       Order[]
+  id                         String         @id @default(cuid())
+  fullName                   String
+  email                      String         @unique
+  passwordHash               String
+  role                       UserRole       @default(CUSTOMER)
+  emailVerifiedAt            DateTime?
+  emailVerificationToken     String?        @unique
+  emailVerificationExpiresAt DateTime?
+  failedLoginAttempts        Int            @default(0)
+  lockedUntil                DateTime?
+  createdAt                  DateTime       @default(now())
+  updatedAt                  DateTime       @updatedAt
+  orders                     Order[]
+  createdProducts            Product[]      @relation("ProductCreatedBy")
+  updatedProducts            Product[]      @relation("ProductUpdatedBy")
+  createdCategories          Category[]     @relation("CategoryCreatedBy")
+  updatedCategories          Category[]     @relation("CategoryUpdatedBy")
+  updatedOrders              Order[]        @relation("OrderUpdatedBy")
+  refreshTokens              RefreshToken[]
+  auditLogs                  AuditLog[]
 }
 
 model Category {
@@ -52,39 +64,47 @@ model Category {
   slug        String    @unique
   description String?
   isFeatured  Boolean   @default(false)
+  createdById String?
+  createdBy   User?     @relation("CategoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?
+  updatedBy   User?     @relation("CategoryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   products    Product[]
 }
 
 model Product {
-  id               String          @id @default(cuid())
+  id               String           @id @default(cuid())
   name             String
-  slug             String          @unique
+  slug             String           @unique
   description      String?
   shortDescription String?
-  price            Decimal         @db.Decimal(10, 2)
-  compareAtPrice   Decimal?        @db.Decimal(10, 2)
-  isFeatured       Boolean         @default(false)
-  status           ProductStatus   @default(ACTIVE)
+  price            Decimal          @db.Decimal(10, 2)
+  compareAtPrice   Decimal?         @db.Decimal(10, 2)
+  isFeatured       Boolean          @default(false)
+  status           ProductStatus    @default(ACTIVE)
   categoryId       String
-  category         Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  category         Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdById      String?
+  createdBy        User?            @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById      String?
+  updatedBy        User?            @relation("ProductUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   images           ProductImage[]
   variants         ProductVariant[]
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   @@index([categoryId])
 }
 
 model ProductImage {
-  id         String   @id @default(cuid())
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  url        String
-  altText    String?
-  isPrimary  Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  altText   String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   @@index([productId])
 }
@@ -108,40 +128,42 @@ model ProductVariant {
 }
 
 model Order {
-  id               String      @id @default(cuid())
-  orderNumber      String      @unique
-  guestAccessToken String?     @unique
-  userId           String?
-  user             User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  status           OrderStatus @default(PENDING)
-  totalAmount      Decimal     @db.Decimal(10, 2)
-  customerName     String?
-  customerEmail    String?
-  notes            String?
+  id                   String      @id @default(cuid())
+  orderNumber          String      @unique
+  guestAccessToken     String?     @unique
+  userId               String?
+  user                 User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status               OrderStatus @default(PENDING)
+  totalAmount          Decimal     @db.Decimal(10, 2)
+  customerName         String?
+  customerEmail        String?
+  notes                String?
   reservationExpiresAt DateTime?
-  paymentSessionId String?     @unique
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  items            OrderItem[]
+  paymentSessionId     String?     @unique
+  updatedById          String?
+  updatedBy            User?       @relation("OrderUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  items                OrderItem[]
 
   @@index([userId])
   @@index([status, reservationExpiresAt])
 }
 
 model OrderItem {
-  id              String         @id @default(cuid())
-  orderId         String
-  order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productVariantId String        
-  productVariant  ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
-  quantity        Int
-  unitPrice       Decimal        @db.Decimal(10, 2)
-  totalPrice      Decimal        @db.Decimal(10, 2)
-  createdAt       DateTime       @default(now())
+  id               String         @id @default(cuid())
+  orderId          String
+  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productVariantId String
+  productVariant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  quantity         Int
+  unitPrice        Decimal        @db.Decimal(10, 2)
+  totalPrice       Decimal        @db.Decimal(10, 2)
+  createdAt        DateTime       @default(now())
 
+  @@unique([orderId, productVariantId])
   @@index([orderId])
   @@index([productVariantId])
-  @@unique([orderId, productVariantId])
 }
 
 model ProcessedStripeEvent {
@@ -154,4 +176,25 @@ model ProcessedStripeEvent {
 
   @@index([orderId])
   @@index([eventType, processedAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String
+  changes    Json?
+  createdAt  DateTime @default(now())
 }

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AuditLogModule } from './audit-log/audit-log.module';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
 import { HealthModule } from './health/health.module';
@@ -19,6 +20,7 @@ import { UploadModule } from './upload/upload.module';
       },
     ]),
     PrismaModule,
+    AuditLogModule,
     AuthModule,
     CategoriesModule,
     HealthModule,

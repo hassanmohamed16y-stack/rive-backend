@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { OrderStatus } from '@prisma/client';
 import { Decimal, PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import Stripe from 'stripe';
+import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
 import { OrdersService } from '../orders/orders.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -45,7 +46,7 @@ export class PaymentService {
 
     if (actor?.role !== 'ADMIN') {
       const isUserOwner = order.userId !== null && order.userId === actor?.userId;
-      const isGuestOwner = order.userId === null && actor?.guestAccessToken === order.guestAccessToken;
+      const isGuestOwner = order.userId === null && timingSafeStringEqual(actor?.guestAccessToken, order.guestAccessToken);
       if (!isUserOwner && !isGuestOwner) {
         throw new ForbiddenException('You do not have permission to checkout this order');
       }
@@ -134,7 +135,7 @@ export class PaymentService {
         message: 'Checkout session created successfully.',
       };
     } catch {
-      throw new BadRequestException(`Failed to create Stripe checkout session`);
+      throw new BadRequestException('Failed to create Stripe checkout session');
     }
   }
 
@@ -187,7 +188,7 @@ export class PaymentService {
           where: { id: orderId },
           select: { paymentSessionId: true },
         });
-        if (!order || order.paymentSessionId !== eventData.id) {
+        if (!order || !timingSafeStringEqual(order.paymentSessionId, eventData.id)) {
           throw new BadRequestException('Webhook checkout session does not match the order.');
         }
 
@@ -195,8 +196,8 @@ export class PaymentService {
           if (eventData.payment_status !== 'paid') {
             return { received: true, orderId, message: 'Checkout session is not paid.' };
           }
-          const order = await this.ordersService.markPaidInTransaction(tx, orderId);
-          return { received: true, orderId: order.id, status: order.status };
+          const paidOrder = await this.ordersService.markPaidInTransaction(tx, orderId);
+          return { received: true, orderId: paidOrder.id, status: paidOrder.status };
         }
 
         await this.ordersService.cancelPendingOrderInTransaction(tx, orderId, OrderStatus.CANCELLED);
