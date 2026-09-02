@@ -22,6 +22,7 @@ export function requestLoggingMiddleware(request: Request, response: Response, n
       statusCode: response.statusCode,
       durationMs: Date.now() - startedAt,
       ...(userId ? { userId } : {}),
+      ...(request.ip ? { ip: request.ip } : {}),
     });
     if (response.statusCode >= 500) logger.error(entry);
     else logger.log(entry);
