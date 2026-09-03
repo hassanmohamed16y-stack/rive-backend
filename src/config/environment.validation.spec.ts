@@ -17,6 +17,7 @@ describe('production environment validation', () => {
     ADMIN_INITIAL_PASSWORD: 'strong-admin-password',
     EMAIL_PROVIDER_API_KEY: 're_example',
     EMAIL_FROM_ADDRESS: 'RIVE <noreply@example.com>',
+    INTERNAL_CRON_SECRET: 'cron-secret',
   };
 
   it('accepts a complete production configuration', () => {

@@ -1,6 +1,6 @@
 # Active context
 
-**Current focus** (one short paragraph): Deployment/runtime hardening, constant-time guest-token checks, admin detail APIs, category featured filtering, email verification, refresh tokens, account lockout, and best-effort audit logging are implemented and verified locally.
+**Current focus** (one short paragraph): Password lifecycle, provider-backed email, variant/image administration, strict DTO validation, secure upload detection, and external reservation expiry are implemented.
 
 **In progress**:
 

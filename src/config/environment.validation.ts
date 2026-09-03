@@ -12,6 +12,7 @@ const productionRequiredVariables = [
   'ADMIN_INITIAL_PASSWORD',
   'EMAIL_PROVIDER_API_KEY',
   'EMAIL_FROM_ADDRESS',
+  'INTERNAL_CRON_SECRET',
 ] as const;
 
 export function validateEnvironment(environment = process.env) {

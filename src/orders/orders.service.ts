@@ -1,5 +1,5 @@
 import * as crypto from 'crypto';
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { OrderStatus, Prisma, ProductStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -31,32 +31,11 @@ const orderInclude = {
 } satisfies Prisma.OrderInclude;
 
 @Injectable()
-export class OrdersService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(OrdersService.name);
-  private expirationTimer?: NodeJS.Timeout;
-
+export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
   ) {}
-
-  async onModuleInit() {
-    await this.expirePendingReservations().catch((error: unknown) => {
-      this.logger.error('Unable to expire pending order reservations', error instanceof Error ? error.stack : undefined);
-    });
-    // Multi-instance deployments should replace this with an external cron/queue and distributed lock.
-    // The conditional PENDING transition keeps duplicate workers safe, but an external scheduler avoids redundant work.
-    this.expirationTimer = setInterval(() => {
-      void this.expirePendingReservations().catch((error: unknown) => {
-        this.logger.error('Unable to expire pending order reservations', error instanceof Error ? error.stack : undefined);
-      });
-    }, 60_000);
-    this.expirationTimer.unref();
-  }
-
-  onModuleDestroy() {
-    if (this.expirationTimer) clearInterval(this.expirationTimer);
-  }
 
   private async findOrderDetailsById(client: PrismaService | Prisma.TransactionClient, orderId: string) {
     return client.order.findUniqueOrThrow({
