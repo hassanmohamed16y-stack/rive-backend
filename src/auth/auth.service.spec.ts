@@ -75,6 +75,7 @@ describe('AuthService', () => {
 
     prisma.user.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(baseUser);
     await expect(service.login({ email: 'missing@example.com', password: 'wrong' })).rejects.toThrow('Invalid credentials');
+    expect(bcrypt.compare).toHaveBeenCalledWith('wrong', expect.any(String));
     (bcrypt.compare as jest.Mock).mockResolvedValue(false);
     prisma.user.update.mockResolvedValue({ ...baseUser, failedLoginAttempts: 1 });
     await expect(service.login({ email: baseUser.email, password: 'wrong' })).rejects.toThrow('Invalid credentials');

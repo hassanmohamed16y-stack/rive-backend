@@ -15,6 +15,7 @@ const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const ACCOUNT_LOCKOUT_THRESHOLD = 5;
 const ACCOUNT_LOCKOUT_MS = 15 * 60 * 1000;
 const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
+const DUMMY_PASSWORD_HASH = '$2b$12$Ui/2ZwNAimCAP9YeVOGw3un/iRoZmvjnakCUx7gxldhMy3l/xS2km';
 
 type SafeUser = Omit<User, 'passwordHash' | 'emailVerificationToken' | 'emailVerificationExpiresAt' | 'passwordResetToken' | 'passwordResetExpiresAt' | 'failedLoginAttempts' | 'lockedUntil'>;
 type PrismaLike = PrismaService | Prisma.TransactionClient;
@@ -102,6 +103,8 @@ export class AuthService {
       where: { email: normalizedEmail },
     });
 
+    const passwordIsValid = await bcrypt.compare(dto.password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -109,8 +112,6 @@ export class AuthService {
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       throw new ForbiddenException('Account locked due to too many failed login attempts. Try again later.');
     }
-
-    const passwordIsValid = await bcrypt.compare(dto.password, user.passwordHash);
 
     if (!passwordIsValid) {
       const failedLoginAttempts = user.failedLoginAttempts + 1;
