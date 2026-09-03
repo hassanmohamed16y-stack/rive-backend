@@ -6,9 +6,14 @@ on:
     - cron: '*/5 * * * *'
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 jobs:
   expire-reservations:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Call internal expire-reservations endpoint
         env:
