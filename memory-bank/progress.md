@@ -12,6 +12,7 @@
 - Verified locally: `npm ci`, Prisma generate/migrations, typecheck, lint, 56 tests including PostgreSQL integrations, production startup and health/CORS, Docker image build, and zero production dependency audit vulnerabilities.
 - Added public ACTIVE-product filtering, admin product/order/category API operations, standard pagination metadata, password complexity, production Swagger restriction, and Docker dev-dependency pruning. Final verification: Prisma valid/up-to-date, typecheck/lint/build pass, 64 tests pass, Docker image build passes.
 - Added runtime Prisma CLI support after `npm prune --omit=dev`, trust-proxy configuration, internal-only Compose Postgres networking, constant-time guest token comparison, protected order cancellation by order number, admin product/order detail APIs, category featured filtering, admin actor tracking columns, email verification tokens, rotating refresh tokens, login lockout, and best-effort audit logging. Final verification: `npm run typecheck` and `npm test` pass with 68 tests passing and 3 PostgreSQL-gated skips.
+- Added ADMIN-only product-variant creation, price/color/availability update, FK-safe deletion, and audited conditional delta stock adjustment. Focused typecheck, lint, and unit coverage pass; PostgreSQL concurrency coverage is gated by the existing integration-test environment variables.
 
 **Not started / backlog**
 

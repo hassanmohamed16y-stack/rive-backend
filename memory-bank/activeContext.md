@@ -1,6 +1,6 @@
 # Active context
 
-**Current focus** (one short paragraph): Deployment/runtime hardening, constant-time guest-token checks, admin detail APIs, category featured filtering, email verification, refresh tokens, account lockout, and best-effort audit logging are implemented and verified locally.
+**Current focus** (one short paragraph): Admin product variant management now provides audited CRUD mutations and atomic delta-based stock adjustment without changing the order reservation path.
 
 **In progress**:
 
@@ -16,6 +16,7 @@
 - [x] Add runtime Prisma CLI support, trust-proxy configuration, manual seed guidance, and internal-only Compose Postgres networking.
 - [x] Add admin actor tracking columns, refresh tokens, email verification tokens, login lockout, and best-effort audit logs.
 - [x] Add constant-time guest token comparison and authenticated order cancellation endpoint.
+- [x] Add ADMIN-only audited variant creation, update, deletion, and atomic stock adjustment endpoints.
 
 **Decisions (recent)**:
 
@@ -30,6 +31,7 @@
 - Categories use soft-safe deletion behavior by translating PostgreSQL FK restrictions to 409; products archive rather than delete.
 - Production CORS accepts configured origins and returns a sanitized 403 with request ID for denied origins; health probes are exempt from API throttling.
 - Guest order access-token checks now use constant-time comparison; admin mutations persist acting-user ids and write best-effort audit records.
+- Manual stock changes use a conditional `updateMany` delta update, so a negative adjustment cannot make a variant stock level negative.
 
 **Open questions**:
 

@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, ProductStatus } from '@prisma/client';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
+import { CreateProductVariantDto } from './dto/create-product-variant.dto';
+import { UpdateProductVariantDto } from './dto/update-product-variant.dto';
 
 const productInclude = {
   category: true,
@@ -216,5 +218,66 @@ export class ProductsService {
     } catch {
       throw new NotFoundException(`Product ${id} was not found`);
     }
+  }
+
+  async createVariant(productId: string, dto: CreateProductVariantDto, actorUserId?: string) {
+      await this.ensureProductExists(productId);
+      try {
+        const variant = await this.prisma.productVariant.create({
+          data: { productId, sku: dto.sku, colorHex: dto.colorHex, size: dto.size, price: dto.price, stock: dto.stock, isAvailable: dto.isAvailable ?? true },
+        });
+        await this.auditLogService.record({ userId: actorUserId, action: 'variant.create', entityType: 'ProductVariant', entityId: variant.id, changes: { after: variant } });
+        return variant;
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          throw new ConflictException(`Variant SKU "${dto.sku}" already exists`);
+        }
+        throw error;
+      }
+    }
+
+    async updateVariant(productId: string, variantId: string, dto: UpdateProductVariantDto, actorUserId?: string) {
+      const before = await this.findVariant(productId, variantId);
+      const variant = await this.prisma.productVariant.update({ where: { id: variantId }, data: dto });
+      await this.auditLogService.record({ userId: actorUserId, action: 'variant.update', entityType: 'ProductVariant', entityId: variantId, changes: { before, after: variant } });
+      return variant;
+    }
+
+    async adjustVariantStock(productId: string, variantId: string, adjustment: number, reason: string, actorUserId?: string) {
+      const before = await this.findVariant(productId, variantId);
+      const result = await this.prisma.productVariant.updateMany({
+        where: { id: variantId, productId, ...(adjustment < 0 ? { stock: { gte: -adjustment } } : {}) },
+        data: { stock: { increment: adjustment } },
+      });
+      if (result.count !== 1) {
+        throw new ConflictException('Insufficient stock for this adjustment');
+      }
+      const after = await this.prisma.productVariant.findUniqueOrThrow({ where: { id: variantId } });
+      await this.auditLogService.record({ userId: actorUserId, action: 'variant.stock-adjust', entityType: 'ProductVariant', entityId: variantId, changes: { before, after, adjustment, reason } });
+      return after;
+    }
+
+    async removeVariant(productId: string, variantId: string, actorUserId?: string) {
+      const before = await this.findVariant(productId, variantId);
+      try {
+        await this.prisma.productVariant.delete({ where: { id: variantId } });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+          throw new ConflictException('Cannot delete a variant that is referenced by an order');
+        }
+        throw error;
+      }
+      await this.auditLogService.record({ userId: actorUserId, action: 'variant.delete', entityType: 'ProductVariant', entityId: variantId, changes: { before, after: null } });
+    }
+
+  private async ensureProductExists(productId: string) {
+      const product = await this.prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
+      if (!product) throw new NotFoundException(`Product ${productId} was not found`);
+    }
+
+  private async findVariant(productId: string, variantId: string) {
+      const variant = await this.prisma.productVariant.findFirst({ where: { id: variantId, productId } });
+      if (!variant) throw new NotFoundException(`Variant ${variantId} was not found for product ${productId}`);
+      return variant;
   }
 }
