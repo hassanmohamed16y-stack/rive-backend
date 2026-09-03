@@ -18,7 +18,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 
-class ProductImageDto {
+export class ProductImageDto {
   @ApiProperty({ example: 'https://images.example.com/product-1.png', maxLength: 2048 })
   @IsString()
   @IsNotEmpty()
@@ -37,7 +37,7 @@ class ProductImageDto {
   isPrimary?: boolean;
 }
 
-class ProductVariantDto {
+export class ProductVariantDto {
   @ApiProperty({ example: 'LUNA-SET-S-BEIGE', maxLength: 128 })
   @IsString()
   @IsNotEmpty()

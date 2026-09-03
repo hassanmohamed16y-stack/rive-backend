@@ -1,8 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, ProductStatus } from '@prisma/client';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateProductImageDto } from './dto/create-product-image.dto';
 import { CreateProductDto } from './dto/create-product.dto';
+import { CreateProductVariantDto } from './dto/create-product-variant.dto';
+import { UpdateProductVariantDto } from './dto/update-product-variant.dto';
 
 const productInclude = {
   category: true,
@@ -216,5 +219,169 @@ export class ProductsService {
     } catch {
       throw new NotFoundException(`Product ${id} was not found`);
     }
+  }
+
+  async createVariant(productId: string, dto: CreateProductVariantDto, actorUserId?: string) {
+    await this.ensureProductExists(productId);
+    this.assertNonNegativeStock(dto.stock);
+
+    const variant = await this.prisma.productVariant.create({
+      data: {
+        product: { connect: { id: productId } },
+        sku: dto.sku,
+        colorHex: dto.colorHex ?? '#945958',
+        size: dto.size,
+        price: dto.price,
+        stock: dto.stock ?? 0,
+        isAvailable: dto.isAvailable ?? true,
+      },
+    });
+
+    await this.auditLogService.record({
+      userId: actorUserId,
+      action: 'product-variant.create',
+      entityType: 'ProductVariant',
+      entityId: variant.id,
+      changes: dto,
+    });
+
+    return variant;
+  }
+
+  async updateVariant(productId: string, variantId: string, dto: UpdateProductVariantDto, actorUserId?: string) {
+    this.assertNonNegativeStock(dto.stock);
+
+    const before = await this.findVariantForProduct(productId, variantId);
+    const variant = await this.prisma.productVariant.update({
+      where: { id: variantId },
+      data: {
+        ...(dto.stock !== undefined ? { stock: dto.stock } : {}),
+        ...(dto.price !== undefined ? { price: dto.price } : {}),
+        ...(dto.isAvailable !== undefined ? { isAvailable: dto.isAvailable } : {}),
+        ...(dto.colorHex !== undefined ? { colorHex: dto.colorHex } : {}),
+        ...(dto.size !== undefined ? { size: dto.size } : {}),
+      },
+    });
+
+    await this.auditLogService.record({
+      userId: actorUserId,
+      action: 'product-variant.update',
+      entityType: 'ProductVariant',
+      entityId: variant.id,
+      changes: { before, after: variant },
+    });
+
+    return variant;
+  }
+
+  async removeVariant(productId: string, variantId: string, actorUserId?: string) {
+    await this.findVariantForProduct(productId, variantId);
+
+    try {
+      const variant = await this.prisma.productVariant.delete({ where: { id: variantId } });
+      await this.auditLogService.record({
+        userId: actorUserId,
+        action: 'product-variant.delete',
+        entityType: 'ProductVariant',
+        entityId: variant.id,
+        changes: { deleted: true },
+      });
+      return variant;
+    } catch (error) {
+      if ((error as { code?: string } | null)?.code === 'P2003') {
+        throw new ConflictException(
+          'Cannot delete a product variant that has order history. Disable it instead by setting isAvailable to false.',
+        );
+      }
+      if ((error as { code?: string } | null)?.code === 'P2025') {
+        throw new NotFoundException(`Product variant ${variantId} was not found for product ${productId}`);
+      }
+      throw error;
+    }
+  }
+
+  async createImage(productId: string, dto: CreateProductImageDto, actorUserId?: string) {
+    await this.ensureProductExists(productId);
+
+    const image = await this.prisma.productImage.create({
+      data: {
+        product: { connect: { id: productId } },
+        url: dto.url,
+        altText: dto.altText,
+        isPrimary: dto.isPrimary ?? false,
+      },
+    });
+
+    await this.auditLogService.record({
+      userId: actorUserId,
+      action: 'product-image.create',
+      entityType: 'ProductImage',
+      entityId: image.id,
+      changes: dto,
+    });
+
+    return image;
+  }
+
+  async removeImage(productId: string, imageId: string, actorUserId?: string) {
+    await this.findImageForProduct(productId, imageId);
+
+    try {
+      const image = await this.prisma.productImage.delete({ where: { id: imageId } });
+      await this.auditLogService.record({
+        userId: actorUserId,
+        action: 'product-image.delete',
+        entityType: 'ProductImage',
+        entityId: image.id,
+        changes: { deleted: true },
+      });
+      return image;
+    } catch (error) {
+      if ((error as { code?: string } | null)?.code === 'P2025') {
+        throw new NotFoundException(`Product image ${imageId} was not found for product ${productId}`);
+      }
+      throw error;
+    }
+  }
+
+  private assertNonNegativeStock(stock?: number) {
+    if (stock !== undefined && stock < 0) {
+      throw new BadRequestException('Stock cannot be negative');
+    }
+  }
+
+  private async ensureProductExists(productId: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true },
+    });
+
+    if (!product) {
+      throw new NotFoundException(`Product ${productId} was not found`);
+    }
+  }
+
+  private async findVariantForProduct(productId: string, variantId: string) {
+    const variant = await this.prisma.productVariant.findFirst({
+      where: { id: variantId, productId },
+    });
+
+    if (!variant) {
+      throw new NotFoundException(`Product variant ${variantId} was not found for product ${productId}`);
+    }
+
+    return variant;
+  }
+
+  private async findImageForProduct(productId: string, imageId: string) {
+    const image = await this.prisma.productImage.findFirst({
+      where: { id: imageId, productId },
+    });
+
+    if (!image) {
+      throw new NotFoundException(`Product image ${imageId} was not found for product ${productId}`);
+    }
+
+    return image;
   }
 }

@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ProductStatus } from '@prisma/client';
 import { ProductsService } from './products.service';
 
@@ -10,6 +10,17 @@ describe('ProductsService public visibility and pagination', () => {
         count: jest.fn().mockResolvedValue(1),
         findFirst: jest.fn(),
         findUnique: jest.fn(),
+      },
+      productVariant: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+      },
+      productImage: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
+        delete: jest.fn(),
       },
     };
     const auditLogService = { record: jest.fn().mockResolvedValue(undefined) };
@@ -52,5 +63,62 @@ describe('ProductsService public visibility and pagination', () => {
     }));
     expect(prisma.product.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { slug: 'draft-product' } }));
     expect(prisma.product.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'draft-product' } }));
+  });
+
+  it('updates a product variant directly and records an audit log', async () => {
+    const { service, prisma, auditLogService } = createService();
+    prisma.productVariant.findFirst.mockResolvedValue({
+      id: 'variant-1',
+      productId: 'product-1',
+      stock: 5,
+      price: 280,
+      isAvailable: true,
+      colorHex: '#945958',
+      size: 'S',
+    });
+    prisma.productVariant.update.mockResolvedValue({
+      id: 'variant-1',
+      productId: 'product-1',
+      stock: 9,
+      price: 300,
+      isAvailable: false,
+      colorHex: '#000000',
+      size: 'M',
+    });
+
+    await expect(
+      service.updateVariant(
+        'product-1',
+        'variant-1',
+        { stock: 9, price: 300, isAvailable: false, colorHex: '#000000', size: 'M' } as any,
+        'admin-1',
+      ),
+    ).resolves.toMatchObject({ id: 'variant-1', stock: 9, price: 300, isAvailable: false });
+    expect(prisma.productVariant.update).toHaveBeenCalledWith({
+      where: { id: 'variant-1' },
+      data: { stock: 9, price: 300, isAvailable: false, colorHex: '#000000', size: 'M' },
+    });
+    expect(auditLogService.record).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'admin-1',
+      action: 'product-variant.update',
+      entityType: 'ProductVariant',
+      entityId: 'variant-1',
+    }));
+  });
+
+  it('rejects deleting a product variant that has order history', async () => {
+    const { service, prisma } = createService();
+    prisma.productVariant.findFirst.mockResolvedValue({ id: 'variant-1', productId: 'product-1' });
+    prisma.productVariant.delete.mockRejectedValue({ code: 'P2003' });
+
+    await expect(service.removeVariant('product-1', 'variant-1')).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('rejects negative stock values before updating a product variant', async () => {
+    const { service, prisma } = createService();
+
+    await expect(service.updateVariant('product-1', 'variant-1', { stock: -1 }, 'admin-1')).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.productVariant.findFirst).not.toHaveBeenCalled();
+    expect(prisma.productVariant.update).not.toHaveBeenCalled();
   });
 });
