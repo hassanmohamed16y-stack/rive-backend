@@ -1,3 +1,4 @@
+import { ValidationPipe } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { JwtStrategy } from '../auth/jwt.strategy';
@@ -128,6 +129,36 @@ describe('Backend security regression tests', () => {
 
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
+    });
+
+    it('rejects fractional quantities with a 400 validation error', async () => {
+      const validationPipe = new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        forbidUnknownValues: true,
+        stopAtFirstError: true,
+        validationError: { value: false },
+      });
+
+      await expect(
+        validationPipe.transform(
+          {
+            customerName: 'Aisha Rahman',
+            customerEmail: 'aisha@example.com',
+            items: [{ productVariantId: 'variant-1', quantity: 1.5 }],
+          },
+          {
+            type: 'body',
+            metatype: CreateOrderDto,
+          } as any,
+        ),
+      ).rejects.toMatchObject({
+        status: 400,
+        response: expect.objectContaining({
+          message: expect.arrayContaining([expect.stringContaining('integer')]),
+        }),
+      });
     });
 
     it('rejects oversized arrays in order items', async () => {
