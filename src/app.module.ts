@@ -4,6 +4,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
+import { EmailModule } from './email/email.module';
 import { HealthModule } from './health/health.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentModule } from './payment/payment.module';
@@ -21,6 +22,7 @@ import { UploadModule } from './upload/upload.module';
     ]),
     PrismaModule,
     AuditLogModule,
+    EmailModule,
     AuthModule,
     CategoriesModule,
     HealthModule,

@@ -8,7 +8,13 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
 import { JwtStrategy } from './jwt.strategy';
 
-const jwtSecret = process.env.JWT_SECRET ?? (process.env.NODE_ENV === 'production' ? undefined : 'development-only-secret');
+// JWT_SECRET is required in any environment other than local development/test. Staging and other
+// non-local environments must never silently fall back to a shared, hardcoded secret.
+const isLocalOnly = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+if (!isLocalOnly && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET is required outside local development/test environments');
+}
+const jwtSecret = process.env.JWT_SECRET ?? (isLocalOnly ? 'development-only-secret' : undefined);
 
 @Module({
   imports: [

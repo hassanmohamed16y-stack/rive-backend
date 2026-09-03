@@ -3,24 +3,27 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { AuthService } from './auth.service';
 
-const jwtSecret = process.env.JWT_SECRET ?? 'development-only-secret';
-const isProduction = process.env.NODE_ENV === 'production';
+// JWT_SECRET is required in any environment other than local development/test. Staging and other
+// non-local environments must never silently fall back to a shared, hardcoded secret.
+const isLocalOnly = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+const jwtSecret = process.env.JWT_SECRET ?? (isLocalOnly ? 'development-only-secret' : undefined);
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   private readonly logger = new Logger(JwtStrategy.name);
 
   constructor(private readonly authService: AuthService) {
+    if (!isLocalOnly && !process.env.JWT_SECRET) {
+      const logger = new Logger(JwtStrategy.name);
+      logger.error('JWT_SECRET is required outside local development/test environments.');
+      throw new Error('JWT_SECRET is required outside local development/test environments');
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: jwtSecret,
+      secretOrKey: jwtSecret as string,
     });
-
-    if (isProduction && !process.env.JWT_SECRET) {
-      this.logger.error('JWT_SECRET is required in production.');
-      throw new Error('JWT_SECRET is required in production');
-    }
   }
 
   async validate(payload: { userId?: string; sub?: string; role?: string; email?: string; id?: string }) {

@@ -3,10 +3,13 @@ import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 @ApiTags('auth')
@@ -66,6 +69,37 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'Email verified successfully.' })
   async confirmEmailVerification(@Body() dto: ConfirmEmailVerificationDto) {
     return this.authService.confirmEmailVerification(dto.token);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change the authenticated user password' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully; all refresh tokens revoked.' })
+  @ApiResponse({ status: 401, description: 'Current password is incorrect or user is unauthenticated.' })
+  async changePassword(@Req() req: Request & { user: { id: string } }, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(req.user.id, dto);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request a password reset link' })
+  @ApiResponse({ status: 200, description: 'Generic confirmation message, regardless of whether the email exists.' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset the account password using a reset token' })
+  @ApiResponse({ status: 200, description: 'Password reset successfully; all refresh tokens revoked.' })
+  @ApiResponse({ status: 400, description: 'Reset token is invalid or expired.' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
