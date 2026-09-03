@@ -6,6 +6,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { ListProductsQueryDto } from './dto/list-products-query.dto';
 import { ProductsService } from './products.service';
 
 @ApiTags('products')
@@ -22,13 +23,11 @@ export class ProductsController {
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page', example: 20 })
   @ApiResponse({ status: 200, schema: { properties: { data: { type: 'array', items: { type: 'object' } }, meta: { type: 'object', properties: { page: { type: 'number' }, limit: { type: 'number' }, total: { type: 'number' }, totalPages: { type: 'number' } } } } } })
   async findAll(
-    @Query('category') category?: string,
-    @Query('isFeatured') isFeatured?: string,
-    @Query('search') search?: string,
+    @Query() query: ListProductsQueryDto,
     @Query() pagination: PaginationDto = new PaginationDto(),
   ) {
     return this.productsService.findAll(
-      { category, isFeatured, search },
+      query,
       { page: pagination.page, limit: pagination.limit },
     );
   }

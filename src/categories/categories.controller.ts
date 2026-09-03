@@ -7,6 +7,7 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { ListCategoriesQueryDto } from './dto/list-categories-query.dto';
 
 @ApiTags('categories')
 @Controller('api/v1/categories')
@@ -20,10 +21,10 @@ export class CategoriesController {
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page', example: 20 })
   @ApiResponse({ status: 200, schema: { properties: { data: { type: 'array', items: { type: 'object' } }, meta: { type: 'object', properties: { page: { type: 'number' }, limit: { type: 'number' }, total: { type: 'number' }, totalPages: { type: 'number' } } } } } })
   async findAll(
-    @Query('isFeatured') isFeatured?: string,
+    @Query() query: ListCategoriesQueryDto,
     @Query() pagination: PaginationDto = new PaginationDto(),
   ) {
-    const result = await this.categoriesService.findAll({ isFeatured }, pagination);
+    const result = await this.categoriesService.findAll(query, pagination);
     return {
       ...result,
       data: result.data.map((category) => ({ ...category, productCount: category._count.products })),
