@@ -219,8 +219,9 @@ export class ProductsService {
     } catch {
       throw new NotFoundException(`Product ${id} was not found`);
     }
+  }
 
-    async createVariant(productId: string, dto: CreateProductVariantDto, actorUserId?: string) {
+  async createVariant(productId: string, dto: CreateProductVariantDto, actorUserId?: string) {
       await this.findByIdForAdmin(productId);
       const variant = await this.prisma.productVariant.create({ data: { productId, ...dto } });
       await this.auditLogService.record({ userId: actorUserId, action: 'product-variant.create', entityType: 'ProductVariant', entityId: variant.id, changes: dto });
@@ -261,6 +262,5 @@ export class ProductsService {
       if (result.count !== 1) throw new NotFoundException(`Product image ${imageId} was not found`);
       await this.auditLogService.record({ userId: actorUserId, action: 'product-image.delete', entityType: 'ProductImage', entityId: imageId, changes: { deleted: true } });
       return { id: imageId, deleted: true };
-    }
   }
 }

@@ -19,6 +19,8 @@ describe('AuthService', () => {
     emailVerifiedAt: null,
     emailVerificationToken: null,
     emailVerificationExpiresAt: null,
+    passwordResetToken: null,
+    passwordResetExpiresAt: null,
     failedLoginAttempts: 0,
     lockedUntil: null,
     createdAt: new Date(),
@@ -132,5 +134,32 @@ describe('AuthService', () => {
   it('rejects expired JWTs', () => {
     const expiredToken = jwtService.sign({ sub: 'user-1' }, { expiresIn: '-1s' });
     expect(() => jwtService.verify(expiredToken)).toThrow();
+  });
+
+  it('changes a password and revokes all active refresh tokens', async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue(baseUser);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    (bcrypt.hash as jest.Mock).mockResolvedValue('replacement-hash');
+
+    await expect(service.changePassword('user-1', 'CurrentPassword1', 'ReplacementPassword1')).resolves.toEqual({
+      message: 'Password changed successfully.',
+    });
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId: 'user-1', revokedAt: null },
+    }));
+  });
+
+  it('uses the same response for known and unknown password reset emails', async () => {
+    const { service, prisma } = createService();
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    prisma.user.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(baseUser);
+
+    const unknown = await service.forgotPassword('missing@example.com');
+    const known = await service.forgotPassword(baseUser.email);
+    expect(unknown).toEqual(known);
+    expect(known).not.toHaveProperty('token');
+    process.env.NODE_ENV = originalEnv;
   });
 });

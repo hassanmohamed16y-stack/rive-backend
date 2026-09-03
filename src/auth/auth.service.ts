@@ -13,8 +13,9 @@ const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const ACCOUNT_LOCKOUT_THRESHOLD = 5;
 const ACCOUNT_LOCKOUT_MS = 15 * 60 * 1000;
+const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
 
-type SafeUser = Omit<User, 'passwordHash' | 'emailVerificationToken' | 'emailVerificationExpiresAt' | 'failedLoginAttempts' | 'lockedUntil'>;
+type SafeUser = Omit<User, 'passwordHash' | 'emailVerificationToken' | 'emailVerificationExpiresAt' | 'passwordResetToken' | 'passwordResetExpiresAt' | 'failedLoginAttempts' | 'lockedUntil'>;
 type PrismaLike = PrismaService | Prisma.TransactionClient;
 
 @Injectable()
@@ -29,6 +30,8 @@ export class AuthService {
       passwordHash: _passwordHash,
       emailVerificationToken: _emailVerificationToken,
       emailVerificationExpiresAt: _emailVerificationExpiresAt,
+      passwordResetToken: _passwordResetToken,
+      passwordResetExpiresAt: _passwordResetExpiresAt,
       failedLoginAttempts: _failedLoginAttempts,
       lockedUntil: _lockedUntil,
       ...safeUser
@@ -169,6 +172,42 @@ export class AuthService {
     });
 
     return { success: true };
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(newPassword, 12) } });
+      await tx.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    });
+    return { message: 'Password changed successfully.' };
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    if (user) {
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
+      await this.prisma.user.update({ where: { id: user.id }, data: { passwordResetToken: token, passwordResetExpiresAt: expiresAt } });
+      // TODO: EmailService sends this token in production; never expose it there.
+      if (process.env.NODE_ENV !== 'production') return { message: 'If this email exists, a reset link was sent', token, expiresAt };
+    }
+    return { message: 'If this email exists, a reset link was sent' };
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { passwordResetToken: token } });
+    if (!user || !user.passwordResetExpiresAt || user.passwordResetExpiresAt <= new Date()) {
+      throw new BadRequestException('Invalid or expired password reset token');
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(newPassword, 12), passwordResetToken: null, passwordResetExpiresAt: null } });
+      await tx.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    });
+    return { message: 'Password reset successfully.' };
   }
 
   async requestEmailVerification(userId: string) {
