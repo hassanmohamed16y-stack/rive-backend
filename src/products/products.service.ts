@@ -1,8 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, ProductStatus } from '@prisma/client';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
+import { CreateProductImageDto } from './dto/create-product-image.dto';
+import { CreateProductVariantDto } from './dto/create-product-variant.dto';
+import { UpdateProductVariantDto } from './dto/update-product-variant.dto';
 
 const productInclude = {
   category: true,
@@ -215,6 +218,49 @@ export class ProductsService {
       return product;
     } catch {
       throw new NotFoundException(`Product ${id} was not found`);
+    }
+
+    async createVariant(productId: string, dto: CreateProductVariantDto, actorUserId?: string) {
+      await this.findByIdForAdmin(productId);
+      const variant = await this.prisma.productVariant.create({ data: { productId, ...dto } });
+      await this.auditLogService.record({ userId: actorUserId, action: 'product-variant.create', entityType: 'ProductVariant', entityId: variant.id, changes: dto });
+      return variant;
+    }
+
+    async updateVariant(productId: string, variantId: string, dto: UpdateProductVariantDto, actorUserId?: string) {
+      const result = await this.prisma.productVariant.updateMany({ where: { id: variantId, productId }, data: dto });
+      if (result.count !== 1) throw new NotFoundException(`Product variant ${variantId} was not found`);
+      const variant = await this.prisma.productVariant.findUniqueOrThrow({ where: { id: variantId } });
+      await this.auditLogService.record({ userId: actorUserId, action: 'product-variant.update', entityType: 'ProductVariant', entityId: variant.id, changes: dto });
+      return variant;
+    }
+
+    async removeVariant(productId: string, variantId: string, actorUserId?: string) {
+      try {
+        const existing = await this.prisma.productVariant.findFirst({ where: { id: variantId, productId }, select: { id: true } });
+        if (!existing) throw new NotFoundException(`Product variant ${variantId} was not found`);
+        const variant = await this.prisma.productVariant.delete({ where: { id: variantId } });
+        await this.auditLogService.record({ userId: actorUserId, action: 'product-variant.delete', entityType: 'ProductVariant', entityId: variant.id, changes: { deleted: true } });
+        return variant;
+      } catch (error) {
+        if ((error as { code?: string })?.code === 'P2003') throw new ConflictException('Cannot delete a variant with order history; set isAvailable to false instead');
+        if (error instanceof NotFoundException || (error as { code?: string })?.code === 'P2025') throw new NotFoundException(`Product variant ${variantId} was not found`);
+        throw error;
+      }
+    }
+
+    async createImage(productId: string, dto: CreateProductImageDto, actorUserId?: string) {
+      await this.findByIdForAdmin(productId);
+      const image = await this.prisma.productImage.create({ data: { productId, ...dto } });
+      await this.auditLogService.record({ userId: actorUserId, action: 'product-image.create', entityType: 'ProductImage', entityId: image.id, changes: dto });
+      return image;
+    }
+
+    async removeImage(productId: string, imageId: string, actorUserId?: string) {
+      const result = await this.prisma.productImage.deleteMany({ where: { id: imageId, productId } });
+      if (result.count !== 1) throw new NotFoundException(`Product image ${imageId} was not found`);
+      await this.auditLogService.record({ userId: actorUserId, action: 'product-image.delete', entityType: 'ProductImage', entityId: imageId, changes: { deleted: true } });
+      return { id: imageId, deleted: true };
     }
   }
 }

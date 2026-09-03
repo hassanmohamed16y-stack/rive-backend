@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ProductStatus } from '@prisma/client';
 import { ProductsService } from './products.service';
 
@@ -10,6 +10,12 @@ describe('ProductsService public visibility and pagination', () => {
         count: jest.fn().mockResolvedValue(1),
         findFirst: jest.fn(),
         findUnique: jest.fn(),
+      },
+      productVariant: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'variant-1', stock: 5 }),
+        findFirst: jest.fn().mockResolvedValue({ id: 'variant-1' }),
+        delete: jest.fn(),
       },
     };
     const auditLogService = { record: jest.fn().mockResolvedValue(undefined) };
@@ -52,5 +58,18 @@ describe('ProductsService public visibility and pagination', () => {
     }));
     expect(prisma.product.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { slug: 'draft-product' } }));
     expect(prisma.product.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'draft-product' } }));
+  });
+
+  it('updates a variant with a direct stock value and records the mutation', async () => {
+    const { service, prisma, auditLogService } = createService();
+    await expect(service.updateVariant('product-1', 'variant-1', { stock: 5 }, 'admin-1')).resolves.toMatchObject({ stock: 5 });
+    expect(prisma.productVariant.updateMany).toHaveBeenCalledWith({ where: { id: 'variant-1', productId: 'product-1' }, data: { stock: 5 } });
+    expect(auditLogService.record).toHaveBeenCalledWith(expect.objectContaining({ entityType: 'ProductVariant', entityId: 'variant-1' }));
+  });
+
+  it('rejects deletion of a variant with order history', async () => {
+    const { service, prisma } = createService();
+    prisma.productVariant.delete.mockRejectedValue({ code: 'P2003' });
+    await expect(service.removeVariant('product-1', 'variant-1', 'admin-1')).rejects.toBeInstanceOf(ConflictException);
   });
 });
