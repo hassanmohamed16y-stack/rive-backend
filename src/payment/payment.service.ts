@@ -200,8 +200,9 @@ export class PaymentService {
           return { received: true, orderId: paidOrder.id, status: paidOrder.status };
         }
 
-        await this.ordersService.cancelPendingOrderInTransaction(tx, orderId, OrderStatus.CANCELLED);
-        return { received: true, orderId, status: OrderStatus.CANCELLED };
+        const failureStatus = eventType === 'checkout.session.expired' ? OrderStatus.EXPIRED : OrderStatus.CANCELLED;
+        await this.ordersService.cancelPendingOrderInTransaction(tx, orderId, failureStatus);
+        return { received: true, orderId, status: failureStatus };
       });
     } catch (error) {
       if (

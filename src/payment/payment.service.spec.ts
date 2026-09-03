@@ -147,12 +147,16 @@ describe('PaymentService Stripe Checkout and webhook security', () => {
     expect(ordersService.markPaidInTransaction).not.toHaveBeenCalled();
   });
 
-  it.each(['checkout.session.async_payment_failed', 'checkout.session.expired'])('releases a pending reservation for %s', async (type) => {
+  it.each([
+    ['checkout.session.async_payment_failed', OrderStatus.CANCELLED],
+    ['checkout.session.expired', OrderStatus.EXPIRED],
+  ])('releases a pending reservation for %s', async (type, expectedStatus) => {
     const { service, ordersService } = createService();
     (service as any).stripe = { webhooks: { constructEvent: jest.fn().mockReturnValue(verifiedEvent(type)) } };
 
-    await expect(service.handleWebhook(Buffer.from('{}'), 'valid')).resolves.toMatchObject({ status: OrderStatus.CANCELLED });
+    await expect(service.handleWebhook(Buffer.from('{}'), 'valid')).resolves.toMatchObject({ status: expectedStatus });
     expect(ordersService.cancelPendingOrderInTransaction).toHaveBeenCalledTimes(1);
+    expect(ordersService.cancelPendingOrderInTransaction).toHaveBeenCalledWith(expect.anything(), expect.any(String), expectedStatus);
   });
 
   it('acknowledges duplicate and concurrent duplicate deliveries without a second transition', async () => {

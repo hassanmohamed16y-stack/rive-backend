@@ -86,10 +86,10 @@ describeWithDatabase('Stripe payment flow with PostgreSQL', () => {
     };
 
     await paymentService.createCheckoutSession(order.id, { guestAccessToken: order.guestAccessToken });
-    await expect(paymentService.handleWebhook(Buffer.from('{}'), 'valid')).resolves.toMatchObject({ status: OrderStatus.CANCELLED });
+    await expect(paymentService.handleWebhook(Buffer.from('{}'), 'valid')).resolves.toMatchObject({ status: OrderStatus.EXPIRED });
     await expect(paymentService.handleWebhook(Buffer.from('{}'), 'valid')).resolves.toMatchObject({ message: 'Webhook already processed.' });
 
-    expect((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe(OrderStatus.CANCELLED);
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe(OrderStatus.EXPIRED);
     expect((await prisma.productVariant.findUniqueOrThrow({ where: { id: expiredVariantId } })).stock).toBe(1);
   });
 });

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -13,16 +13,54 @@ const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const ACCOUNT_LOCKOUT_THRESHOLD = 5;
 const ACCOUNT_LOCKOUT_MS = 15 * 60 * 1000;
+const REFRESH_TOKEN_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+// Retain expired/revoked refresh tokens for a short grace period after expiry/revocation
+// (useful for auditing/debugging) before purging them from the database.
+const REFRESH_TOKEN_RETENTION_MS = 24 * 60 * 60 * 1000;
 
 type SafeUser = Omit<User, 'passwordHash' | 'emailVerificationToken' | 'emailVerificationExpiresAt' | 'failedLoginAttempts' | 'lockedUntil'>;
 type PrismaLike = PrismaService | Prisma.TransactionClient;
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(AuthService.name);
+  private cleanupTimer?: NodeJS.Timeout;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
   ) {}
+
+  onModuleInit() {
+    void this.cleanupExpiredRefreshTokens().catch((error: unknown) => {
+      this.logger.error('Unable to clean up expired refresh tokens', error instanceof Error ? error.stack : undefined);
+    });
+    // Multi-instance deployments should replace this with an external cron/queue; running the
+    // cleanup redundantly across instances is harmless since it is a pure delete-by-condition.
+    this.cleanupTimer = setInterval(() => {
+      void this.cleanupExpiredRefreshTokens().catch((error: unknown) => {
+        this.logger.error('Unable to clean up expired refresh tokens', error instanceof Error ? error.stack : undefined);
+      });
+    }, REFRESH_TOKEN_CLEANUP_INTERVAL_MS);
+    this.cleanupTimer.unref();
+  }
+
+  onModuleDestroy() {
+    if (this.cleanupTimer) clearInterval(this.cleanupTimer);
+  }
+
+  async cleanupExpiredRefreshTokens(now = new Date()) {
+    const cutoff = new Date(now.getTime() - REFRESH_TOKEN_RETENTION_MS);
+    const result = await this.prisma.refreshToken.deleteMany({
+      where: {
+        OR: [
+          { expiresAt: { lte: cutoff } },
+          { revokedAt: { lte: cutoff } },
+        ],
+      },
+    });
+    return result.count;
+  }
 
   private sanitizeUser(user: User): SafeUser {
     const {
