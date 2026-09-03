@@ -3,7 +3,7 @@
 Document **architecture** and **recurring patterns** so Copilot stays aligned.
 
 - **High-level layout** (modules, services, boundaries): Nest modules use PrismaService; OrdersService owns inventory reservations and state transitions; PaymentService delegates payment state changes to it.
-- **Data flow**: Create order -> transactionally conditional-decrement variant stock -> create PENDING order with expiration -> idempotent Stripe Checkout -> signed webhook creates persistent event record and marks PAID or releases reservation atomically.
+- **Data flow**: Create order -> transactionally conditional-decrement variant stock -> create PENDING order with expiration -> external scheduler calls `POST /api/v1/internal/expire-reservations` to release stale reservations -> idempotent Stripe Checkout -> signed webhook creates persistent event record and marks PAID or releases reservation atomically.
 - **Patterns to follow** (naming, error handling, testing style): Use Prisma interactive transactions and `updateMany` conditions for state/stock compare-and-set operations; verify Stripe signatures before reads; use a unique processed-event record for webhook retries; Jest specs with mocked Prisma plus optional PostgreSQL integration tests.
 - **Patterns to avoid**: Read/check/update inventory sequences, client-supplied prices, direct order status updates outside OrdersService, and processing webhook payloads before signature verification.
 

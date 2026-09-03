@@ -1,6 +1,6 @@
 # Active context
 
-**Current focus** (one short paragraph): Deployment/runtime hardening, constant-time guest-token checks, admin detail APIs, category featured filtering, email verification, refresh tokens, account lockout, and best-effort audit logging are implemented and verified locally.
+**Current focus** (one short paragraph): Order input validation, upload MIME sniffing compatibility, and reservation-expiry scheduling now align with production-safe patterns and focused regression coverage.
 
 **In progress**:
 
@@ -30,6 +30,7 @@
 - Categories use soft-safe deletion behavior by translating PostgreSQL FK restrictions to 409; products archive rather than delete.
 - Production CORS accepts configured origins and returns a sanitized 403 with request ID for denied origins; health probes are exempt from API throttling.
 - Guest order access-token checks now use constant-time comparison; admin mutations persist acting-user ids and write best-effort audit records.
+- Reservation expiry no longer depends on an in-process timer; staging/production should call the internal cron endpoint with `INTERNAL_CRON_SECRET`.
 
 **Open questions**:
 

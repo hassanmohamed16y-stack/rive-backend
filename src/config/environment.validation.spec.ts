@@ -15,6 +15,9 @@ describe('production environment validation', () => {
     CLOUDINARY_API_KEY: 'key',
     CLOUDINARY_API_SECRET: 'secret',
     ADMIN_INITIAL_PASSWORD: 'strong-admin-password',
+    INTERNAL_CRON_SECRET: 'internal-cron-secret-example-value',
+    EMAIL_PROVIDER_API_KEY: 're_test_key',
+    EMAIL_FROM_ADDRESS: 'no-reply@rive.example.com',
   };
 
   it('accepts a complete production configuration', () => {

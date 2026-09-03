@@ -21,6 +21,11 @@ npm run start:prod
 - `POST /api/v1/orders` accepts either no authentication for guest checkout or a bearer token for ownership. It returns a guest access token only for guest orders.
 - `GET /api/v1/orders/:orderNumber` and `POST /api/v1/payments/create-checkout-session` require either the order owner's bearer token, an admin bearer token, or `X-Order-Access-Token` for a guest order.
 - `POST /api/v1/payments/webhook` is Stripe-only. It requires the `stripe-signature` header and raw JSON body; clients must never use the frontend success URL as payment proof.
+- `POST /api/v1/internal/expire-reservations` is for an external scheduler only. It requires the `x-internal-cron-secret` header to match `INTERNAL_CRON_SECRET` and returns `{ expiredCount }`.
+
+## Reservation Expiry Scheduler
+
+The old in-process reservation-expiry timer has been removed. Staging and production must run an external scheduler (for example cron, a scheduled GitHub Actions workflow, GCP Cloud Scheduler, or AWS EventBridge) that calls `POST /api/v1/internal/expire-reservations` about once per minute with the `x-internal-cron-secret` header set to `INTERNAL_CRON_SECRET`.
 
 API documentation is available at `/api/docs`.
 

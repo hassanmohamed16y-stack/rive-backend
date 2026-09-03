@@ -80,6 +80,7 @@ export function configureApp(app: INestApplication) {
     .addTag('products')
     .addTag('categories')
     .addTag('orders')
+    .addTag('internal')
     .addTag('auth')
     .addTag('health')
     .build();
