@@ -130,6 +130,16 @@ describe('Backend security regression tests', () => {
       expect(errors.length).toBeGreaterThan(0);
     });
 
+    it('rejects fractional order quantities', async () => {
+      const dto = plainToInstance(CreateOrderDto, {
+        customerName: 'Aisha Rahman',
+        customerEmail: 'aisha@example.com',
+        items: [{ productVariantId: 'variant-1', quantity: 1.5 }],
+      });
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+    });
+
     it('rejects oversized arrays in order items', async () => {
       const largeItems = Array.from({ length: 100 }, (_, i) => ({
         productVariantId: `variant-${i}`,
