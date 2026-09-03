@@ -1,0 +1,21 @@
+name: Expire order reservations
+
+on:
+  schedule:
+    # Every 5 minutes.
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  expire-reservations:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call internal expire-reservations endpoint
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "x-internal-cron-secret: ${INTERNAL_CRON_SECRET}" \
+            "${API_BASE_URL%/}/api/v1/internal/expire-reservations"
