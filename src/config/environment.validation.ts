@@ -16,8 +16,9 @@ const productionRequiredVariables = [
 
 export function validateEnvironment(environment = process.env) {
   const nodeEnvironment = environment.NODE_ENV ?? 'development';
-  if (!['development', 'test', 'production'].includes(nodeEnvironment)) {
-    throw new Error('NODE_ENV must be development, test, or production');
+  const isLocalOnly = nodeEnvironment === 'development' || nodeEnvironment === 'test';
+  if (!isLocalOnly && !environment.JWT_SECRET?.trim()) {
+    throw new Error('JWT_SECRET is required outside local development/test environments');
   }
 
   if (environment.PORT && (!/^\d+$/.test(environment.PORT) || Number(environment.PORT) < 1 || Number(environment.PORT) > 65535)) {

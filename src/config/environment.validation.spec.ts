@@ -15,6 +15,8 @@ describe('production environment validation', () => {
     CLOUDINARY_API_KEY: 'key',
     CLOUDINARY_API_SECRET: 'secret',
     ADMIN_INITIAL_PASSWORD: 'strong-admin-password',
+    EMAIL_PROVIDER_API_KEY: 're_example',
+    EMAIL_FROM_ADDRESS: 'RIVE <noreply@example.com>',
   };
 
   it('accepts a complete production configuration', () => {
@@ -28,5 +30,12 @@ describe('production environment validation', () => {
       .toThrow('JWT_SECRET must be at least 32 characters');
     expect(() => validateEnvironment({ ...productionEnvironment, JWT_EXPIRATION: 'forever' }))
       .toThrow('JWT_EXPIRATION');
+  });
+
+  it('requires JWT_SECRET in every non-local environment', () => {
+    expect(() => validateEnvironment({ NODE_ENV: 'staging' })).toThrow(
+      'JWT_SECRET is required outside local development/test environments',
+    );
+    expect(() => validateEnvironment({ NODE_ENV: 'test' })).not.toThrow();
   });
 });

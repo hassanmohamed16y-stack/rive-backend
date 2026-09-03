@@ -9,7 +9,11 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
 import { JwtStrategy } from './jwt.strategy';
 
-const jwtSecret = process.env.JWT_SECRET ?? (process.env.NODE_ENV === 'production' ? undefined : 'development-only-secret');
+const isLocalOnly = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+if (!isLocalOnly && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET is required outside local development/test environments');
+}
+const jwtSecret = process.env.JWT_SECRET ?? 'development-only-secret';
 
 @Module({
   imports: [
