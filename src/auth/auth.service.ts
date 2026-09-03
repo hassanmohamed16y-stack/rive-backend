@@ -4,6 +4,7 @@ import { Prisma, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from '../email/email.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
@@ -23,6 +24,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly emailService: EmailService,
   ) {}
 
   private sanitizeUser(user: User): SafeUser {
@@ -192,8 +194,16 @@ export class AuthService {
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
       await this.prisma.user.update({ where: { id: user.id }, data: { passwordResetToken: token, passwordResetExpiresAt: expiresAt } });
-      // TODO: EmailService sends this token in production; never expose it there.
-      if (process.env.NODE_ENV !== 'production') return { message: 'If this email exists, a reset link was sent', token, expiresAt };
+      if (process.env.NODE_ENV === 'production') {
+        try {
+          await this.emailService.sendPasswordResetEmail(user.email, token);
+        } catch {
+          // Keep the response indistinguishable when email delivery is unavailable.
+        }
+      } else {
+        // Tokens are exposed only for local development and automated tests.
+        return { message: 'If this email exists, a reset link was sent', token, expiresAt };
+      }
     }
     return { message: 'If this email exists, a reset link was sent' };
   }
@@ -215,22 +225,25 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
 
     try {
-      await this.prisma.user.update({
+      const user = await this.prisma.user.update({
         where: { id: userId },
         data: {
           emailVerificationToken: token,
           emailVerificationExpiresAt: expiresAt,
         },
       });
+      if (process.env.NODE_ENV === 'production') {
+        await this.emailService.sendVerificationEmail(user.email, token);
+      }
     } catch {
       throw new NotFoundException('User not found');
     }
 
-    return {
-      token,
-      expiresAt,
-      message: 'Email verification token generated successfully.',
-    };
+    if (process.env.NODE_ENV !== 'production') {
+      // Tokens are exposed only for local development and automated tests.
+      return { token, expiresAt, message: 'Email verification token generated successfully.' };
+    }
+    return { message: 'Verification email sent successfully.' };
   }
 
   async confirmEmailVerification(token: string) {

@@ -42,7 +42,8 @@ describe('AuthService', () => {
       },
       $transaction: jest.fn(async (callback) => callback(prisma)),
     };
-    return { service: new AuthService(prisma as any, jwtService), prisma };
+    const emailService = { sendVerificationEmail: jest.fn(), sendPasswordResetEmail: jest.fn() };
+    return { service: new AuthService(prisma as any, jwtService, emailService as any), prisma, emailService };
   }
 
   beforeEach(() => {

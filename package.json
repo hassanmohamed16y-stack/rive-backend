@@ -1,7 +1,7 @@
 {
   "name": "rive-backend",
   "version": "1.0.0",
-  "description": "RIV\u00c9 luxury e-commerce backend",
+  "description": "RIVÉ luxury e-commerce backend",
   "private": true,
   "scripts": {
     "build": "nest build",
@@ -47,6 +47,7 @@
     "passport-jwt": "^4.0.1",
     "prisma": "^5.18.0",
     "reflect-metadata": "^0.2.0",
+    "resend": "^6.25.0",
     "rxjs": "^7.0.0",
     "streamifier": "^0.1.1",
     "stripe": "^15.0.0"

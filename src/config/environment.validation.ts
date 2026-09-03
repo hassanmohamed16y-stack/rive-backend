@@ -10,6 +10,8 @@ const productionRequiredVariables = [
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
   'ADMIN_INITIAL_PASSWORD',
+  'EMAIL_PROVIDER_API_KEY',
+  'EMAIL_FROM_ADDRESS',
 ] as const;
 
 export function validateEnvironment(environment = process.env) {
