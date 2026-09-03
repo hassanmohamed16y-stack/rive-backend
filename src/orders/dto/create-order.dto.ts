@@ -5,8 +5,8 @@ import {
   ArrayMinSize,
   IsArray,
   IsEmail,
+  IsInt,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
   Length,
@@ -24,7 +24,7 @@ class OrderItemDto {
 
   @ApiProperty({ example: 1, minimum: 1, maximum: 50 })
   @Type(() => Number)
-  @IsNumber({ allowInfinity: false, allowNaN: false })
+  @IsInt()
   @Min(1)
   @Max(50)
   quantity!: number;

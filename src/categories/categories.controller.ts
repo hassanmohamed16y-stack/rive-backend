@@ -3,9 +3,9 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@ne
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
-import { PaginationDto } from '../common/dto/pagination.dto';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
+import { ListCategoriesQueryDto } from './dto/list-categories-query.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @ApiTags('categories')
@@ -19,11 +19,8 @@ export class CategoriesController {
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (1-indexed)', example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page', example: 20 })
   @ApiResponse({ status: 200, schema: { properties: { data: { type: 'array', items: { type: 'object' } }, meta: { type: 'object', properties: { page: { type: 'number' }, limit: { type: 'number' }, total: { type: 'number' }, totalPages: { type: 'number' } } } } } })
-  async findAll(
-    @Query('isFeatured') isFeatured?: string,
-    @Query() pagination: PaginationDto = new PaginationDto(),
-  ) {
-    const result = await this.categoriesService.findAll({ isFeatured }, pagination);
+  async findAll(@Query() query: ListCategoriesQueryDto) {
+    const result = await this.categoriesService.findAll({ isFeatured: query.isFeatured }, { page: query.page, limit: query.limit });
     return {
       ...result,
       data: result.data.map((category) => ({ ...category, productCount: category._count.products })),

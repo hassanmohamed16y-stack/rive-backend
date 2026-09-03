@@ -15,6 +15,8 @@ describe('JWT_SECRET hardening outside local development/test', () => {
       process.env.JWT_SECRET = jwtSecret;
     }
 
+    // Must re-require after jest.resetModules() so the module-level check re-runs.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     return () => require('./auth.module');
   }
 
