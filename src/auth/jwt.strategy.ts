@@ -1,10 +1,10 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { isLocalOnlyEnvironment } from '../common/utils/environment';
 import { AuthService } from './auth.service';
 
 const jwtSecret = process.env.JWT_SECRET ?? 'development-only-secret';
-const isProduction = process.env.NODE_ENV === 'production';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -17,9 +17,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       secretOrKey: jwtSecret,
     });
 
-    if (isProduction && !process.env.JWT_SECRET) {
-      this.logger.error('JWT_SECRET is required in production.');
-      throw new Error('JWT_SECRET is required in production');
+    if (!isLocalOnlyEnvironment() && !process.env.JWT_SECRET) {
+      this.logger.error('JWT_SECRET is required outside local development/test environments.');
+      throw new Error('JWT_SECRET is required outside local development/test environments');
     }
   }
 

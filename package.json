@@ -1,7 +1,7 @@
 {
   "name": "rive-backend",
   "version": "1.0.0",
-  "description": "RIV\u00c9 luxury e-commerce backend",
+  "description": "RIVÉ luxury e-commerce backend",
   "private": true,
   "scripts": {
     "build": "nest build",
@@ -40,7 +40,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.4",
     "cloudinary": "^2.11.0",
-    "file-type": "^12.4.2",
+    "file-type": "^22.0.2",
     "helmet": "^7.0.0",
     "multer": "^2.3.0",
     "passport": "^0.7.0",

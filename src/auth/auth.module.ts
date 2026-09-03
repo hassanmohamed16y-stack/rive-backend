@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { isLocalOnlyEnvironment } from '../common/utils/environment';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -8,7 +9,11 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
 import { JwtStrategy } from './jwt.strategy';
 
-const jwtSecret = process.env.JWT_SECRET ?? (process.env.NODE_ENV === 'production' ? undefined : 'development-only-secret');
+if (!isLocalOnlyEnvironment() && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET is required outside local development/test environments');
+}
+
+const jwtSecret = process.env.JWT_SECRET ?? 'development-only-secret';
 
 @Module({
   imports: [

@@ -1,5 +1,5 @@
 import * as crypto from 'crypto';
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { OrderStatus, Prisma, ProductStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -31,9 +31,8 @@ const orderInclude = {
 } satisfies Prisma.OrderInclude;
 
 @Injectable()
-export class OrdersService implements OnModuleInit, OnModuleDestroy {
+export class OrdersService implements OnModuleInit {
   private readonly logger = new Logger(OrdersService.name);
-  private expirationTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -41,21 +40,13 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit() {
+    // Expire any reservations that lapsed while the process was offline. Ongoing expiry is
+    // driven externally by POST /api/v1/internal/expire-reservations (see
+    // internal-orders.controller.ts), invoked by an external cron/scheduler, instead of an
+    // in-process setInterval — this avoids redundant work and races across multiple instances.
     await this.expirePendingReservations().catch((error: unknown) => {
       this.logger.error('Unable to expire pending order reservations', error instanceof Error ? error.stack : undefined);
     });
-    // Multi-instance deployments should replace this with an external cron/queue and distributed lock.
-    // The conditional PENDING transition keeps duplicate workers safe, but an external scheduler avoids redundant work.
-    this.expirationTimer = setInterval(() => {
-      void this.expirePendingReservations().catch((error: unknown) => {
-        this.logger.error('Unable to expire pending order reservations', error instanceof Error ? error.stack : undefined);
-      });
-    }, 60_000);
-    this.expirationTimer.unref();
-  }
-
-  onModuleDestroy() {
-    if (this.expirationTimer) clearInterval(this.expirationTimer);
   }
 
   private async findOrderDetailsById(client: PrismaService | Prisma.TransactionClient, orderId: string) {

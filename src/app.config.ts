@@ -68,9 +68,9 @@ export function configureApp(app: INestApplication) {
   }));
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET is required in production');
-  }
+  // JWT_SECRET presence outside local development/test is enforced at module-load time
+  // in auth.module.ts / jwt.strategy.ts (the single source of truth for this check),
+  // so no duplicate check is needed here.
 
   const config = new DocumentBuilder()
     .setTitle('RIVE Luxury Store API')
@@ -81,6 +81,7 @@ export function configureApp(app: INestApplication) {
     .addTag('categories')
     .addTag('orders')
     .addTag('auth')
+    .addTag('internal')
     .addTag('health')
     .build();
 

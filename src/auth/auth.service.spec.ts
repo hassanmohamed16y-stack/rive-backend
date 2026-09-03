@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn(),
+  hashSync: jest.fn(() => 'dummy-hash'),
   compare: jest.fn(),
 }));
 
@@ -19,6 +20,8 @@ describe('AuthService', () => {
     emailVerifiedAt: null,
     emailVerificationToken: null,
     emailVerificationExpiresAt: null,
+    passwordResetToken: null,
+    passwordResetExpiresAt: null,
     failedLoginAttempts: 0,
     lockedUntil: null,
     createdAt: new Date(),
@@ -40,7 +43,18 @@ describe('AuthService', () => {
       },
       $transaction: jest.fn(async (callback) => callback(prisma)),
     };
-    return { service: new AuthService(prisma as any, jwtService), prisma };
+    const auditLogService = { record: jest.fn().mockResolvedValue(undefined) };
+    const emailService = {
+      sendEmail: jest.fn().mockResolvedValue(undefined),
+      sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+      sendEmailVerificationEmail: jest.fn().mockResolvedValue(undefined),
+    };
+    return {
+      service: new AuthService(prisma as any, jwtService, auditLogService as any, emailService as any),
+      prisma,
+      auditLogService,
+      emailService,
+    };
   }
 
   beforeEach(() => {
@@ -132,5 +146,73 @@ describe('AuthService', () => {
   it('rejects expired JWTs', () => {
     const expiredToken = jwtService.sign({ sub: 'user-1' }, { expiresIn: '-1s' });
     expect(() => jwtService.verify(expiredToken)).toThrow();
+  });
+
+  it('changes the password, revokes refresh tokens, and records an audit log without leaking passwords', async () => {
+    const { service, prisma, auditLogService } = createService();
+    prisma.user.findUnique.mockResolvedValue(baseUser);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+    (bcrypt.hash as jest.Mock).mockResolvedValue('new-hash');
+
+    const result = await service.changePassword('user-1', { currentPassword: 'old', newPassword: 'NewStrongPass123!' });
+
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId: 'user-1', revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    }));
+    expect(auditLogService.record).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'auth.password-change',
+      userId: 'user-1',
+    }));
+    expect(JSON.stringify(result)).not.toContain('new-hash');
+  });
+
+  it('rejects change-password when the current password is wrong', async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue(baseUser);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+    await expect(service.changePassword('user-1', { currentPassword: 'wrong', newPassword: 'NewStrongPass123!' }))
+      .rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('forgot-password always returns the same generic message, even for unknown emails', async () => {
+    const { service, prisma, emailService } = createService();
+    prisma.user.findUnique.mockResolvedValueOnce(null);
+    const unknownResult = await service.forgotPassword('unknown@example.com');
+
+    prisma.user.findUnique.mockResolvedValueOnce(baseUser);
+    prisma.user.update.mockResolvedValue(baseUser);
+    const knownResult = await service.forgotPassword(baseUser.email);
+
+    expect(unknownResult.message).toEqual(knownResult.message);
+    expect(emailService.sendPasswordResetEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('resets the password with a valid token and revokes refresh tokens', async () => {
+    const { service, prisma, auditLogService } = createService();
+    prisma.user.findUnique.mockResolvedValue({ ...baseUser, passwordResetToken: 'valid-token', passwordResetExpiresAt: new Date(Date.now() + 60_000) });
+    (bcrypt.hash as jest.Mock).mockResolvedValue('new-hash');
+
+    await service.resetPassword('valid-token', 'NewStrongPass123!');
+
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId: 'user-1', revokedAt: null },
+    }));
+    expect(auditLogService.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'auth.password-reset' }));
+  });
+
+  it('rejects an expired password reset token', async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue({ ...baseUser, passwordResetToken: 'valid-token', passwordResetExpiresAt: new Date(Date.now() - 1000) });
+
+    await expect(service.resetPassword('valid-token', 'NewStrongPass123!')).rejects.toThrow('expired');
+  });
+
+  it('rejects an unknown password reset token', async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(service.resetPassword('missing', 'NewStrongPass123!')).rejects.toThrow('Invalid password reset token');
   });
 });

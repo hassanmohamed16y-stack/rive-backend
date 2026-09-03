@@ -3,8 +3,8 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@ne
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
-import { PaginationDto } from '../common/dto/pagination.dto';
 import { CreateProductDto } from './dto/create-product.dto';
+import { ListProductsQueryDto } from './dto/list-products-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
 
@@ -21,15 +21,10 @@ export class ProductsController {
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (1-indexed)', example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page', example: 20 })
   @ApiResponse({ status: 200, schema: { properties: { data: { type: 'array', items: { type: 'object' } }, meta: { type: 'object', properties: { page: { type: 'number' }, limit: { type: 'number' }, total: { type: 'number' }, totalPages: { type: 'number' } } } } } })
-  async findAll(
-    @Query('category') category?: string,
-    @Query('isFeatured') isFeatured?: string,
-    @Query('search') search?: string,
-    @Query() pagination: PaginationDto = new PaginationDto(),
-  ) {
+  async findAll(@Query() query: ListProductsQueryDto) {
     return this.productsService.findAll(
-      { category, isFeatured, search },
-      { page: pagination.page, limit: pagination.limit },
+      { category: query.category, isFeatured: query.isFeatured, search: query.search },
+      { page: query.page, limit: query.limit },
     );
   }
 
