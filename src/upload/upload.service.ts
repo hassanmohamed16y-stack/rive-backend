@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
-import fileType from 'file-type';
 import * as streamifier from 'streamifier';
 
 type UploadedFile = {
@@ -8,6 +7,17 @@ type UploadedFile = {
   mimetype: string;
   size: number;
   originalname?: string;
+};
+
+const importFileTypeModule = new Function(
+  'specifier',
+  'return import(specifier)',
+) as (specifier: string) => Promise<{
+  fileTypeFromBuffer: (input: Uint8Array | ArrayBuffer) => Promise<{ mime: string } | undefined>;
+}>;
+
+export const fileTypeModuleLoader = {
+  load: () => importFileTypeModule('file-type'),
 };
 
 @Injectable()
@@ -33,7 +43,8 @@ export class UploadService {
     }
 
     // Validate magic bytes to prevent spoofed file uploads
-    const fileTypeResult = fileType(file.buffer);
+    const { fileTypeFromBuffer } = await fileTypeModuleLoader.load();
+    const fileTypeResult = await fileTypeFromBuffer(file.buffer);
     if (!fileTypeResult || !allowed.includes(fileTypeResult.mime)) {
       throw new BadRequestException(
         'File magic bytes do not match declared MIME type. Only JPEG, PNG, and WEBP are allowed.',
