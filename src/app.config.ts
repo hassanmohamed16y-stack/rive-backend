@@ -1,6 +1,7 @@
 import { ForbiddenException, INestApplication, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as bodyParser from 'body-parser';
+import compression from 'compression';
 import * as express from 'express';
 import helmet from 'helmet';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -9,6 +10,7 @@ import { isLocalOnlyEnvironment } from './common/utils/environment';
 
 export function configureApp(app: INestApplication) {
   app.use(requestLoggingMiddleware);
+  app.use(compression());
   app.use(
     helmet({
       contentSecurityPolicy: {
