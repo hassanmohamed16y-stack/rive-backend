@@ -212,7 +212,7 @@ export class AuthService {
       user = await this.prisma.user.update({
         where: { id: userId },
         data: {
-          emailVerificationToken: token,
+          emailVerificationToken: this.hashToken(token),
           emailVerificationExpiresAt: expiresAt,
         },
       });
@@ -231,7 +231,7 @@ export class AuthService {
 
   async confirmEmailVerification(token: string) {
     const user = await this.prisma.user.findUnique({
-      where: { emailVerificationToken: token },
+      where: { emailVerificationToken: this.hashToken(token) },
     });
 
     if (!user) {
@@ -306,7 +306,7 @@ export class AuthService {
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
-        passwordResetToken: token,
+        passwordResetToken: this.hashToken(token),
         passwordResetExpiresAt: expiresAt,
       },
     });
@@ -329,7 +329,7 @@ export class AuthService {
 
   async resetPassword(token: string, newPassword: string) {
     const user = await this.prisma.user.findUnique({
-      where: { passwordResetToken: token },
+      where: { passwordResetToken: this.hashToken(token) },
     });
 
     if (!user) {
