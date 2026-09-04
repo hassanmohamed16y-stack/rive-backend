@@ -3,6 +3,7 @@ import { BadRequestException, ConflictException, Injectable, Logger, NotFoundExc
 import { OrderStatus, Prisma, ProductStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { buildPaginationMeta, PaginationInput, resolvePagination } from '../common/utils/pagination';
 import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -259,21 +260,20 @@ export class OrdersService implements OnModuleInit {
     return expiredCount;
   }
 
-  async findAll(filters: { status?: OrderStatus }, pagination: { page?: number; limit?: number }) {
-    const page = pagination.page ?? 1;
-    const limit = pagination.limit ?? 20;
+  async findAll(filters: { status?: OrderStatus }, pagination: PaginationInput) {
+    const { page, limit, skip, take } = resolvePagination(pagination);
     const where = filters.status ? { status: filters.status } : {};
     const [data, total] = await Promise.all([
       this.prisma.order.findMany({
         where,
         include: orderInclude,
         orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
+        skip,
+        take,
       }),
       this.prisma.order.count({ where }),
     ]);
-    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    return { data, meta: buildPaginationMeta(page, limit, total) };
   }
 
   async findByIdForAdmin(id: string) {
