@@ -12,6 +12,7 @@
     "prisma:seed": "ts-node prisma/seed.ts",
     "seed": "prisma db seed",
     "save": "bash scripts/auto-save.sh",
+    "export:openapi": "ts-node scripts/export-openapi.ts",
     "lint": "eslint . --ext .ts",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",

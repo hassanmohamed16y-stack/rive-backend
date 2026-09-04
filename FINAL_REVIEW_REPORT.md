@@ -2,16 +2,18 @@
 
 > تم إعداد هذا التقرير بعد مراجعة كاملة لكل ملف في `src/**/*.ts`, `prisma/schema.prisma` و`migrations`, `Dockerfile`, `docker-compose.yml`, `.env.example`, `package.json`, `.github/workflows/*.yml`, وكل `*.spec.ts`، على فرع `main` المحدَّث (لا توجد فروع أو Pull Requests مفتوحة تحتوي إصلاحات غير مدمجة — تم التحقق عبر `git ls-remote` و`list_pull_requests`، وآخر commit على `main` مطابق تمامًا لـ `HEAD` الحالي).
 
+> **تحديث لاحق:** تم دمج commit `37fd175` (*"Lock Swagger docs and CORS to local-only environments"*) الذي يوحّد فحصَي CORS allowlist وتفعيل Swagger (`/api/docs`) في `src/app.config.ts` عبر `isLocalOnlyEnvironment()` بدلًا من `process.env.NODE_ENV === 'production'` المباشر — البندان المذكوران سابقًا في §4/1 لهذين الموضعين أصبحا **منفَّذين ومغلَقين**. الفحصان المتبقيان في `src/payment/payment.service.ts` (اشتراط `STRIPE_SECRET_KEY`) و`prisma/seed.ts` (اشتراط كلمة مرور أدمن قوية) **لا يزالان قرارًا مؤجَّلًا بالاتفاق** (بالإضافة إلى فحص HSTS في `src/app.config.ts:24` الذي لم يُمس بعد) — التفاصيل والأثر المتوقع موثّقة في §4.
+
 ---
 
 ## 1. نظرة عامة
 
 | المقياس | القيمة |
 |---|---|
-| عدد ملفات TypeScript في `src/` | 84 |
-| إجمالي أسطر الكود في `src/` | 5,367 سطر |
+| عدد ملفات TypeScript في `src/` | 85 |
+| إجمالي أسطر الكود في `src/` | 5,438 سطر |
 | عدد ملفات `*.spec.ts` | 17 |
-| نتيجة `npm test` | **102 passed**, 3 skipped (موثّقة، انظر §5)، 0 فشل |
+| نتيجة `npm test` | **106 passed**, 3 skipped (موثّقة، انظر §5)، 0 فشل |
 | تغطية الاختبارات (`jest --coverage`) | **All files: 76.28% Statements / 56.33% Branch / 56.41% Functions / 75.98% Lines** |
 | نتيجة `npm audit` | **0 vulnerabilities** |
 | نتيجة `npm outdated` | 20 حزمة بها تحديثات متاحة، مفصّلة في §4 |
@@ -29,7 +31,7 @@
 | `RefreshToken` / `passwordResetToken` / `emailVerificationToken` مخزَّنة كـ hash | ✅ سليم (بعد الإصلاح الأخير في commit `ff3fcf0`) | `src/auth/auth.service.ts` — دالة `hashToken()` تستخدم `crypto.createHash('sha256')`؛ كل الكتابات وعمليات البحث في قاعدة البيانات تستخدم القيمة المُجزَّأة فقط |
 | DTOs تلتزم بـ `whitelist + forbidNonWhitelisted` مع `@MaxLength` على كل حقل نصي | ✅ سليم | الإعداد العام في `src/app.config.ts:61-68`؛ تم فحص كل DTO في `src/**/dto/*.ts` (register, category, product, product-variant, product-image, create-order, list-products-query, ...) ولم يوجد أي حقل نصي بدون `@MaxLength` |
 | لا تسريب لتفاصيل داخلية (stack traces) في الاستجابة خارج بيئة التطوير | ✅ سليم | `src/common/filters/http-exception.filter.ts` — الاستجابة تحتوي فقط `statusCode/timestamp/requestId/path/method/error`؛ الـ stack يُسجَّل فقط داخليًا عبر Logger. توكنات البريد/الاستعادة تُعاد في الاستجابة فقط عند `isLocalOnlyEnvironment()` (`src/auth/auth.service.ts`) |
-| توحيد فحوصات البيئة (`isLocalOnlyEnvironment`) | ⚠️ يحتاج قرار بشري (غير منفَّذ تلقائيًا) | موجود ومستخدَم بشكل صحيح في `src/auth/auth.module.ts`, `src/auth/jwt.strategy.ts`, `src/auth/auth.service.ts`, `src/config/environment.validation.ts`. لكن 3 مواضع أخرى ما زالت تستخدم `process.env.NODE_ENV === 'production'` مباشرة بدلًا منه — انظر §4 لشرح الأثر |
+| توحيد فحوصات البيئة (`isLocalOnlyEnvironment`) | ⚠️ منفَّذ جزئيًا؛ الباقي قرار بشري مؤجَّل | موجود ومستخدَم بشكل صحيح في `src/auth/auth.module.ts`, `src/auth/jwt.strategy.ts`, `src/auth/auth.service.ts`, `src/config/environment.validation.ts`، وكذلك (بعد commit `37fd175`) في CORS allowlist وتفعيل Swagger داخل `src/app.config.ts`. لا يزال HSTS في `src/app.config.ts:24` واشتراط `STRIPE_SECRET_KEY`/كلمة مرور الأدمن (`payment.service.ts`, `prisma/seed.ts`) خارج التوحيد — انظر §4 لشرح الأثر |
 
 **لا توجد ثغرات حرجة (Critical) أو عالية الخطورة (High) في المراجعة الأمنية.**
 
@@ -57,7 +59,7 @@
 
 | # | الموضع | الوصف | الأثر المتوقع لو تم التنفيذ |
 |---|---|---|---|
-| 1 | `src/app.config.ts:23` (HSTS)، `:43` (CORS allowlist)، `:89` (تفعيل Swagger)، و`src/payment/payment.service.ts:18` (اشتراط `STRIPE_SECRET_KEY`)، و`prisma/seed.ts` (اشتراط كلمة مرور قوية للأدمن) | هذه المواضع تستخدم `process.env.NODE_ENV === 'production'` مباشرة بدلًا من الاستعانة بـ `isLocalOnlyEnvironment()` الموحَّدة. الفرق الدلالي: `isLocalOnlyEnvironment()` تُعامل أي بيئة **ليست** `development`/`test` (بما فيها `staging`/`qa`) كبيئة "حقيقية"، بينما الفحص الحالي يُفعِّل الحماية فقط عندما `NODE_ENV === 'production'` حرفيًا | **تغيير سلوك خارجي حقيقي**: لو كانت بيئة `staging` تعمل بـ `NODE_ENV=staging`، فإن توحيد الفحص سيُفعِّل HSTS، يُقيِّد CORS، يُخفي Swagger، ويشترط `STRIPE_SECRET_KEY` في `staging` — وهذا قد يكسر بيئة staging الحالية إن كانت تعتمد على عدم تفعيل هذه الحمايات. **يحتاج قرارًا بشريًا**: هل بيئات `staging/qa` يجب أن تُعامَل كإنتاج أمنيًا؟ إن كانت الإجابة نعم، فالتغيير آمن ومرغوب؛ إن لم يُحسَم بعد، يُترك كما هو |
+| 1 | ✅ **تم الحل جزئيًا** (commit `37fd175`): `src/app.config.ts:43` (CORS allowlist) و`:89` (تفعيل Swagger) أصبحا يستخدمان `isLocalOnlyEnvironment()` الموحَّدة. **متبقٍّ ومؤجَّل بالاتفاق:** `src/app.config.ts:24` (HSTS)، و`src/payment/payment.service.ts:18` (اشتراط `STRIPE_SECRET_KEY`)، و`prisma/seed.ts` (اشتراط كلمة مرور قوية للأدمن) لا تزال تعتمد على الفحص المباشر/العام غير الموحَّد لهذه الحالات الثلاث | هذه المواضع المتبقية تستخدم (أو تعتمد ضمنيًا على) `process.env.NODE_ENV === 'production'` بدلًا من `isLocalOnlyEnvironment()` الموحَّدة. الفرق الدلالي: `isLocalOnlyEnvironment()` تُعامل أي بيئة **ليست** `development`/`test` (بما فيها `staging`/`qa`) كبيئة "حقيقية"، بينما الفحص الحالي يُفعِّل الحماية فقط عندما `NODE_ENV === 'production'` حرفيًا | **تغيير سلوك خارجي حقيقي**: لو كانت بيئة `staging` تعمل بـ `NODE_ENV=staging`، فإن توحيد الفحص سيُفعِّل HSTS ويشترط `STRIPE_SECRET_KEY`/كلمة مرور أدمن قوية في `staging` — وهذا قد يكسر بيئة staging الحالية إن كانت تعتمد على عدم تفعيل هذه الحمايات. **يحتاج قرارًا بشريًا** (لا يزال مؤجَّلًا بالاتفاق): هل بيئات `staging/qa` يجب أن تُعامَل كإنتاج أمنيًا؟ إن كانت الإجابة نعم، فالتغيير آمن ومرغوب؛ إن لم يُحسَم بعد، يُترك كما هو |
 | 2 | ترقية `@nestjs/*` من v11 إلى v12 (`@nestjs/common`, `@nestjs/core`, `@nestjs/jwt`, `@nestjs/passport`, `@nestjs/platform-express`, `@nestjs/schematics`, `@nestjs/swagger`, `@nestjs/testing`, `@nestjs/cli`) | Major version breaking change حسب `npm outdated` | يتطلب مراجعة migration guide الرسمي لـ NestJS 12، واختبار كامل لكل الـ decorators/guards/pipes. **لا يُنفَّذ تلقائيًا** |
 | 3 | ترقية `prisma` و`@prisma/client` من v5.22.0 إلى v7.10.0/v8.0.0-rc.13 | Major breaking change (قفزتان كاملتان في الإصدار) | يمس schema engine، أوامر migrate، وربما API الاستعلامات. **يحتاج مراجعة منفصلة كاملة** ولا يُنفَّذ تلقائيًا |
 | 4 | ترقية `stripe` (15.12.0 → 22.6.1)، `bcrypt` (5.1.1 → 6.0.0)، `helmet` (7.2.0 → 8.3.0)، `typescript` (5.9.3 → 7.0.2)، `@types/node` (22 → 26) | Major breaking changes محتملة في كل حزمة | تحتاج اختبار توافق فردي (خصوصًا `stripe` لتغييرات `apiVersion` المثبّتة حاليًا على `2024-04-10` في `payment.service.ts:20`). **يحتاج قرار منفصل لكل حزمة** |
@@ -77,8 +79,8 @@ $ npm run lint
 (0 أخطاء/تحذيرات)
 
 $ npm test
-Test Suites: 2 skipped, 15 passed, 15 of 17 total
-Tests:       3 skipped, 102 passed, 105 total
+Test Suites: 2 skipped, 16 passed, 16 of 18 total
+Tests:       3 skipped, 106 passed, 109 total
 
 $ npm audit
 found 0 vulnerabilities
@@ -93,6 +95,8 @@ found 0 vulnerabilities
 ---
 
 ## 6. خريطة كاملة لكل Endpoint في المشروع
+
+> تم توليد هذه الخريطة (36 endpoint على 32 مسارًا) عبر مقارنة كل ملف `*.controller.ts` مع مخرجات `npm run export:openapi` (`openapi.json` في جذر المشروع، مولَّد عبر `scripts/export-openapi.ts`)، بعد دمج commit `37fd175`. توثيق Swagger التفاعلي الكامل (أمثلة request/response وأكواد الأخطاء) متاح على `/api/docs` **محليًا فقط** (`NODE_ENV=development` أو `test`) — انظر `docs/frontend-integration.md`.
 
 | Method | Path | Guard | وصف مختصر |
 |---|---|---|---|
@@ -146,5 +150,7 @@ found 0 vulnerabilities
 - ✅ منطق خصم المخزون ذري وشرطي (`updateMany` + `gte`)، والتحديثات الإدارية للمخزون/الأسعار محمية بـ optimistic locking (`updatedAt` كحارس TOCTOU).
 - ✅ كل عملية كتابة حساسة مسجَّلة عبر `AuditLogService` بنمط تسمية موحَّد.
 - ✅ `npm audit` نظيف (0 ثغرات)، و`typecheck`/`lint`/`test` كلها خضراء.
-- ⚠️ **الشرط المتبقي**: قرار بشري صريح بشأن توحيد فحوصات `NODE_ENV` (§4 البند 1) قبل نشر أي بيئة `staging/qa` تعتمد على تمييز دقيق بين "إنتاج" و"غير محلي" — لا يمنع الإطلاق لكن يجب حسمه إذا كانت هناك بيئة staging حقيقية بخلاف `development/test/production`.
+- ✅ **مُغلَق (commit `37fd175`)**: CORS allowlist وتفعيل Swagger (`/api/docs`) موحَّدان الآن عبر `isLocalOnlyEnvironment()`، مع اختبارات e2e (`src/app.config.security.e2e.spec.ts`) تتحقق من القفل خارج البيئات المحلية.
+- ⚠️ **الشرط المتبقي (مؤجَّل بالاتفاق)**: قرار بشري صريح بشأن توحيد HSTS (`app.config.ts:24`) واشتراط `STRIPE_SECRET_KEY`/كلمة مرور الأدمن (`payment.service.ts`, `prisma/seed.ts`) عبر `isLocalOnlyEnvironment()` (§4 البند 1) قبل نشر أي بيئة `staging/qa` تعتمد على تمييز دقيق بين "إنتاج" و"غير محلي" — لا يمنع الإطلاق لكن يجب حسمه إذا كانت هناك بيئة staging حقيقية بخلاف `development/test/production`.
 - 📌 ترقيات الحزم الكبرى (NestJS v12، Prisma v7/v8، Stripe v22، إلخ) **مؤجَّلة عمدًا** حسب توجيه المهمة، ولا تمنع الإطلاق الحالي على الإصدارات الحالية المستقرة وغير الضعيفة أمنيًا.
+- 📌 لبدء تكامل الفرونت إند: `openapi.json` (جذر المشروع، مولَّد عبر `npm run export:openapi`) و`docs/frontend-integration.md` يوفّران كل ما يلزم (Base URL، المصادقة، الهيدرز الخاصة، شكل الأخطاء والـ pagination الموحَّد).
