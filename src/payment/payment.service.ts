@@ -14,10 +14,10 @@ export class PaymentService {
     private readonly prisma: PrismaService,
     private readonly ordersService: OrdersService,
   ) {
+    // STRIPE_SECRET_KEY presence outside local development/test is enforced at
+    // module-load time in environment.validation.ts (the single source of
+    // truth for this check), so no duplicate check is needed here.
     const apiKey = process.env.STRIPE_SECRET_KEY;
-    if (!apiKey && process.env.NODE_ENV === 'production') {
-      throw new Error('STRIPE_SECRET_KEY is required in production');
-    }
     this.stripe = new Stripe(apiKey ?? 'sk_test_placeholder', {
       apiVersion: '2024-04-10',
     });

@@ -4,9 +4,9 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-  if (!process.env.ADMIN_INITIAL_PASSWORD && process.env.NODE_ENV === 'production') {
-    throw new Error('ADMIN_INITIAL_PASSWORD is required in production');
-  }
+  // ADMIN_INITIAL_PASSWORD presence outside local development/test is enforced
+  // at module-load time in environment.validation.ts (the single source of
+  // truth for this check), so no duplicate check is needed here.
   const adminPassword = process.env.ADMIN_INITIAL_PASSWORD ?? 'development-only-admin-password';
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
