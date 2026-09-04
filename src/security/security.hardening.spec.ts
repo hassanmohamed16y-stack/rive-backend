@@ -264,7 +264,7 @@ describe('Backend security regression tests', () => {
         ordersController.findOne('RIV-1000-ABC', {
           user: { userId: 'user-a', role: 'CUSTOMER' },
           headers: {},
-        }),
+        } as any),
       ).rejects.toThrow('permission');
     });
 
@@ -283,7 +283,7 @@ describe('Backend security regression tests', () => {
       const result = await ordersController.findOne('RIV-1000-ABC', {
         user: { userId: 'admin-1', role: 'ADMIN' },
         headers: {},
-      });
+      } as any);
 
       expect(result).toBeDefined();
       expect(result.orderNumber).toBe('RIV-1000-ABC');
@@ -304,7 +304,7 @@ describe('Backend security regression tests', () => {
       const result = await ordersController.findOne('RIV-1000-ABC', {
         user: { userId: 'user-a', role: 'CUSTOMER' },
         headers: {},
-      });
+      } as any);
 
       expect(result).toBeDefined();
       expect(result.userId).toBe('user-a');

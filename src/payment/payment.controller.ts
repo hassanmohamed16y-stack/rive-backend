@@ -3,6 +3,7 @@ import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
+import { AuthenticatedRequest } from '../common/types/authenticated-request';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { PaymentService } from './payment.service';
 
@@ -33,7 +34,7 @@ export class PaymentController {
       required: ['orderId'],
     },
   })
-  async createCheckoutSession(@Body() dto: CreateCheckoutSessionDto, @Req() req: any) {
+  async createCheckoutSession(@Body() dto: CreateCheckoutSessionDto, @Req() req: AuthenticatedRequest) {
     return this.paymentService.createCheckoutSession(dto.orderId, {
       userId: req.user?.userId,
       role: req.user?.role,

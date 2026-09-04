@@ -26,7 +26,7 @@ describe('Admin management controllers', () => {
     const controller = new AdminOrdersController(ordersService as any);
 
     await expect(controller.findOne('order-1')).resolves.toMatchObject({ status: OrderStatus.PENDING });
-    await expect(controller.updateStatus('order-1', { status: OrderStatus.SHIPPED }, { user: { id: 'admin-1' } })).resolves.toMatchObject({ status: OrderStatus.SHIPPED });
+    await expect(controller.updateStatus('order-1', { status: OrderStatus.SHIPPED }, { user: { id: 'admin-1' } } as any)).resolves.toMatchObject({ status: OrderStatus.SHIPPED });
     expect(ordersService.findByIdForAdmin).toHaveBeenCalledWith('order-1');
     expect(ordersService.transitionStatus).toHaveBeenCalledWith('order-1', OrderStatus.SHIPPED, 'admin-1');
   });

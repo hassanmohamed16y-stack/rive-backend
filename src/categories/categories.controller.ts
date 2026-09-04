@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@ne
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { AuthenticatedRequest } from '../common/types/authenticated-request';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { ListCategoriesQueryDto } from './dto/list-categories-query.dto';
@@ -35,8 +36,8 @@ export class CategoriesController {
   @ApiResponse({ status: 201, description: 'Category created successfully.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden. ADMIN role required.' })
-  async create(@Body() dto: CreateCategoryDto, @Req() req: any) {
-    return this.categoriesService.create(dto, req.user.id);
+  async create(@Body() dto: CreateCategoryDto, @Req() req: AuthenticatedRequest) {
+    return this.categoriesService.create(dto, req.user!.id);
   }
 
   @Patch(':id')
@@ -46,8 +47,8 @@ export class CategoriesController {
   @ApiOperation({ summary: 'Update a category (Admin)' })
   @ApiResponse({ status: 200, description: 'Category updated successfully.' })
   @ApiResponse({ status: 404, description: 'Category not found.' })
-  async update(@Param('id') id: string, @Body() dto: UpdateCategoryDto, @Req() req: any) {
-    return this.categoriesService.update(id, dto, req.user.id);
+  async update(@Param('id') id: string, @Body() dto: UpdateCategoryDto, @Req() req: AuthenticatedRequest) {
+    return this.categoriesService.update(id, dto, req.user!.id);
   }
 
   @Delete(':id')
@@ -57,7 +58,7 @@ export class CategoriesController {
   @ApiOperation({ summary: 'Delete an unused category (Admin)' })
   @ApiResponse({ status: 200, description: 'Category deleted successfully.' })
   @ApiResponse({ status: 409, description: 'Category has products and cannot be deleted.' })
-  async remove(@Param('id') id: string, @Req() req: any) {
-    return this.categoriesService.remove(id, req.user.id);
+  async remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.categoriesService.remove(id, req.user!.id);
   }
 }
