@@ -2,6 +2,11 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Prisma downloads engine checksums during `generate`; ignore missing ones so
+# builds don't fail in restricted network environments. Engines are only
+# ever generated here, at build time, never at container start.
+ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
+
 COPY package*.json ./
 RUN npm ci
 
@@ -26,14 +31,22 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY .env.example ./.env.example
 
+# Explicitly (re-)place the generated Prisma Client and query engine binaries
+# so they are present and owned correctly before dropping privileges.
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
+COPY entrypoint.sh ./entrypoint.sh
+
 # Ensure the non-root "node" user can read the pre-generated Prisma Client
-# and query engine binaries so no write/generate is attempted at runtime.
-RUN chown -R node:node /app/node_modules/.prisma /app/node_modules/@prisma /app/prisma
+# and query engine binaries, and can execute the entrypoint script.
+RUN chmod +x ./entrypoint.sh \
+  && chown -R node:node /app/node_modules/.prisma /app/node_modules/@prisma /app/prisma
 
 EXPOSE 3000
 
 USER node
 
-# PRISMA_CLI_QUERY_ENGINE_TYPE etc. are already baked in from the build stage;
-# only run migrations at startup, never `prisma generate`.
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+# Runtime only applies migrations and starts the app; `prisma generate` is
+# never invoked here, avoiding any write attempt under the non-root user.
+ENTRYPOINT ["./entrypoint.sh"]
