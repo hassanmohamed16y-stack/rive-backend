@@ -5,6 +5,7 @@ import * as express from 'express';
 import helmet from 'helmet';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { requestLoggingMiddleware } from './common/middleware/request-logging.middleware';
+import { isLocalOnlyEnvironment } from './common/utils/environment';
 
 export function configureApp(app: INestApplication) {
   app.use(requestLoggingMiddleware);
@@ -40,9 +41,9 @@ export function configureApp(app: INestApplication) {
     'http://127.0.0.1:3000',
     'http://127.0.0.1:3001',
   ];
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? configuredOrigins
-    : [...configuredOrigins, ...developmentOrigins];
+  const allowedOrigins = isLocalOnlyEnvironment()
+    ? [...configuredOrigins, ...developmentOrigins]
+    : configuredOrigins;
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -86,7 +87,7 @@ export function configureApp(app: INestApplication) {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  if (process.env.NODE_ENV !== 'production') {
+  if (isLocalOnlyEnvironment()) {
     SwaggerModule.setup('api/docs', app, document);
   }
 }
