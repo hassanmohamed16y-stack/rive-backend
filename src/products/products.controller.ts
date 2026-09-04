@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@ne
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { AuthenticatedRequest } from '../common/types/authenticated-request';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ListProductsQueryDto } from './dto/list-products-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -44,8 +45,8 @@ export class ProductsController {
   @ApiResponse({ status: 201, description: 'Product created successfully.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden. ADMIN role required.' })
-  async create(@Body() dto: CreateProductDto, @Req() req: any) {
-    return this.productsService.create(dto, req.user.id);
+  async create(@Body() dto: CreateProductDto, @Req() req: AuthenticatedRequest) {
+    return this.productsService.create(dto, req.user!.id);
   }
 
   @Patch(':id')
@@ -54,8 +55,8 @@ export class ProductsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update product details (Admin)' })
   @ApiResponse({ status: 200, description: 'Product updated successfully.' })
-  async update(@Param('id') id: string, @Body() dto: UpdateProductDto, @Req() req: any) {
-    return this.productsService.update(id, dto, req.user.id);
+  async update(@Param('id') id: string, @Body() dto: UpdateProductDto, @Req() req: AuthenticatedRequest) {
+    return this.productsService.update(id, dto, req.user!.id);
   }
 
   @Delete(':id')
@@ -64,7 +65,7 @@ export class ProductsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Archive a product without deleting order history (Admin)' })
   @ApiResponse({ status: 200, description: 'Product archived successfully.' })
-  async archive(@Param('id') id: string, @Req() req: any) {
-    return this.productsService.archive(id, req.user.id);
+  async archive(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.productsService.archive(id, req.user!.id);
   }
 }

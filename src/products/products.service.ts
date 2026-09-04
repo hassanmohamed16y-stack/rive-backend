@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { Prisma, ProductStatus } from '@prisma/client';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { buildPaginationMeta, PaginationInput, resolvePagination } from '../common/utils/pagination';
 import { CreateProductDto } from './dto/create-product.dto';
 import { CreateProductImageDto } from './dto/create-product-image.dto';
 import { CreateProductVariantDto } from './dto/create-product-variant.dto';
@@ -31,10 +32,7 @@ export class ProductsService {
       search?: string;
       status?: ProductStatus;
     },
-    pagination?: {
-      page?: number;
-      limit?: number;
-    },
+    pagination?: PaginationInput,
     includeAllStatuses = false,
   ) {
     const where: Prisma.ProductWhereInput = includeAllStatuses
@@ -60,8 +58,7 @@ export class ProductsService {
       ];
     }
 
-    const page = pagination?.page ?? 1;
-    const limit = pagination?.limit ?? 20;
+    const { page, limit, skip, take } = resolvePagination(pagination);
     const [data, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
@@ -76,13 +73,13 @@ export class ProductsService {
           },
         },
         orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
+        skip,
+        take,
       }),
       this.prisma.product.count({ where }),
     ]);
 
-    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    return { data, meta: buildPaginationMeta(page, limit, total) };
   }
 
   async findOneBySlug(slug: string, includeAllStatuses = false) {

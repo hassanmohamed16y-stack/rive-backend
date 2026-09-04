@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { Prisma } from '@prisma/client';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { buildPaginationMeta, PaginationInput, resolvePagination } from '../common/utils/pagination';
 import { CreateCategoryDto } from './dto/create-category.dto';
 
 @Injectable()
@@ -11,9 +12,8 @@ export class CategoriesService {
     private readonly auditLogService: AuditLogService,
   ) {}
 
-  async findAll(filters?: { isFeatured?: string }, pagination?: { page?: number; limit?: number }) {
-    const page = pagination?.page ?? 1;
-    const limit = pagination?.limit ?? 20;
+  async findAll(filters?: { isFeatured?: string }, pagination?: PaginationInput) {
+    const { page, limit, skip, take } = resolvePagination(pagination);
     const where: Prisma.CategoryWhereInput = filters?.isFeatured === undefined
       ? {}
       : { isFeatured: filters.isFeatured === 'true' };
@@ -26,12 +26,12 @@ export class CategoriesService {
           },
         },
         orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
+        skip,
+        take,
       }),
       this.prisma.category.count({ where }),
     ]);
-    return { data, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    return { data, meta: buildPaginationMeta(page, limit, total) };
   }
 
   async create(dto: CreateCategoryDto, actorUserId?: string) {

@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { AuthenticatedRequest } from '../common/types/authenticated-request';
 import { CreateProductImageDto } from './dto/create-product-image.dto';
 import { CreateProductVariantDto } from './dto/create-product-variant.dto';
 import { UpdateProductVariantDto } from './dto/update-product-variant.dto';
@@ -39,8 +40,8 @@ export class AdminProductsController {
   @ApiResponse({ status: 201, description: 'Variant created successfully.' })
   @ApiResponse({ status: 404, description: 'Product not found.' })
   @ApiResponse({ status: 409, description: 'A variant with this SKU already exists.' })
-  async addVariant(@Param('productId') productId: string, @Body() dto: CreateProductVariantDto, @Req() req: any) {
-    return this.productsService.addVariant(productId, dto, req.user.id);
+  async addVariant(@Param('productId') productId: string, @Body() dto: CreateProductVariantDto, @Req() req: AuthenticatedRequest) {
+    return this.productsService.addVariant(productId, dto, req.user!.id);
   }
 
   @Patch(':productId/variants/:variantId')
@@ -52,9 +53,9 @@ export class AdminProductsController {
     @Param('productId') productId: string,
     @Param('variantId') variantId: string,
     @Body() dto: UpdateProductVariantDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.productsService.updateVariant(productId, variantId, dto, req.user.id);
+    return this.productsService.updateVariant(productId, variantId, dto, req.user!.id);
   }
 
   @Delete(':productId/variants/:variantId')
@@ -63,16 +64,16 @@ export class AdminProductsController {
   @ApiResponse({ status: 200, description: 'Variant deleted successfully.' })
   @ApiResponse({ status: 404, description: 'Product or variant not found.' })
   @ApiResponse({ status: 409, description: 'Variant has existing order items and cannot be deleted.' })
-  async removeVariant(@Param('productId') productId: string, @Param('variantId') variantId: string, @Req() req: any) {
-    return this.productsService.removeVariant(productId, variantId, req.user.id);
+  async removeVariant(@Param('productId') productId: string, @Param('variantId') variantId: string, @Req() req: AuthenticatedRequest) {
+    return this.productsService.removeVariant(productId, variantId, req.user!.id);
   }
 
   @Post(':productId/images')
   @ApiOperation({ summary: 'Add an image to a product (Admin)' })
   @ApiResponse({ status: 201, description: 'Image created successfully.' })
   @ApiResponse({ status: 404, description: 'Product not found.' })
-  async addImage(@Param('productId') productId: string, @Body() dto: CreateProductImageDto, @Req() req: any) {
-    return this.productsService.addImage(productId, dto, req.user.id);
+  async addImage(@Param('productId') productId: string, @Body() dto: CreateProductImageDto, @Req() req: AuthenticatedRequest) {
+    return this.productsService.addImage(productId, dto, req.user!.id);
   }
 
   @Delete(':productId/images/:imageId')
@@ -80,7 +81,7 @@ export class AdminProductsController {
   @ApiOperation({ summary: 'Delete a product image (Admin)' })
   @ApiResponse({ status: 200, description: 'Image deleted successfully.' })
   @ApiResponse({ status: 404, description: 'Product or image not found.' })
-  async removeImage(@Param('productId') productId: string, @Param('imageId') imageId: string, @Req() req: any) {
-    return this.productsService.removeImage(productId, imageId, req.user.id);
+  async removeImage(@Param('productId') productId: string, @Param('imageId') imageId: string, @Req() req: AuthenticatedRequest) {
+    return this.productsService.removeImage(productId, imageId, req.user!.id);
   }
 }

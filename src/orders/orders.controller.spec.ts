@@ -16,7 +16,7 @@ describe('OrdersController ownership checks', () => {
     };
     const controller = new OrdersController(ordersService as any);
 
-    await expect(controller.cancel('RIV-1000-ABC', { user: { userId: 'other-user', role: 'CUSTOMER' }, headers: {} }))
+    await expect(controller.cancel('RIV-1000-ABC', { user: { userId: 'other-user', role: 'CUSTOMER' }, headers: {} } as any))
       .rejects.toBeInstanceOf(ForbiddenException);
     expect(ordersService.cancelByOrderNumber).not.toHaveBeenCalled();
   });

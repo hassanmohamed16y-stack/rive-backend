@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { AuthenticatedRequest } from '../common/types/authenticated-request';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrdersService } from './orders.service';
 
@@ -36,7 +37,7 @@ export class AdminOrdersController {
   @ApiOperation({ summary: 'Transition an order to a valid status (Admin)' })
   @ApiResponse({ status: 200, description: 'Order status updated.' })
   @ApiResponse({ status: 409, description: 'Invalid order status transition.' })
-  async updateStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto, @Req() req: any) {
-    return this.ordersService.transitionStatus(id, dto.status, req.user.id);
+  async updateStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto, @Req() req: AuthenticatedRequest) {
+    return this.ordersService.transitionStatus(id, dto.status, req.user!.id);
   }
 }
