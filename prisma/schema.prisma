@@ -97,6 +97,7 @@ model Product {
   updatedAt        DateTime         @updatedAt
 
   @@index([categoryId])
+  @@index([status])
 }
 
 model ProductImage {
