@@ -20,6 +20,11 @@ jobs:
           API_BASE_URL: ${{ secrets.API_BASE_URL }}
           INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET }}
         run: |
+          if [[ -z "${API_BASE_URL}" || -z "${INTERNAL_CRON_SECRET}" ]]; then
+            echo "::warning::API_BASE_URL and/or INTERNAL_CRON_SECRET secrets are not configured; skipping."
+            exit 0
+          fi
+
           curl --fail --silent --show-error \
             --request POST \
             --header "x-internal-cron-secret: ${INTERNAL_CRON_SECRET}" \
