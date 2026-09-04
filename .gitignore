@@ -6,3 +6,8 @@ dist
 npm-debug.log*
 .DS_Store
 coverage/
+
+# Local AI assistant tooling artifacts
+.claude/
+memory-bank/
+CLAUDE.md

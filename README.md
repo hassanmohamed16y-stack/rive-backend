@@ -24,6 +24,33 @@ npm run start:prod
 
 API documentation is available at `/api/docs`.
 
+## Environment Variables
+
+All required and optional environment variables are documented in [.env.example](.env.example) and
+validated at startup by `src/config/environment.validation.ts`. Outside local development/test,
+`DATABASE_URL`, `JWT_SECRET`, Stripe, Cloudinary, email, and internal-cron secrets are mandatory and
+checked for minimum length/format before the application boots.
+
+For production, point `DATABASE_URL` at a pooled connection (e.g. PgBouncer in front of PostgreSQL,
+or your managed Postgres provider's built-in pooler) rather than a direct database connection, since
+Prisma opens a connection pool per instance and can exhaust database connections under horizontal
+scaling without an external pooler.
+
+## Project Structure
+
+Each feature lives under `src/<feature>/` with a consistent layout:
+
+```
+src/<feature>/
+  <feature>.controller.ts
+  <feature>.service.ts
+  <feature>.module.ts
+  dto/
+```
+
+See [docs/architecture.md](docs/architecture.md) for notes on the order lifecycle, payment
+processing, authentication, auditing, and rate limiting.
+
 ## Git Auto-Save
 
 Run `npm run save` to stage all repository changes, create an `Auto-save: YYYY-MM-DD HH:MM:SS` commit, and push the active branch to its configured remote. The command exits successfully when there are no changes and exits non-zero if staging, committing, or pushing fails.
