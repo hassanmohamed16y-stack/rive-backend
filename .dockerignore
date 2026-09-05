@@ -1,11 +1,9 @@
 node_modules
-# Keep environment variables out of version control
-.env
-
 dist
-npm-debug.log*
-.DS_Store
 coverage/
+.env
+.git
+.vscode
 
 # Local AI coding-assistant workspace state (not part of the project)
 .claude/
