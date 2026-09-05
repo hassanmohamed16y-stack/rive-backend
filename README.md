@@ -29,4 +29,3 @@ API documentation is available at `/api/docs`.
 Run `npm run save` to stage all repository changes, create an `Auto-save: YYYY-MM-DD HH:MM:SS` commit, and push the active branch to its configured remote. The command exits successfully when there are no changes and exits non-zero if staging, committing, or pushing fails.
 
 VS Code exposes the same command as the default Build Task. Use `Ctrl+Shift+B` and select `Git: Auto Save and Push` when prompted. It is intentionally not triggered on every file save because it creates and pushes commits.
-<!-- trigger rebuild -->
