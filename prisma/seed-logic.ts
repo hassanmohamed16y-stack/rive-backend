@@ -8,20 +8,22 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
   const adminPassword = process.env.ADMIN_INITIAL_PASSWORD ?? 'development-only-admin-password';
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
-  await prisma.user.upsert({
-    where: { email: 'admin@rive.com' },
-    update: {
-      fullName: 'RIVÉ Admin',
-      passwordHash: hashedPassword,
-      role: UserRole.ADMIN,
-    },
-    create: {
-      fullName: 'RIVÉ Admin',
-      email: 'admin@rive.com',
-      passwordHash: hashedPassword,
-      role: UserRole.ADMIN,
-    },
-  });
+  // Sensitive admin credentials (passwordHash, role) must never be reset
+  // after the admin user has been created once. Otherwise, any password
+  // change made via POST /api/v1/auth/change-password would silently be
+  // reverted back to ADMIN_INITIAL_PASSWORD every time the seed runs.
+  const existingAdmin = await prisma.user.findUnique({ where: { email: 'admin@rive.com' } });
+
+  if (!existingAdmin) {
+    await prisma.user.create({
+      data: {
+        fullName: 'RIVÉ Admin',
+        email: 'admin@rive.com',
+        passwordHash: hashedPassword,
+        role: UserRole.ADMIN,
+      },
+    });
+  }
 
   const categories = [
     {
