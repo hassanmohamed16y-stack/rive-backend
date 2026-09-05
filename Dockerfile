@@ -1,59 +1,44 @@
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Prisma downloads engine checksums during `generate`; ignore missing ones so
-# builds don't fail in restricted network environments. Engines are only
-# ever generated here, at build time, never at container start.
-ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
-
-RUN apk add --no-cache libc6-compat openssl openssl-dev
+# Install OpenSSL so Prisma's engine (built for debian-openssl-3.0.x) can
+# detect libssl during `prisma generate` in this stage.
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
+
+# `npm ci` triggers the `postinstall` script (`prisma generate`), so the
+# Prisma Client and query engine binaries are generated here, at build time.
 RUN npm ci
 
 COPY prisma ./prisma
 COPY tsconfig*.json ./
 COPY src ./src
 
-# `npm run build` runs `prisma generate` followed by `nest build`, so the
-# Prisma Client and query engine binaries are generated here at build time.
 RUN npm run build
 RUN npm prune --omit=dev
 
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 
 WORKDIR /app
 
-# Prisma's query engine needs OpenSSL to detect libssl at runtime; without
-# it Prisma logs "failed to detect the libssl/openssl" warnings/errors.
-RUN apk add --no-cache libc6-compat openssl openssl-dev
+# The query engine needs libssl available at runtime too; install it in the
+# runner stage so Prisma never has to fetch or write engine binaries here.
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
-COPY package*.json ./
+COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
-COPY .env.example ./.env.example
-
-# Explicitly (re-)place the generated Prisma Client and query engine binaries
-# so they are present in the final image.
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-
-COPY entrypoint.sh ./entrypoint.sh
-
-RUN chmod +x ./entrypoint.sh
 
 EXPOSE 3000
 
-# Run as root so the container can write to node_modules/@prisma (and any
-# other files) inside restrictive platforms like Railway. This avoids
-# "Can't write to /app/node_modules/@prisma/engines" permission errors.
-# USER node
-
-# Runtime only applies migrations and starts the app; `prisma generate` is
-# never invoked here.
-ENTRYPOINT ["./entrypoint.sh"]
+# Only start the compiled app. Never call `prisma generate` or
+# `prisma migrate` here — the client/engines are already baked into the
+# image from the builder stage, and migrations are run separately via
+# Railway's "Release Command" (see project notes).
+CMD ["node", "dist/src/main.js"]
