@@ -1,0 +1,70 @@
+# Snyk (https://snyk.io) policy file
+# This file lets you customize how Snyk treats specific findings in this repo.
+#
+# Scope of the ignores below: Snyk Code (SAST) findings only, for the rules
+# "Hardcoded Non-Cryptographic Secret" / "Use of Hardcoded Passwords" /
+# "Use of Hardcoded Credentials" (CWE-547, CWE-798). These are ignored ONLY
+# for test spec files (**/*.spec.ts, **/*.e2e.spec.ts), which contain fixture
+# data such as sample names, passwords, and Stripe test keys/webhook secrets
+# (e.g. 'Aisha Rahman', 'StrongPassword123!', 'sk_test_example', 'whsec_test').
+# These values are test fixtures only, are never shipped to production, and
+# are not real secrets. No production source files (src/**/*.service.ts,
+# src/**/*.controller.ts, etc.) are covered by these ignore rules.
+version: v1.25.0
+ignore:
+  javascript/HardcodedNonCryptoSecret:
+    - '**/*.spec.ts':
+        reason: >-
+          Test fixture data in spec file - not a real secret, not shipped to
+          production
+        created: 2026-09-05T23:02:40.000Z
+    - '**/*.e2e.spec.ts':
+        reason: >-
+          Test fixture data in spec file - not a real secret, not shipped to
+          production
+        created: 2026-09-05T23:02:40.000Z
+  javascript/HardcodedPassword:
+    - '**/*.spec.ts':
+        reason: >-
+          Test fixture data in spec file - not a real secret, not shipped to
+          production
+        created: 2026-09-05T23:02:40.000Z
+    - '**/*.e2e.spec.ts':
+        reason: >-
+          Test fixture data in spec file - not a real secret, not shipped to
+          production
+        created: 2026-09-05T23:02:40.000Z
+  javascript/NoHardcodedCredentials:
+    - '**/*.spec.ts':
+        reason: >-
+          Test fixture data in spec file - not a real secret, not shipped to
+          production
+        created: 2026-09-05T23:02:40.000Z
+    - '**/*.e2e.spec.ts':
+        reason: >-
+          Test fixture data in spec file - not a real secret, not shipped to
+          production
+        created: 2026-09-05T23:02:40.000Z
+  CWE-547:
+    - '**/*.spec.ts':
+        reason: >-
+          Test fixture data in spec file - not a real secret, not shipped to
+          production
+        created: 2026-09-05T23:02:40.000Z
+    - '**/*.e2e.spec.ts':
+        reason: >-
+          Test fixture data in spec file - not a real secret, not shipped to
+          production
+        created: 2026-09-05T23:02:40.000Z
+  CWE-798:
+    - '**/*.spec.ts':
+        reason: >-
+          Test fixture data in spec file - not a real secret, not shipped to
+          production
+        created: 2026-09-05T23:02:40.000Z
+    - '**/*.e2e.spec.ts':
+        reason: >-
+          Test fixture data in spec file - not a real secret, not shipped to
+          production
+        created: 2026-09-05T23:02:40.000Z
+patch: {}
