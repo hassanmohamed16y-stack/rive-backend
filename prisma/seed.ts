@@ -252,10 +252,6 @@ async function main() {
       continue;
     }
 
-    const existingProduct = await prisma.product.findUnique({
-      where: { slug: product.slug },
-    });
-
     const sharedData = {
       name: product.name,
       description: product.description,
@@ -267,68 +263,97 @@ async function main() {
       categoryId: category.id,
     };
 
-    if (existingProduct) {
-      // Replace existing images/variants so re-seeding stays idempotent and
-      // fully in sync with the source data below, instead of silently
-      // skipping products that already exist.
-      await prisma.$transaction([
-        prisma.productImage.deleteMany({ where: { productId: existingProduct.id } }),
-        prisma.productVariant.deleteMany({ where: { productId: existingProduct.id } }),
-      ]);
-
-      const updatedProduct = await prisma.product.update({
-        where: { id: existingProduct.id },
-        data: {
-          ...sharedData,
-          images: {
-            create: product.images.map((url, index) => ({
-              url,
-              altText: `${product.name} ${index + 1}`,
-              isPrimary: url === product.primaryImage,
-            })),
-          },
-          variants: {
-            create: product.variants.map((variant) => ({
-              sku: variant.sku,
-              colorHex: variant.colorHex,
-              size: variant.size,
-              price: variant.price,
-              stock: variant.stock,
-              isAvailable: true,
-            })),
-          },
-        },
+    // Upsert the product itself first so we always have a stable id to work
+    // with, regardless of whether it already existed.
+    let upsertedProduct;
+    try {
+      upsertedProduct = await prisma.product.upsert({
+        where: { slug: product.slug },
+        update: sharedData,
+        create: { ...sharedData, slug: product.slug },
       });
-
-      console.log(`Updated product: ${updatedProduct.name}`);
+    } catch (error) {
+      console.error(`Failed to upsert product ${product.name}:`, error);
       continue;
     }
 
-    const createdProduct = await prisma.product.create({
-      data: {
-        ...sharedData,
-        slug: product.slug,
-        images: {
-          create: product.images.map((url, index) => ({
+    // Images have no relations pointing back at them, so replacing them via
+    // delete + recreate is always safe. Still guard it so a single bad
+    // product never aborts the whole seed run.
+    try {
+      await prisma.$transaction([
+        prisma.productImage.deleteMany({ where: { productId: upsertedProduct.id } }),
+        prisma.productImage.createMany({
+          data: product.images.map((url, index) => ({
+            productId: upsertedProduct.id,
             url,
             altText: `${product.name} ${index + 1}`,
             isPrimary: url === product.primaryImage,
           })),
-        },
-        variants: {
-          create: product.variants.map((variant) => ({
+        }),
+      ]);
+    } catch (error) {
+      console.error(`Failed to sync images for ${product.name}:`, error);
+    }
+
+    // Variants are referenced by OrderItem with onDelete: Restrict, so a
+    // blanket deleteMany() can throw a foreign key violation once a variant
+    // has been ordered. Upsert each variant by its unique sku instead, which
+    // keeps existing variants (and their order history) intact.
+    const seededVariantIds: string[] = [];
+    for (const variant of product.variants) {
+      try {
+        const upsertedVariant = await prisma.productVariant.upsert({
+          where: { sku: variant.sku },
+          update: {
+            productId: upsertedProduct.id,
+            colorHex: variant.colorHex,
+            size: variant.size,
+            price: variant.price,
+            stock: variant.stock,
+            isAvailable: true,
+          },
+          create: {
+            productId: upsertedProduct.id,
             sku: variant.sku,
             colorHex: variant.colorHex,
             size: variant.size,
             price: variant.price,
             stock: variant.stock,
             isAvailable: true,
-          })),
-        },
-      },
-    });
+          },
+        });
+        seededVariantIds.push(upsertedVariant.id);
+      } catch (error) {
+        console.error(`Failed to upsert variant ${variant.sku}:`, error);
+      }
+    }
 
-    console.log(`Seeded product: ${createdProduct.name}`);
+    // Clean up variants that are no longer part of the source data. If a
+    // stale variant is still referenced by an existing order, deleting it
+    // would violate the FK constraint, so fall back to marking it
+    // unavailable instead of letting the process crash.
+    try {
+      const staleVariants = await prisma.productVariant.findMany({
+        where: { productId: upsertedProduct.id, id: { notIn: seededVariantIds } },
+      });
+
+      for (const stale of staleVariants) {
+        try {
+          await prisma.productVariant.delete({ where: { id: stale.id } });
+        } catch {
+          await prisma.productVariant
+            .update({ where: { id: stale.id }, data: { isAvailable: false, stock: 0 } })
+            .catch((updateError) =>
+              console.error(`Failed to deactivate stale variant ${stale.sku}:`, updateError),
+            );
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to clean up stale variants for ${product.name}:`, error);
+    }
+
+    console.log(`Seeded product: ${upsertedProduct.name}`);
   }
 }
 
