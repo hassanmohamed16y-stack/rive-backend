@@ -22,6 +22,13 @@ const ACCOUNT_LOCKOUT_MS = 15 * 60 * 1000;
 // Computed once at module load (not per login attempt) so that comparing against a
 // non-existent user costs the same bcrypt work as a real user, without paying the
 // (expensive) bcrypt.hash cost on every single login request.
+//
+// NOTE: this is not a real secret/credential. It is a bcrypt hash of a fixed,
+// non-sensitive placeholder string used purely to equalize response timing
+// between "user not found" and "wrong password" (mitigating user-enumeration
+// via timing attacks). It is intentionally not read from config/secrets and
+// is safe to keep in source. (Snyk Code may flag this as a hardcoded secret;
+// that is a false positive.)
 const DUMMY_HASH_FOR_TIMING = bcrypt.hashSync('dummy-password-for-timing-safety', 12);
 
 const GENERIC_FORGOT_PASSWORD_MESSAGE = 'If an account with that email exists, a password reset link has been sent.';
