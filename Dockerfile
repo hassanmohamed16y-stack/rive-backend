@@ -22,6 +22,7 @@ RUN npx prisma generate
 
 COPY tsconfig*.json ./
 COPY src ./src
+COPY scripts ./scripts
 
 # `npm run build` runs `prisma generate` followed by `nest build`, so the
 # Prisma Client and query engine binaries are generated here at build time.
@@ -43,6 +44,7 @@ COPY package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/scripts ./scripts
 COPY .env.example ./.env.example
 
 # Explicitly (re-)place the generated Prisma Client and query engine binaries
