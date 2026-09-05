@@ -1,5 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // The Dockerfile builds on node:20-alpine (musl libc, OpenSSL 3.x on
+  // Alpine 3.17+), not Debian, so the engine must target musl-openssl-3.0.x.
+  // "native" is kept so `prisma generate` still works for local/dev use on
+  // non-Alpine machines (e.g. Debian/macOS), but the musl target is what
+  // actually ships in the production image and is generated unconditionally
+  // at build time regardless of which host runs `prisma generate`.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {

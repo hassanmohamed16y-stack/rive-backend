@@ -29,6 +29,12 @@ WORKDIR /app
 # it Prisma logs "failed to detect the libssl/openssl" warnings/errors.
 RUN apk add --no-cache libc6-compat openssl openssl-dev
 
+# Belt-and-braces: the linux-musl-openssl-3.0.x engine is baked in at build
+# time (see prisma/schema.prisma binaryTargets), so no engine download should
+# ever be needed here. If Prisma still tries to verify/download an engine at
+# runtime (e.g. during `prisma migrate deploy`), ignore missing checksums
+# instead of failing on a read-only/restricted filesystem like Railway's.
+ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 ENV NODE_ENV=production
 ENV PORT=3000
 
