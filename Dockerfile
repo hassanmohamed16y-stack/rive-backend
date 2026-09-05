@@ -13,6 +13,13 @@ COPY package*.json ./
 RUN npm ci
 
 COPY prisma ./prisma
+
+# Explicitly (re-)generate the Prisma Client and query engine binaries in
+# their own layer, right after the prisma schema is copied in. This layer
+# only invalidates when prisma/schema.prisma changes, so a stale engine from
+# a cached `npm ci` layer is never shipped even if `npm ci` itself is cached.
+RUN npx prisma generate
+
 COPY tsconfig*.json ./
 COPY src ./src
 
