@@ -9,7 +9,7 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/src/main.js",
     "prisma:generate": "prisma generate",
-    "prisma:seed": "ts-node prisma/seed.ts",
+    "prisma:seed": "node scripts/seed.js",
     "seed": "prisma db seed",
     "save": "bash scripts/auto-save.sh",
     "export:openapi": "ts-node scripts/export-openapi.ts",
@@ -19,7 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "node scripts/seed.js"
   },
   "overrides": {
     "tar": "^7.5.21"
