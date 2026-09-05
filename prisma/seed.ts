@@ -246,31 +246,68 @@ async function main() {
   ];
 
   for (const product of products) {
-    const existingProduct = await prisma.product.findUnique({
-      where: { slug: product.slug },
-    });
-
-    if (existingProduct) {
-      continue;
-    }
-
     const category = categoryMap.get(product.categorySlug);
 
     if (!category) {
       continue;
     }
 
+    const existingProduct = await prisma.product.findUnique({
+      where: { slug: product.slug },
+    });
+
+    const sharedData = {
+      name: product.name,
+      description: product.description,
+      shortDescription: product.shortDescription,
+      price: product.price,
+      compareAtPrice: product.compareAtPrice,
+      isFeatured: product.isFeatured,
+      status: product.status,
+      categoryId: category.id,
+    };
+
+    if (existingProduct) {
+      // Replace existing images/variants so re-seeding stays idempotent and
+      // fully in sync with the source data below, instead of silently
+      // skipping products that already exist.
+      await prisma.$transaction([
+        prisma.productImage.deleteMany({ where: { productId: existingProduct.id } }),
+        prisma.productVariant.deleteMany({ where: { productId: existingProduct.id } }),
+      ]);
+
+      const updatedProduct = await prisma.product.update({
+        where: { id: existingProduct.id },
+        data: {
+          ...sharedData,
+          images: {
+            create: product.images.map((url, index) => ({
+              url,
+              altText: `${product.name} ${index + 1}`,
+              isPrimary: url === product.primaryImage,
+            })),
+          },
+          variants: {
+            create: product.variants.map((variant) => ({
+              sku: variant.sku,
+              colorHex: variant.colorHex,
+              size: variant.size,
+              price: variant.price,
+              stock: variant.stock,
+              isAvailable: true,
+            })),
+          },
+        },
+      });
+
+      console.log(`Updated product: ${updatedProduct.name}`);
+      continue;
+    }
+
     const createdProduct = await prisma.product.create({
       data: {
-        name: product.name,
+        ...sharedData,
         slug: product.slug,
-        description: product.description,
-        shortDescription: product.shortDescription,
-        price: product.price,
-        compareAtPrice: product.compareAtPrice,
-        isFeatured: product.isFeatured,
-        status: product.status,
-        categoryId: category.id,
         images: {
           create: product.images.map((url, index) => ({
             url,
