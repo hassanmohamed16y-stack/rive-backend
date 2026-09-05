@@ -5,23 +5,28 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
   // ADMIN_INITIAL_PASSWORD presence outside local development/test is enforced
   // at module-load time in environment.validation.ts (the single source of
   // truth for this check), so no duplicate check is needed here.
-  const adminPassword = process.env.ADMIN_INITIAL_PASSWORD ?? 'development-only-admin-password';
-  const hashedPassword = await bcrypt.hash(adminPassword, 10);
-
-  await prisma.user.upsert({
+  //
+  // The admin user is only *created* here, never updated: seeding must be
+  // safe to re-run on every deploy without resetting an existing admin's
+  // passwordHash or role (see incident where automatic reseeding wiped out
+  // admin password changes made in production).
+  const existingAdmin = await prisma.user.findUnique({
     where: { email: 'admin@rive.com' },
-    update: {
-      fullName: 'RIVÉ Admin',
-      passwordHash: hashedPassword,
-      role: UserRole.ADMIN,
-    },
-    create: {
-      fullName: 'RIVÉ Admin',
-      email: 'admin@rive.com',
-      passwordHash: hashedPassword,
-      role: UserRole.ADMIN,
-    },
   });
+
+  if (!existingAdmin) {
+    const adminPassword = process.env.ADMIN_INITIAL_PASSWORD ?? 'development-only-admin-password';
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+    await prisma.user.create({
+      data: {
+        fullName: 'RIVÉ Admin',
+        email: 'admin@rive.com',
+        passwordHash: hashedPassword,
+        role: UserRole.ADMIN,
+      },
+    });
+  }
 
   const categories = [
     {
