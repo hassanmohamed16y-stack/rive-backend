@@ -19,8 +19,10 @@ import { PrismaService } from '../prisma/prisma.service';
  * for that guard may not exist yet until this endpoint (or the seed script)
  * has run at least once.
  *
- * Safe to call repeatedly: `seedDatabase` only performs upserts, so it never
- * duplicates rows. Remove this controller once the production data has been
+ * Safe to call repeatedly: `seedDatabase` only creates the admin user if it
+ * doesn't already exist (never overwriting its passwordHash/role) and
+ * upserts categories/products, so it never duplicates rows or resets admin
+ * credentials. Remove this controller once the production data has been
  * verified and is no longer needed.
  */
 @ApiTags('internal')
