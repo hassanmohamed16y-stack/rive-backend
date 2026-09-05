@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -7,12 +7,19 @@ WORKDIR /app
 # ever generated here, at build time, never at container start.
 ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 
-RUN apk add --no-cache libc6-compat openssl openssl-dev
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
 RUN npm ci
 
 COPY prisma ./prisma
+
+# Explicitly (re-)generate the Prisma Client and query engine binaries in
+# their own layer, right after the prisma schema is copied in. This layer
+# only invalidates when prisma/schema.prisma changes, so a stale engine from
+# a cached `npm ci` layer is never shipped even if `npm ci` itself is cached.
+RUN npx prisma generate
+
 COPY tsconfig*.json ./
 COPY src ./src
 
@@ -21,13 +28,13 @@ COPY src ./src
 RUN npm run build
 RUN npm prune --omit=dev
 
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 
 WORKDIR /app
 
 # Prisma's query engine needs OpenSSL to detect libssl at runtime; without
 # it Prisma logs "failed to detect the libssl/openssl" warnings/errors.
-RUN apk add --no-cache libc6-compat openssl openssl-dev
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV PORT=3000
