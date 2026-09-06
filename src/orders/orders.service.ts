@@ -326,7 +326,7 @@ export class OrdersService implements OnModuleInit {
     }
 
     if (order.userId === null && order.guestAccessToken && !timingSafeStringEqual(order.guestAccessToken, guestAccessToken)) {
-      throw new NotFoundException('Order access token is invalid');
+      throw new NotFoundException(`Order ${orderNumber} was not found`);
     }
 
     return order;

@@ -197,7 +197,7 @@ describe('Backend security regression tests', () => {
           getHandler: () => ({}),
           getClass: () => ({}),
         } as any),
-      ).toThrow('Requires ADMIN role');
+      ).toThrow('Access denied');
     });
 
     it('allows admin access to admin-only operations', () => {

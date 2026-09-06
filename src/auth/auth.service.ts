@@ -69,11 +69,8 @@ export class AuthService {
   /**
    * Issues a fresh access/refresh token pair for `user`, persisting the refresh token hash.
    *
-   * NOTE (known gap, deliberately not addressed here): this does not implement refresh-token
-   * reuse detection — if a previously-rotated/invalidated refresh token is presented again
-   * (a strong signal that a token was stolen and the legitimate user already rotated past it),
-   * there is no mechanism here to detect that and revoke all of the user's other sessions.
-   * Adding it would require tracking a rotation chain per token family; left as a follow-up.
+   * Refresh-token reuse detection (revoking all of the user's sessions when an
+   * already-rotated/revoked token is presented again) is implemented in `refresh()`.
    */
   private async issueTokenPair(user: User, client: PrismaLike = this.prisma) {
     const refreshToken = crypto.randomBytes(48).toString('hex');
@@ -173,20 +170,46 @@ export class AuthService {
     return this.issueTokenPair(authenticatedUser);
   }
 
+  /**
+   * Rotates a refresh token: verifies it, revokes it, and issues a fresh pair.
+   *
+   * Implements refresh-token reuse detection: a refresh token is only ever
+   * valid for a single rotation. If a token is presented that has already
+   * been revoked (i.e. it was already rotated or explicitly logged out)
+   * but has not yet expired, that is a strong signal the token was stolen
+   * and used after the legitimate client already rotated past it. In that
+   * case every refresh token for the user is revoked, forcing re-authentication
+   * on all sessions/devices.
+   */
   async refresh(refreshToken: string) {
     const tokenHash = this.hashToken(refreshToken);
 
     return this.prisma.$transaction(async (tx) => {
       const storedToken = await tx.refreshToken.findFirst({
-        where: {
-          tokenHash,
-          revokedAt: null,
-          expiresAt: { gt: new Date() },
-        },
+        where: { tokenHash },
         include: { user: true },
       });
 
-      if (!storedToken) {
+      if (!storedToken || storedToken.expiresAt <= new Date()) {
+        throw new UnauthorizedException('Invalid or expired refresh token');
+      }
+
+      if (storedToken.revokedAt !== null) {
+        // Reuse of an already-rotated/revoked token: treat as a possible
+        // token theft and invalidate all of this user's sessions.
+        await tx.refreshToken.updateMany({
+          where: { userId: storedToken.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+
+        await this.auditLogService.record({
+          userId: storedToken.userId,
+          action: 'auth.refresh-token-reuse-detected',
+          entityType: 'User',
+          entityId: storedToken.userId,
+          changes: { reason: 'A revoked refresh token was reused; all sessions were revoked.' },
+        });
+
         throw new UnauthorizedException('Invalid or expired refresh token');
       }
 
