@@ -1,4 +1,4 @@
-FROM node:22.22.0-alpine AS builder
+FROM node:22.23.2-alpine AS builder
 
 # Update Alpine system packages to their latest patched versions immediately
 # after pulling the base image, to pick up security fixes for base image
@@ -34,7 +34,7 @@ COPY scripts ./scripts
 RUN npm run build
 RUN npm prune --omit=dev
 
-FROM node:22.22.0-alpine AS runner
+FROM node:22.23.2-alpine AS runner
 
 # Update Alpine system packages to their latest patched versions immediately
 # after pulling the base image, to pick up security fixes for base image
