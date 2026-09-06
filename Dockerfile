@@ -1,4 +1,4 @@
-FROM node:26.7.0-alpine3.24 AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -7,7 +7,10 @@ WORKDIR /app
 # ever generated here, at build time, never at container start.
 ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 
-RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# Update Alpine system packages to their latest patched versions before
+# installing openssl, to pick up security fixes for base image libraries
+# (e.g. openssl/libcrypto3) flagged by vulnerability scanners.
+RUN apk update && apk upgrade --no-cache && apk add --no-cache openssl
 
 COPY package*.json ./
 RUN npm ci
@@ -29,13 +32,15 @@ COPY scripts ./scripts
 RUN npm run build
 RUN npm prune --omit=dev
 
-FROM node:26.7.0-alpine3.24 AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
 # Prisma's query engine needs OpenSSL to detect libssl at runtime; without
 # it Prisma logs "failed to detect the libssl/openssl" warnings/errors.
-RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# Update Alpine system packages first to pick up security fixes for base
+# image libraries (e.g. openssl/libcrypto3) flagged by vulnerability scanners.
+RUN apk update && apk upgrade --no-cache && apk add --no-cache openssl
 
 ENV NODE_ENV=production
 ENV PORT=3000
