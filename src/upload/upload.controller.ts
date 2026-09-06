@@ -6,13 +6,6 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-
-type UploadedFile = {
-  buffer: Buffer;
-  mimetype: string;
-  size: number;
-  originalname?: string;
-};
 import {
   ApiBearerAuth,
   ApiBody,
@@ -25,6 +18,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { UploadService } from './upload.service';
+import { UploadedImageFile } from './uploaded-image-file.type';
 
 @ApiTags('upload')
 @Controller('api/v1')
@@ -53,7 +47,7 @@ export class UploadController {
       },
     },
   })
-  async uploadImage(@UploadedFile() file: UploadedFile) {
+  async uploadImage(@UploadedFile() file: UploadedImageFile) {
     return this.uploadService.uploadImage(file);
   }
 }

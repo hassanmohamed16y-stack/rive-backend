@@ -3,6 +3,7 @@ import { Prisma, ProductStatus } from '@prisma/client';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildPaginationMeta, PaginationInput, resolvePagination } from '../common/utils/pagination';
+import { isPrismaErrorCode } from '../common/utils/prisma-error';
 import { CreateProductDto } from './dto/create-product.dto';
 import { CreateProductImageDto } from './dto/create-product-image.dto';
 import { CreateProductVariantDto } from './dto/create-product-variant.dto';
@@ -251,7 +252,7 @@ export class ProductsService {
 
       return variant;
     } catch (error) {
-      if ((error as { code?: string } | null)?.code === 'P2002') {
+      if (isPrismaErrorCode(error, 'P2002')) {
         throw new ConflictException(`A variant with SKU "${dto.sku}" already exists`);
       }
       throw error;
@@ -280,7 +281,7 @@ export class ProductsService {
       });
       updateCount = result.count;
     } catch (error) {
-      if ((error as { code?: string } | null)?.code === 'P2002') {
+      if (isPrismaErrorCode(error, 'P2002')) {
         throw new ConflictException(`A variant with SKU "${data.sku}" already exists`);
       }
       throw error;
@@ -317,7 +318,7 @@ export class ProductsService {
     try {
       await this.prisma.productVariant.delete({ where: { id: variantId } });
     } catch (error) {
-      if ((error as { code?: string } | null)?.code === 'P2003') {
+      if (isPrismaErrorCode(error, 'P2003')) {
         throw new ConflictException('Cannot delete a variant that has existing order items');
       }
       throw error;

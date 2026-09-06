@@ -1,7 +1,9 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
-import { Decimal, PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { Decimal } from '@prisma/client/runtime/library';
 import Stripe from 'stripe';
+import { isOrderOwnedByActor } from '../common/utils/order-ownership';
+import { isPrismaErrorCode } from '../common/utils/prisma-error';
 import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
 import { OrdersService } from '../orders/orders.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -44,20 +46,16 @@ export class PaymentService {
       throw new NotFoundException('Order not found');
     }
 
-    if (actor?.role !== 'ADMIN') {
-      const isUserOwner = order.userId !== null && order.userId === actor?.userId;
-      const isGuestOwner = order.userId === null && timingSafeStringEqual(actor?.guestAccessToken, order.guestAccessToken);
-      if (!isUserOwner && !isGuestOwner) {
-        throw new ForbiddenException('You do not have permission to checkout this order');
-      }
+    if (actor?.role !== 'ADMIN' && !isOrderOwnedByActor(order, actor)) {
+      throw new ForbiddenException('You do not have permission to checkout this order');
     }
 
     if (order.status !== OrderStatus.PENDING || !order.reservationExpiresAt || order.reservationExpiresAt <= new Date()) {
-      throw new BadRequestException('This order is not awaiting payment.');
+      throw new BadRequestException('This order is not awaiting payment');
     }
 
     if (!order.items || order.items.length === 0) {
-      throw new BadRequestException('Order must contain at least one item.');
+      throw new BadRequestException('Order must contain at least one item');
     }
 
     if (order.paymentSessionId) {
@@ -73,9 +71,9 @@ export class PaymentService {
           };
         }
       } catch {
-        throw new BadRequestException('Unable to retrieve the existing checkout session.');
+        throw new BadRequestException('Unable to retrieve the existing checkout session');
       }
-      throw new BadRequestException('This order already has a checkout session.');
+      throw new BadRequestException('This order already has a checkout session');
     }
 
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3001';
@@ -124,7 +122,7 @@ export class PaymentService {
             message: 'Checkout session already exists.',
           };
         }
-        throw new BadRequestException('Order is no longer awaiting payment.');
+        throw new BadRequestException('Order is no longer awaiting payment');
       }
 
       return {
@@ -141,12 +139,12 @@ export class PaymentService {
 
   async handleWebhook(rawBody: Buffer, signature?: string) {
     if (!signature || !rawBody) {
-      throw new BadRequestException('Webhook signature or raw body missing.');
+      throw new BadRequestException('Webhook signature or raw body missing');
     }
 
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!webhookSecret) {
-      throw new BadRequestException('Webhook secret not configured.');
+      throw new BadRequestException('Webhook secret not configured');
     }
 
     let event: Stripe.Event;
@@ -160,7 +158,7 @@ export class PaymentService {
     const eventData = event.data.object as Stripe.Checkout.Session;
 
     if (!event.id || !eventType || !eventData) {
-      throw new BadRequestException('Webhook payload missing required event data.');
+      throw new BadRequestException('Webhook payload missing required event data');
     }
 
     const processedEventTypes = new Set([
@@ -189,7 +187,7 @@ export class PaymentService {
           select: { paymentSessionId: true },
         });
         if (!order || !timingSafeStringEqual(order.paymentSessionId, eventData.id)) {
-          throw new BadRequestException('Webhook checkout session does not match the order.');
+          throw new BadRequestException('Webhook checkout session does not match the order');
         }
 
         if (eventType === 'checkout.session.completed' || eventType === 'checkout.session.async_payment_succeeded') {
@@ -204,10 +202,7 @@ export class PaymentService {
         return { received: true, orderId, status: OrderStatus.CANCELLED };
       });
     } catch (error) {
-      if (
-        (error instanceof PrismaClientKnownRequestError || typeof error === 'object')
-        && (error as { code?: string } | null)?.code === 'P2002'
-      ) {
+      if (isPrismaErrorCode(error, 'P2002')) {
         return { received: true, eventId: event.id, message: 'Webhook already processed.' };
       }
       throw error;
