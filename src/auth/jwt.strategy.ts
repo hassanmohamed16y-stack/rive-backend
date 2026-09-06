@@ -1,28 +1,8 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { isLocalOnlyEnvironment } from '../common/utils/environment';
 import { AuthService } from './auth.service';
-
-/**
- * Resolves the JWT signing/verification secret. Fails fast (throws) if
- * JWT_SECRET is missing outside local development/test environments, so the
- * app never boots with (and never even constructs Passport with) the
- * insecure development fallback secret in a real deployment. This is the
- * only place the fallback secret is used.
- */
-function resolveJwtSecret(): string {
-  const configuredSecret = process.env.JWT_SECRET;
-  if (configuredSecret) {
-    return configuredSecret;
-  }
-
-  if (!isLocalOnlyEnvironment()) {
-    throw new Error('JWT_SECRET is required outside local development/test environments');
-  }
-
-  return 'development-only-secret';
-}
+import { JWT_ALGORITHM, resolveJwtSecret } from './jwt-secret.util';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -33,6 +13,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: resolveJwtSecret(),
+      algorithms: [JWT_ALGORITHM],
     });
   }
 

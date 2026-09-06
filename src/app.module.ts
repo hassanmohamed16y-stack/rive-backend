@@ -10,7 +10,6 @@ import { OrdersModule } from './orders/orders.module';
 import { PaymentModule } from './payment/payment.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProductsModule } from './products/products.module';
-import { SeedModule } from './seed/seed.module';
 import { UploadModule } from './upload/upload.module';
 
 @Module({
@@ -31,7 +30,6 @@ import { UploadModule } from './upload/upload.module';
     OrdersModule,
     UploadModule,
     PaymentModule,
-    SeedModule,
   ],
   providers: [
     {

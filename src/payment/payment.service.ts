@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { OrderStatus, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import Stripe from 'stripe';
@@ -236,11 +236,12 @@ export class PaymentService {
       if (isPrismaErrorCode(error, 'P2002')) {
         return { received: true, eventId: event.id, message: 'Webhook already processed.' };
       }
-      if (!(error instanceof BadRequestException)) {
+      if (!(error instanceof HttpException)) {
         this.logger.error(
           `Unexpected error while processing Stripe webhook ${event.id} (order ${orderId ?? 'unknown'})`,
           error instanceof Error ? error.stack : String(error),
         );
+        throw new InternalServerErrorException('Failed to process Stripe webhook');
       }
       throw error;
     }
