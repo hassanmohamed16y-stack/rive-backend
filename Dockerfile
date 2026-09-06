@@ -12,7 +12,8 @@ WORKDIR /app
 # ever generated here, at build time, never at container start.
 ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 
-RUN apk add --no-cache openssl
+# Pin libssl3/libcrypto3 to 3.5.8-r0 to remediate CVE-2026-14457.
+RUN apk add --no-cache openssl libssl3=3.5.8-r0 libcrypto3=3.5.8-r0
 
 COPY package*.json ./
 RUN npm ci
@@ -45,7 +46,8 @@ WORKDIR /app
 
 # Prisma's query engine needs OpenSSL to detect libssl at runtime; without
 # it Prisma logs "failed to detect the libssl/openssl" warnings/errors.
-RUN apk add --no-cache openssl
+# Pin libssl3/libcrypto3 to 3.5.8-r0 to remediate CVE-2026-14457.
+RUN apk add --no-cache openssl libssl3=3.5.8-r0 libcrypto3=3.5.8-r0
 
 ENV NODE_ENV=production
 ENV PORT=3000
