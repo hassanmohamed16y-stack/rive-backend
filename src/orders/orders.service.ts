@@ -3,8 +3,8 @@ import { BadRequestException, ConflictException, Injectable, Logger, NotFoundExc
 import { OrderStatus, Prisma, ProductStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { isOrderOwnedByActor } from '../common/utils/order-ownership';
 import { buildPaginationMeta, PaginationInput, resolvePagination } from '../common/utils/pagination';
-import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 
@@ -306,16 +306,28 @@ export class OrdersService implements OnModuleInit {
     });
     if (updated.count === 0) return false;
     const items = await tx.orderItem.findMany({ where: { orderId } });
-    for (const item of items) {
-      await tx.productVariant.update({
-        where: { id: item.productVariantId },
-        data: { stock: { increment: item.quantity } },
-      });
-    }
+    // Each item can restore a different quantity, so a single updateMany() can't express
+    // per-row increments; run the per-variant updates concurrently (still inside the same
+    // interactive transaction) instead of sequentially awaiting each one.
+    await Promise.all(items.map((item) => tx.productVariant.update({
+      where: { id: item.productVariantId },
+      data: { stock: { increment: item.quantity } },
+    })));
     return true;
   }
 
-  async findOne(orderNumber: string, guestAccessToken?: string) {
+  /**
+   * Retrieves an order by its order number, enforcing ownership via the shared
+   * `isOrderOwnedByActor` check (same helper used by OrdersController and
+   * PaymentService). ADMIN callers bypass the ownership check.
+   *
+   * Any access-denial path (order genuinely missing, guest access token
+   * mismatch, or an authenticated user requesting someone else's order)
+   * throws the same `NotFoundException` with the same message, so a caller
+   * cannot distinguish "order does not exist" from "order exists but you
+   * don't own it" — preventing order-existence enumeration.
+   */
+  async findOne(orderNumber: string, actor?: { userId?: string; role?: string; guestAccessToken?: string }) {
     const order = await this.prisma.order.findUnique({
       where: { orderNumber },
       include: orderInclude,
@@ -325,7 +337,7 @@ export class OrdersService implements OnModuleInit {
       throw new NotFoundException(`Order ${orderNumber} was not found`);
     }
 
-    if (order.userId === null && order.guestAccessToken && !timingSafeStringEqual(order.guestAccessToken, guestAccessToken)) {
+    if (actor?.role !== 'ADMIN' && !isOrderOwnedByActor(order, actor)) {
       throw new NotFoundException(`Order ${orderNumber} was not found`);
     }
 
