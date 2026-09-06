@@ -1,9 +1,8 @@
-import { Body, Controller, ForbiddenException, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { AuthenticatedRequest } from '../common/types/authenticated-request';
-import { isOrderOwnedByActor } from '../common/utils/order-ownership';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrdersService } from './orders.service';
 
@@ -18,20 +17,20 @@ export class OrdersController {
       : undefined;
   }
 
-  private assertOrderAccess(order: { userId: string | null; guestAccessToken?: string | null }, req: AuthenticatedRequest) {
-    const userId = req.user?.userId;
-    const userRole = req.user?.role;
-    const guestAccessToken = this.getGuestAccessToken(req);
-
-    if (userRole === 'ADMIN') {
-      return guestAccessToken;
-    }
-
-    if (!isOrderOwnedByActor(order, { userId, guestAccessToken })) {
-      throw new ForbiddenException('You do not have permission to access this order');
-    }
-
-    return guestAccessToken;
+  /**
+   * Ownership is enforced by `OrdersService.findOne` itself (via the shared
+   * `isOrderOwnedByActor` helper), which throws a 404 - not a 403 - for any
+   * actor that isn't the order's owner/guest-token holder/an admin. This
+   * keeps the response indistinguishable from "order does not exist" for
+   * both guest and authenticated callers, instead of leaking existence via
+   * a 403 vs 404 split.
+   */
+  private findOrderForActor(orderNumber: string, req: AuthenticatedRequest) {
+    return this.ordersService.findOne(orderNumber, {
+      userId: req.user?.userId,
+      role: req.user?.role,
+      guestAccessToken: this.getGuestAccessToken(req),
+    });
   }
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
@@ -52,13 +51,9 @@ export class OrdersController {
   @ApiHeader({ name: 'X-Order-Access-Token', required: false, description: 'Required to access a guest order.' })
   @ApiOperation({ summary: 'Retrieve an order as its authenticated owner, an admin, or its guest access-token holder' })
   @ApiResponse({ status: 200, description: 'Order details retrieved successfully' })
-  @ApiResponse({ status: 403, description: 'Access denied: not order owner or admin' })
-  @ApiResponse({ status: 404, description: 'Order not found' })
+  @ApiResponse({ status: 404, description: 'Order not found, or the requester is not its owner/admin/guest-token holder' })
   async findOne(@Param('orderNumber') orderNumber: string, @Req() req: AuthenticatedRequest) {
-    const guestAccessToken = this.getGuestAccessToken(req);
-    const order = await this.ordersService.findOne(orderNumber, guestAccessToken);
-    this.assertOrderAccess(order, req);
-    return order;
+    return this.findOrderForActor(orderNumber, req);
   }
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
@@ -68,13 +63,10 @@ export class OrdersController {
   @ApiHeader({ name: 'X-Order-Access-Token', required: false, description: 'Required to cancel a guest order.' })
   @ApiOperation({ summary: 'Cancel a pending order as its authenticated owner, an admin, or its guest access-token holder' })
   @ApiResponse({ status: 200, description: 'Order cancelled successfully' })
-  @ApiResponse({ status: 403, description: 'Access denied: not order owner or admin' })
-  @ApiResponse({ status: 404, description: 'Order not found' })
+  @ApiResponse({ status: 404, description: 'Order not found, or the requester is not its owner/admin/guest-token holder' })
   @ApiResponse({ status: 409, description: 'Only pending orders can be cancelled' })
   async cancel(@Param('orderNumber') orderNumber: string, @Req() req: AuthenticatedRequest) {
-    const guestAccessToken = this.getGuestAccessToken(req);
-    const order = await this.ordersService.findOne(orderNumber, guestAccessToken);
-    this.assertOrderAccess(order, req);
-    return this.ordersService.cancelByOrderNumber(orderNumber);
+    const order = await this.findOrderForActor(orderNumber, req);
+    return this.ordersService.cancelByOrderNumber(order.orderNumber);
   }
 }

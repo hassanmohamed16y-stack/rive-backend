@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { JwtStrategy } from '../auth/jwt.strategy';
@@ -250,22 +251,27 @@ describe('Backend security regression tests', () => {
   });
 
   describe('IDOR - Insecure Direct Object Reference', () => {
-    it('denies customer access to other user orders', async () => {
-      const ordersController = new OrdersController({
-        findOne: jest.fn().mockResolvedValue({
-          id: 'order-1',
-          orderNumber: 'RIV-1000-ABC',
-          userId: 'user-b',
-          guestAccessToken: null,
-        }),
-      } as any);
+    it('denies customer access to other user orders (enforced by OrdersService.findOne)', async () => {
+      // Ownership is enforced inside OrdersService.findOne (shared isOrderOwnedByActor
+      // helper) rather than in the controller, and it uses the same NotFoundException
+      // for "not owned" as for "does not exist" to avoid leaking order existence.
+      const mockService = {
+        findOne: jest.fn().mockRejectedValue(new NotFoundException('Order RIV-1000-ABC was not found')),
+      };
+      const ordersController = new OrdersController(mockService as any);
 
       await expect(
         ordersController.findOne('RIV-1000-ABC', {
           user: { userId: 'user-a', role: 'CUSTOMER' },
           headers: {},
         } as any),
-      ).rejects.toThrow('permission');
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(mockService.findOne).toHaveBeenCalledWith('RIV-1000-ABC', {
+        userId: 'user-a',
+        role: 'CUSTOMER',
+        guestAccessToken: undefined,
+      });
     });
 
     it('allows admin access to any order', async () => {

@@ -19,9 +19,11 @@ export class PaymentService {
   ) {
     // STRIPE_SECRET_KEY presence outside local development/test is enforced at
     // module-load time in environment.validation.ts (the single source of
-    // truth for this check), so no duplicate check is needed here.
-    const apiKey = process.env.STRIPE_SECRET_KEY;
-    this.stripe = new Stripe(apiKey ?? 'sk_test_placeholder', {
+    // truth for this check). In local development/test without a configured
+    // key, the Stripe SDK is still constructed (with an empty key) so the
+    // module can load; any actual Stripe call in that case fails naturally
+    // instead of silently using a fake placeholder key.
+    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
       apiVersion: '2024-04-10',
     });
   }

@@ -146,3 +146,48 @@ describe('OrdersService inventory reservations', () => {
     await expect(service.cancelByOrderNumber('RIV-1000-ABC')).rejects.toBeInstanceOf(ConflictException);
   });
 });
+
+describe('OrdersService.findOne ownership enforcement', () => {
+  it('returns the order for the matching guest access token holder', async () => {
+    const context = transactionPrisma();
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
+
+    await expect(service.findOne('RIV-1000-ABC', { guestAccessToken: 'guest-token' }))
+      .resolves.toMatchObject({ orderNumber: 'RIV-1000-ABC' });
+  });
+
+  it('rejects a mismatched guest access token with the same NotFoundException used for a missing order', async () => {
+    const context = transactionPrisma();
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
+
+    await expect(service.findOne('RIV-1000-ABC', { guestAccessToken: 'wrong-token' }))
+      .rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('rejects an authenticated user requesting another user\'s order with a NotFoundException (not Forbidden)', async () => {
+    const context = transactionPrisma();
+    context.order.userId = 'owner-1';
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
+
+    await expect(service.findOne('RIV-1000-ABC', { userId: 'other-user', role: 'CUSTOMER' }))
+      .rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('allows the owning authenticated user to fetch their order', async () => {
+    const context = transactionPrisma();
+    context.order.userId = 'owner-1';
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
+
+    await expect(service.findOne('RIV-1000-ABC', { userId: 'owner-1', role: 'CUSTOMER' }))
+      .resolves.toMatchObject({ orderNumber: 'RIV-1000-ABC' });
+  });
+
+  it('allows an admin to bypass ownership checks entirely', async () => {
+    const context = transactionPrisma();
+    context.order.userId = 'owner-1';
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
+
+    await expect(service.findOne('RIV-1000-ABC', { userId: 'admin-1', role: 'ADMIN' }))
+      .resolves.toMatchObject({ orderNumber: 'RIV-1000-ABC' });
+  });
+});
