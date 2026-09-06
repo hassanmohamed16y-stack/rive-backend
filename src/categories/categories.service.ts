@@ -49,7 +49,16 @@ export class CategoriesService {
         : {}),
     };
 
-    const category = await this.prisma.category.create({ data });
+    let category;
+    try {
+      category = await this.prisma.category.create({ data });
+    } catch (error) {
+      if (isPrismaErrorCode(error, 'P2002')) {
+        throw new ConflictException(`A category with name "${dto.name}" or slug "${dto.slug}" already exists`);
+      }
+      throw error;
+    }
+
     await this.auditLogService.record({
       userId: actorUserId,
       action: 'category.create',
@@ -94,6 +103,7 @@ export class CategoriesService {
       return category;
     } catch (error) {
       if (isPrismaErrorCode(error, 'P2025')) throw new NotFoundException(`Category ${id} was not found`);
+      if (isPrismaErrorCode(error, 'P2002')) throw new ConflictException('A category with this name or slug already exists');
       throw error;
     }
   }

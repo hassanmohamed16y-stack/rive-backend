@@ -118,45 +118,53 @@ export class ProductsService {
       throw new NotFoundException(`Category "${dto.categorySlug}" was not found`);
     }
 
-    const product = await this.prisma.product.create({
-      data: {
-        name: dto.name,
-        slug: dto.slug,
-        description: dto.description,
-        shortDescription: dto.shortDescription,
-        price: dto.price,
-        compareAtPrice: dto.compareAtPrice,
-        isFeatured: dto.isFeatured ?? false,
-        status: dto.status ?? 'ACTIVE',
-        category: {
-          connect: { id: category.id },
+    let product;
+    try {
+      product = await this.prisma.product.create({
+        data: {
+          name: dto.name,
+          slug: dto.slug,
+          description: dto.description,
+          shortDescription: dto.shortDescription,
+          price: dto.price,
+          compareAtPrice: dto.compareAtPrice,
+          isFeatured: dto.isFeatured ?? false,
+          status: dto.status ?? 'ACTIVE',
+          category: {
+            connect: { id: category.id },
+          },
+          ...(actorUserId
+            ? {
+                createdBy: { connect: { id: actorUserId } },
+                updatedBy: { connect: { id: actorUserId } },
+              }
+            : {}),
+          images: {
+            create: dto.images.map((image) => ({
+              url: image.url,
+              altText: image.altText,
+              isPrimary: image.isPrimary ?? false,
+            })),
+          },
+          variants: {
+            create: dto.variants.map((variant) => ({
+              sku: variant.sku,
+              colorHex: variant.colorHex ?? '#945958',
+              size: variant.size,
+              price: variant.price,
+              stock: variant.stock ?? 0,
+              isAvailable: variant.isAvailable ?? true,
+            })),
+          },
         },
-        ...(actorUserId
-          ? {
-              createdBy: { connect: { id: actorUserId } },
-              updatedBy: { connect: { id: actorUserId } },
-            }
-          : {}),
-        images: {
-          create: dto.images.map((image) => ({
-            url: image.url,
-            altText: image.altText,
-            isPrimary: image.isPrimary ?? false,
-          })),
-        },
-        variants: {
-          create: dto.variants.map((variant) => ({
-            sku: variant.sku,
-            colorHex: variant.colorHex ?? '#945958',
-            size: variant.size,
-            price: variant.price,
-            stock: variant.stock ?? 0,
-            isAvailable: variant.isAvailable ?? true,
-          })),
-        },
-      },
-      include: productInclude,
-    });
+        include: productInclude,
+      });
+    } catch (error) {
+      if (isPrismaErrorCode(error, 'P2002')) {
+        throw new ConflictException('A product with this slug or a variant with this SKU already exists');
+      }
+      throw error;
+    }
 
     await this.auditLogService.record({
       userId: actorUserId,
@@ -170,8 +178,9 @@ export class ProductsService {
   }
 
   async update(id: string, data: Prisma.ProductUpdateInput, actorUserId?: string) {
+    let product;
     try {
-      const product = await this.prisma.product.update({
+      product = await this.prisma.product.update({
         where: { id },
         data: {
           ...data,
@@ -179,24 +188,31 @@ export class ProductsService {
         },
         include: productInclude,
       });
-
-      await this.auditLogService.record({
-        userId: actorUserId,
-        action: 'product.update',
-        entityType: 'Product',
-        entityId: product.id,
-        changes: data,
-      });
-
-      return product;
-    } catch {
-      throw new NotFoundException(`Product ${id} was not found`);
+    } catch (error) {
+      if (isPrismaErrorCode(error, 'P2025')) {
+        throw new NotFoundException(`Product ${id} was not found`);
+      }
+      if (isPrismaErrorCode(error, 'P2002')) {
+        throw new ConflictException('A product with this slug already exists');
+      }
+      throw error;
     }
+
+    await this.auditLogService.record({
+      userId: actorUserId,
+      action: 'product.update',
+      entityType: 'Product',
+      entityId: product.id,
+      changes: data,
+    });
+
+    return product;
   }
 
   async archive(id: string, actorUserId?: string) {
+    let product;
     try {
-      const product = await this.prisma.product.update({
+      product = await this.prisma.product.update({
         where: { id },
         data: {
           status: ProductStatus.ARCHIVED,
@@ -204,19 +220,22 @@ export class ProductsService {
         },
         include: productInclude,
       });
-
-      await this.auditLogService.record({
-        userId: actorUserId,
-        action: 'product.archive',
-        entityType: 'Product',
-        entityId: product.id,
-        changes: { status: ProductStatus.ARCHIVED },
-      });
-
-      return product;
-    } catch {
-      throw new NotFoundException(`Product ${id} was not found`);
+    } catch (error) {
+      if (isPrismaErrorCode(error, 'P2025')) {
+        throw new NotFoundException(`Product ${id} was not found`);
+      }
+      throw error;
     }
+
+    await this.auditLogService.record({
+      userId: actorUserId,
+      action: 'product.archive',
+      entityType: 'Product',
+      entityId: product.id,
+      changes: { status: ProductStatus.ARCHIVED },
+    });
+
+    return product;
   }
 
   private async assertProductExists(productId: string) {
@@ -367,7 +386,14 @@ export class ProductsService {
       throw new NotFoundException(`Image ${imageId} was not found for product ${productId}`);
     }
 
-    await this.prisma.productImage.delete({ where: { id: imageId } });
+    try {
+      await this.prisma.productImage.delete({ where: { id: imageId } });
+    } catch (error) {
+      if (isPrismaErrorCode(error, 'P2025')) {
+        throw new NotFoundException(`Image ${imageId} was not found for product ${productId}`);
+      }
+      throw error;
+    }
 
     await this.auditLogService.record({
       userId: actorUserId,

@@ -36,6 +36,7 @@ export class CategoriesController {
   @ApiResponse({ status: 201, description: 'Category created successfully.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden. ADMIN role required.' })
+  @ApiResponse({ status: 409, description: 'A category with this name or slug already exists.' })
   async create(@Body() dto: CreateCategoryDto, @Req() req: AuthenticatedRequest) {
     return this.categoriesService.create(dto, req.user!.id);
   }
@@ -47,6 +48,7 @@ export class CategoriesController {
   @ApiOperation({ summary: 'Update a category (Admin)' })
   @ApiResponse({ status: 200, description: 'Category updated successfully.' })
   @ApiResponse({ status: 404, description: 'Category not found.' })
+  @ApiResponse({ status: 409, description: 'A category with this name or slug already exists.' })
   async update(@Param('id') id: string, @Body() dto: UpdateCategoryDto, @Req() req: AuthenticatedRequest) {
     return this.categoriesService.update(id, dto, req.user!.id);
   }

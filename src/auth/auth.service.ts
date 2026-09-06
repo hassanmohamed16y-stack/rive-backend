@@ -5,6 +5,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { isLocalOnlyEnvironment } from '../common/utils/environment';
+import { isPrismaErrorCode } from '../common/utils/prisma-error';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -65,6 +66,15 @@ export class AuthService {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
+  /**
+   * Issues a fresh access/refresh token pair for `user`, persisting the refresh token hash.
+   *
+   * NOTE (known gap, deliberately not addressed here): this does not implement refresh-token
+   * reuse detection — if a previously-rotated/invalidated refresh token is presented again
+   * (a strong signal that a token was stolen and the legitimate user already rotated past it),
+   * there is no mechanism here to detect that and revoke all of the user's other sessions.
+   * Adding it would require tracking a rotation chain per token family; left as a follow-up.
+   */
   private async issueTokenPair(user: User, client: PrismaLike = this.prisma) {
     const refreshToken = crypto.randomBytes(48).toString('hex');
     await client.refreshToken.create({
@@ -214,8 +224,11 @@ export class AuthService {
           emailVerificationExpiresAt: expiresAt,
         },
       });
-    } catch {
-      throw new NotFoundException('User not found');
+    } catch (error) {
+      if (isPrismaErrorCode(error, 'P2025')) {
+        throw new NotFoundException('User not found');
+      }
+      throw error;
     }
 
     await this.emailService.sendEmailVerificationEmail(user.email, token);

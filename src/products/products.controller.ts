@@ -45,6 +45,8 @@ export class ProductsController {
   @ApiResponse({ status: 201, description: 'Product created successfully.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden. ADMIN role required.' })
+  @ApiResponse({ status: 404, description: 'Category not found.' })
+  @ApiResponse({ status: 409, description: 'A product with this slug or a variant with this SKU already exists.' })
   async create(@Body() dto: CreateProductDto, @Req() req: AuthenticatedRequest) {
     return this.productsService.create(dto, req.user!.id);
   }
@@ -55,6 +57,8 @@ export class ProductsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update product details (Admin)' })
   @ApiResponse({ status: 200, description: 'Product updated successfully.' })
+  @ApiResponse({ status: 404, description: 'Product not found.' })
+  @ApiResponse({ status: 409, description: 'A product with this slug already exists.' })
   async update(@Param('id') id: string, @Body() dto: UpdateProductDto, @Req() req: AuthenticatedRequest) {
     return this.productsService.update(id, dto, req.user!.id);
   }
@@ -65,6 +69,7 @@ export class ProductsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Archive a product without deleting order history (Admin)' })
   @ApiResponse({ status: 200, description: 'Product archived successfully.' })
+  @ApiResponse({ status: 404, description: 'Product not found.' })
   async archive(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.productsService.archive(id, req.user!.id);
   }

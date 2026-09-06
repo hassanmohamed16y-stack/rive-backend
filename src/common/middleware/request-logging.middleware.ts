@@ -3,6 +3,10 @@ import { randomUUID } from 'crypto';
 import { NextFunction, Request, Response } from 'express';
 
 const logger = new Logger('HttpRequest');
+// Augments Express's Request with fields set by this middleware (requestId) and by
+// JwtAuthGuard/OptionalJwtAuthGuard (user) earlier in the pipeline. The cast below is safe
+// because every read of these fields uses optional chaining (`?.`), so a request that hasn't
+// gone through auth yet (user undefined) is handled without a runtime error.
 type RequestWithContext = Request & { requestId?: string; user?: { userId?: string } };
 
 export function requestLoggingMiddleware(request: Request, response: Response, next: NextFunction) {

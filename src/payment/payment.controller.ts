@@ -52,6 +52,11 @@ export class PaymentController {
   @ApiResponse({ status: 400, description: 'Invalid webhook payload.' })
   async handleWebhook(@Req() req: Request) {
     const signature = req.headers['stripe-signature'] as string | undefined;
+    // req.body is a Buffer (not parsed JSON) only because this route is registered with
+    // express.raw() ahead of the global body parser — see app.config.ts's raw-body
+    // middleware registration, which is scoped specifically to this webhook path so Stripe's
+    // signature verification can run against the exact bytes received. If that middleware
+    // registration ever changes, this cast would silently start receiving a parsed object here.
     const rawBody = req.body as Buffer;
     return this.paymentService.handleWebhook(rawBody, signature);
   }

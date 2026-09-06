@@ -1,4 +1,4 @@
-import { Controller, ForbiddenException, HttpCode, HttpStatus, Post, UnauthorizedException, Headers } from '@nestjs/common';
+import { Controller, ForbiddenException, HttpCode, HttpStatus, Logger, Post, UnauthorizedException, Headers } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { seedDatabase } from '../../prisma/seed-logic';
@@ -28,6 +28,8 @@ import { PrismaService } from '../prisma/prisma.service';
 @ApiTags('internal')
 @Controller('api/v1/internal')
 export class SeedController {
+  private readonly logger = new Logger(SeedController.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   @Throttle({ default: { limit: 2, ttl: 60000 } })
@@ -42,15 +44,18 @@ export class SeedController {
     const expectedSecret = process.env.INTERNAL_CRON_SECRET;
 
     if (!expectedSecret) {
+      this.logger.error('Rejected seed-database call: INTERNAL_CRON_SECRET is not configured');
       throw new ForbiddenException('INTERNAL_CRON_SECRET is not configured');
     }
 
     if (!timingSafeStringEqual(providedSecret, expectedSecret)) {
+      this.logger.warn('Rejected seed-database call: invalid internal cron secret');
       throw new UnauthorizedException('Invalid internal cron secret');
     }
 
     await seedDatabase(this.prisma);
 
+    this.logger.warn('Database seeded via internal seed-database endpoint');
     return { status: 'ok' };
   }
 }
