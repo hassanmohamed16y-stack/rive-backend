@@ -174,4 +174,74 @@ describe('ProductsService variant and image administration', () => {
 
     await expect(service.removeImage('product-1', 'missing-image')).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('throws NotFoundException (not ConflictException) when removing a missing image raises P2025', async () => {
+    const { service, prisma } = createService();
+    prisma.productImage.findFirst.mockResolvedValue({ id: 'image-1', productId: 'product-1' });
+    prisma.productImage.delete.mockRejectedValue({ code: 'P2025' });
+
+    await expect(service.removeImage('product-1', 'image-1')).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe('ProductsService update/archive/create error mapping', () => {
+  function createService() {
+    const prisma = {
+      product: {
+        update: jest.fn(),
+        create: jest.fn(),
+        findUnique: jest.fn(),
+      },
+      category: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'category-1' }),
+      },
+    };
+    const auditLogService = { record: jest.fn().mockResolvedValue(undefined) };
+    return { service: new ProductsService(prisma as any, auditLogService as any), prisma, auditLogService };
+  }
+
+  it('throws NotFoundException when updating a product that does not exist (P2025)', async () => {
+    const { service, prisma } = createService();
+    prisma.product.update.mockRejectedValue({ code: 'P2025' });
+
+    await expect(service.update('missing-id', { name: 'New name' } as any)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('throws ConflictException (not NotFoundException) when updating a product to a duplicate slug (P2002)', async () => {
+    const { service, prisma } = createService();
+    prisma.product.update.mockRejectedValue({ code: 'P2002' });
+
+    await expect(service.update('product-1', { slug: 'duplicate-slug' } as any)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('rethrows unexpected errors from update without masking them as NotFoundException', async () => {
+    const { service, prisma } = createService();
+    const unexpected = new Error('connection reset');
+    prisma.product.update.mockRejectedValue(unexpected);
+
+    await expect(service.update('product-1', { name: 'x' } as any)).rejects.toBe(unexpected);
+  });
+
+  it('throws NotFoundException when archiving a product that does not exist (P2025)', async () => {
+    const { service, prisma } = createService();
+    prisma.product.update.mockRejectedValue({ code: 'P2025' });
+
+    await expect(service.archive('missing-id')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('rethrows unexpected errors from archive without masking them as NotFoundException', async () => {
+    const { service, prisma } = createService();
+    const unexpected = new Error('connection reset');
+    prisma.product.update.mockRejectedValue(unexpected);
+
+    await expect(service.archive('product-1')).rejects.toBe(unexpected);
+  });
+
+  it('throws ConflictException when creating a product with a duplicate slug or SKU (P2002)', async () => {
+    const { service, prisma } = createService();
+    prisma.product.create.mockRejectedValue({ code: 'P2002' });
+
+    const dto = { categorySlug: 'cat', slug: 'dup', images: [], variants: [] } as any;
+    await expect(service.create(dto)).rejects.toBeInstanceOf(ConflictException);
+  });
 });
