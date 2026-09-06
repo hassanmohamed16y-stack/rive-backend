@@ -190,4 +190,22 @@ describe('OrdersService.findOne ownership enforcement', () => {
     await expect(service.findOne('RIV-1000-ABC', { userId: 'admin-1', role: 'ADMIN' }))
       .resolves.toMatchObject({ orderNumber: 'RIV-1000-ABC' });
   });
+
+  it('rejects an order number that does not exist at all with a NotFoundException, even for an admin', async () => {
+    const context = transactionPrisma();
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
+
+    await expect(service.findOne('RIV-DOES-NOT-EXIST', { userId: 'admin-1', role: 'ADMIN' }))
+      .rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.findOne('RIV-DOES-NOT-EXIST', { userId: 'admin-1', role: 'ADMIN' }))
+      .rejects.toThrow('Order RIV-DOES-NOT-EXIST was not found');
+  });
+
+  it('rejects an order number that does not exist at all for an anonymous/guest caller', async () => {
+    const context = transactionPrisma();
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
+
+    await expect(service.findOne('RIV-DOES-NOT-EXIST', { guestAccessToken: 'guest-token' }))
+      .rejects.toBeInstanceOf(NotFoundException);
+  });
 });

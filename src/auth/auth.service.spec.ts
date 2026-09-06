@@ -146,6 +146,52 @@ describe('AuthService', () => {
     await expect(service.refresh('missing')).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
+  it('rejects a reused (already-revoked) refresh token, revokes every other active session for the user, and records an audit log entry', async () => {
+    const { service, prisma, auditLogService } = createService();
+    const reusedToken = {
+      id: 'refresh-stolen',
+      userId: 'user-1',
+      tokenHash: 'stolen-hash',
+      revokedAt: new Date(),
+      expiresAt: new Date(Date.now() + 60_000),
+      user: baseUser,
+    };
+    prisma.refreshToken.findFirst.mockResolvedValue(reusedToken);
+
+    await expect(service.refresh('stolen-refresh-token')).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1', revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
+    expect(auditLogService.record).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-1',
+      action: 'auth.refresh-token-reuse-detected',
+      entityType: 'User',
+      entityId: 'user-1',
+    }));
+    // A reused token must never be allowed to rotate into a fresh token pair.
+    expect(prisma.refreshToken.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects an already-revoked refresh token even without triggering reuse detection for an already-expired token', async () => {
+    const { service, prisma, auditLogService } = createService();
+    prisma.refreshToken.findFirst.mockResolvedValue({
+      id: 'refresh-expired',
+      userId: 'user-1',
+      tokenHash: 'expired-hash',
+      revokedAt: null,
+      expiresAt: new Date(Date.now() - 1000),
+      user: baseUser,
+    });
+
+    await expect(service.refresh('expired-refresh-token')).rejects.toBeInstanceOf(UnauthorizedException);
+
+    // Expiry (not reuse) is the rejection reason here, so reuse-detection side effects must not fire.
+    expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
+    expect(auditLogService.record).not.toHaveBeenCalled();
+  });
+
   it('rejects expired JWTs', () => {
     const expiredToken = jwtService.sign({ sub: 'user-1' }, { expiresIn: '-1s' });
     expect(() => jwtService.verify(expiredToken)).toThrow();
@@ -226,5 +272,27 @@ describe('AuthService', () => {
     prisma.user.findUnique.mockResolvedValue(null);
 
     await expect(service.resetPassword('missing', 'NewStrongPass123!')).rejects.toThrow('Invalid password reset token');
+  });
+
+  describe('logout', () => {
+    it('revokes only the exact refresh token presented, not other active sessions for the user', async () => {
+      const { service, prisma } = createService();
+      prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.logout('the-exact-refresh-token');
+
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { tokenHash: hashToken('the-exact-refresh-token'), revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+      expect(result).toEqual({ success: true });
+    });
+
+    it('does not throw when logging out with a refresh token that does not exist or is already revoked', async () => {
+      const { service, prisma } = createService();
+      prisma.refreshToken.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.logout('unknown-or-already-revoked-token')).resolves.toEqual({ success: true });
+    });
   });
 });
