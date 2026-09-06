@@ -2,13 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
 import * as streamifier from 'streamifier';
 import { loadFileTypeFromBuffer } from './file-type-loader';
-
-type UploadedFile = {
-  buffer: Buffer;
-  mimetype: string;
-  size: number;
-  originalname?: string;
-};
+import { UploadedImageFile } from './uploaded-image-file.type';
 
 @Injectable()
 export class UploadService {
@@ -21,15 +15,15 @@ export class UploadService {
     });
   }
 
-  private async validateMimeType(file: UploadedFile) {
+  private async validateMimeType(file: UploadedImageFile) {
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
 
     if (!file || !file.mimetype || !allowed.includes(file.mimetype)) {
-      throw new BadRequestException('Only JPEG, PNG, and WEBP images are allowed.');
+      throw new BadRequestException('Only JPEG, PNG, and WEBP images are allowed');
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      throw new BadRequestException('Image size must be 5MB or less.');
+      throw new BadRequestException('Image size must be 5MB or less');
     }
 
     // Validate magic bytes to prevent spoofed file uploads
@@ -42,7 +36,7 @@ export class UploadService {
     }
   }
 
-  async uploadImage(file: UploadedFile): Promise<{ url: string; public_id: string }> {
+  async uploadImage(file: UploadedImageFile): Promise<{ url: string; public_id: string }> {
     await this.validateMimeType(file);
 
     return new Promise((resolve, reject) => {

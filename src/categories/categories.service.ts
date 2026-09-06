@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildPaginationMeta, PaginationInput, resolvePagination } from '../common/utils/pagination';
+import { isPrismaErrorCode } from '../common/utils/prisma-error';
 import { CreateCategoryDto } from './dto/create-category.dto';
 
 @Injectable()
@@ -92,7 +93,7 @@ export class CategoriesService {
       });
       return category;
     } catch (error) {
-      if ((error as { code?: string } | null)?.code === 'P2025') throw new NotFoundException(`Category ${id} was not found`);
+      if (isPrismaErrorCode(error, 'P2025')) throw new NotFoundException(`Category ${id} was not found`);
       throw error;
     }
   }
@@ -109,10 +110,10 @@ export class CategoriesService {
       });
       return category;
     } catch (error) {
-      if ((error as { code?: string } | null)?.code === 'P2003') {
+      if (isPrismaErrorCode(error, 'P2003')) {
         throw new ConflictException('Cannot delete a category that has products');
       }
-      if ((error as { code?: string } | null)?.code === 'P2025') throw new NotFoundException(`Category ${id} was not found`);
+      if (isPrismaErrorCode(error, 'P2025')) throw new NotFoundException(`Category ${id} was not found`);
       throw error;
     }
   }

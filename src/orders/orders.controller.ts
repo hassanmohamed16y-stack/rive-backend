@@ -3,7 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { AuthenticatedRequest } from '../common/types/authenticated-request';
-import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
+import { isOrderOwnedByActor } from '../common/utils/order-ownership';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrdersService } from './orders.service';
 
@@ -27,11 +27,7 @@ export class OrdersController {
       return guestAccessToken;
     }
 
-    const isOwner = order.userId !== null && order.userId === userId;
-    const isGuestOwner = order.userId === null
-      && timingSafeStringEqual(order.guestAccessToken, guestAccessToken);
-
-    if (!isOwner && !isGuestOwner) {
+    if (!isOrderOwnedByActor(order, { userId, guestAccessToken })) {
       throw new ForbiddenException('You do not have permission to access this order');
     }
 
