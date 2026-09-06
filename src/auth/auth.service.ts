@@ -5,6 +5,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { isLocalOnlyEnvironment } from '../common/utils/environment';
+import { isPrismaErrorCode } from '../common/utils/prisma-error';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -214,8 +215,11 @@ export class AuthService {
           emailVerificationExpiresAt: expiresAt,
         },
       });
-    } catch {
-      throw new NotFoundException('User not found');
+    } catch (error) {
+      if (isPrismaErrorCode(error, 'P2025')) {
+        throw new NotFoundException('User not found');
+      }
+      throw error;
     }
 
     await this.emailService.sendEmailVerificationEmail(user.email, token);

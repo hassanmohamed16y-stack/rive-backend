@@ -184,15 +184,11 @@ export class OrdersService implements OnModuleInit {
       this.assertTransition(before.status, nextStatus);
 
       let after;
-      if (nextStatus === OrderStatus.CANCELLED) {
-        const cancelled = await this.cancelPendingOrderInTransaction(tx, orderId, OrderStatus.CANCELLED, undefined, actorUserId);
-        if (!cancelled) {
-          throw new ConflictException('Order is no longer pending');
-        }
-        after = await this.findOrderDetailsById(tx, orderId);
-      } else if (nextStatus === OrderStatus.EXPIRED) {
-        const expired = await this.cancelPendingOrderInTransaction(tx, orderId, OrderStatus.EXPIRED, undefined, actorUserId);
-        if (!expired) {
+      if (nextStatus === OrderStatus.CANCELLED || nextStatus === OrderStatus.EXPIRED) {
+        // Cancelling and expiring a PENDING order follow the same reservation-release logic;
+        // only the resulting status differs.
+        const released = await this.cancelPendingOrderInTransaction(tx, orderId, nextStatus, undefined, actorUserId);
+        if (!released) {
           throw new ConflictException('Order is no longer pending');
         }
         after = await this.findOrderDetailsById(tx, orderId);

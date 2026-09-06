@@ -1,5 +1,5 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { OrderStatus } from '@prisma/client';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { OrderStatus, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import Stripe from 'stripe';
 import { isOrderOwnedByActor } from '../common/utils/order-ownership';
@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class PaymentService {
+  private readonly logger = new Logger(PaymentService.name);
   private stripe: Stripe;
 
   constructor(
@@ -70,7 +71,11 @@ export class PaymentService {
             message: 'Checkout session already exists.',
           };
         }
-      } catch {
+      } catch (error) {
+        this.logger.error(
+          `Failed to retrieve existing Stripe checkout session ${order.paymentSessionId} for order ${order.id}`,
+          error instanceof Error ? error.stack : String(error),
+        );
         throw new BadRequestException('Unable to retrieve the existing checkout session');
       }
       throw new BadRequestException('This order already has a checkout session');
@@ -132,7 +137,14 @@ export class PaymentService {
         orderNumber: order.orderNumber,
         message: 'Checkout session created successfully.',
       };
-    } catch {
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(
+        `Failed to create Stripe checkout session for order ${order.id}`,
+        error instanceof Error ? error.stack : String(error),
+      );
       throw new BadRequestException('Failed to create Stripe checkout session');
     }
   }
@@ -150,7 +162,10 @@ export class PaymentService {
     let event: Stripe.Event;
     try {
       event = this.stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
-    } catch {
+    } catch (error) {
+      this.logger.warn(
+        `Stripe webhook signature verification failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
       throw new BadRequestException('Webhook verification failed');
     }
 
@@ -190,22 +205,43 @@ export class PaymentService {
           throw new BadRequestException('Webhook checkout session does not match the order');
         }
 
-        if (eventType === 'checkout.session.completed' || eventType === 'checkout.session.async_payment_succeeded') {
-          if (eventData.payment_status !== 'paid') {
-            return { received: true, orderId, message: 'Checkout session is not paid.' };
-          }
-          const paidOrder = await this.ordersService.markPaidInTransaction(tx, orderId);
-          return { received: true, orderId: paidOrder.id, status: paidOrder.status };
-        }
-
-        await this.ordersService.cancelPendingOrderInTransaction(tx, orderId, OrderStatus.CANCELLED);
-        return { received: true, orderId, status: OrderStatus.CANCELLED };
+        return this.applyVerifiedCheckoutEvent(tx, eventType, eventData, orderId);
       });
     } catch (error) {
       if (isPrismaErrorCode(error, 'P2002')) {
         return { received: true, eventId: event.id, message: 'Webhook already processed.' };
       }
+      if (!(error instanceof BadRequestException)) {
+        this.logger.error(
+          `Unexpected error while processing Stripe webhook ${event.id} (order ${orderId ?? 'unknown'})`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
       throw error;
     }
+  }
+
+  /**
+   * Applies the outcome of a Stripe checkout event whose session has already been verified
+   * against the order (see handleWebhook). Extracted for readability: "paid" events mark the
+   * order PAID, everything else in the processed set (async_payment_failed, expired) releases
+   * the pending reservation as CANCELLED.
+   */
+  private async applyVerifiedCheckoutEvent(
+    tx: Prisma.TransactionClient,
+    eventType: string,
+    eventData: Stripe.Checkout.Session,
+    orderId: string,
+  ) {
+    if (eventType === 'checkout.session.completed' || eventType === 'checkout.session.async_payment_succeeded') {
+      if (eventData.payment_status !== 'paid') {
+        return { received: true, orderId, message: 'Checkout session is not paid.' };
+      }
+      const paidOrder = await this.ordersService.markPaidInTransaction(tx, orderId);
+      return { received: true, orderId: paidOrder.id, status: paidOrder.status };
+    }
+
+    await this.ordersService.cancelPendingOrderInTransaction(tx, orderId, OrderStatus.CANCELLED);
+    return { received: true, orderId, status: OrderStatus.CANCELLED };
   }
 }
