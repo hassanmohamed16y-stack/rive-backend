@@ -66,6 +66,15 @@ export class AuthService {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
+  /**
+   * Issues a fresh access/refresh token pair for `user`, persisting the refresh token hash.
+   *
+   * NOTE (known gap, deliberately not addressed here): this does not implement refresh-token
+   * reuse detection — if a previously-rotated/invalidated refresh token is presented again
+   * (a strong signal that a token was stolen and the legitimate user already rotated past it),
+   * there is no mechanism here to detect that and revoke all of the user's other sessions.
+   * Adding it would require tracking a rotation chain per token family; left as a follow-up.
+   */
   private async issueTokenPair(user: User, client: PrismaLike = this.prisma) {
     const refreshToken = crypto.randomBytes(48).toString('hex');
     await client.refreshToken.create({

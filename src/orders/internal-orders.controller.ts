@@ -1,4 +1,4 @@
-import { Controller, ForbiddenException, HttpCode, HttpStatus, Post, UnauthorizedException, Headers } from '@nestjs/common';
+import { Controller, ForbiddenException, HttpCode, HttpStatus, Logger, Post, UnauthorizedException, Headers } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
@@ -17,6 +17,8 @@ import { OrdersService } from './orders.service';
 @ApiTags('internal')
 @Controller('api/v1/internal')
 export class InternalOrdersController {
+  private readonly logger = new Logger(InternalOrdersController.name);
+
   constructor(private readonly ordersService: OrdersService) {}
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
@@ -31,14 +33,17 @@ export class InternalOrdersController {
     const expectedSecret = process.env.INTERNAL_CRON_SECRET;
 
     if (!expectedSecret) {
+      this.logger.error('Rejected expire-reservations call: INTERNAL_CRON_SECRET is not configured');
       throw new ForbiddenException('INTERNAL_CRON_SECRET is not configured');
     }
 
     if (!timingSafeStringEqual(providedSecret, expectedSecret)) {
+      this.logger.warn('Rejected expire-reservations call: invalid internal cron secret');
       throw new UnauthorizedException('Invalid internal cron secret');
     }
 
     const expiredCount = await this.ordersService.expirePendingReservations();
+    this.logger.log(`Expired ${expiredCount} pending order reservation(s)`);
     return { expiredCount };
   }
 }

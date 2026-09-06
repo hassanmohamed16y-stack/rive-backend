@@ -10,6 +10,14 @@ import { Request, Response } from 'express';
 
 type RequestWithContext = Request & { requestId?: string };
 
+interface HttpExceptionResponseBody {
+  message?: string | string[];
+}
+
+function isHttpExceptionResponseBody(value: unknown): value is HttpExceptionResponseBody {
+  return typeof value === 'object' && value !== null;
+}
+
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
@@ -24,15 +32,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const responseBody =
+    const responseBody: unknown =
       exception instanceof HttpException ? exception.getResponse() : { message: 'Internal server error' };
 
     const message =
       typeof responseBody === 'string'
         ? responseBody
-        : Array.isArray((responseBody as any)?.message)
-          ? (responseBody as any).message[0]
-          : (responseBody as any)?.message ?? 'Unexpected error';
+        : isHttpExceptionResponseBody(responseBody) && Array.isArray(responseBody.message)
+          ? responseBody.message[0]
+          : (isHttpExceptionResponseBody(responseBody) ? responseBody.message : undefined) ?? 'Unexpected error';
 
     const payload = {
       statusCode: status,

@@ -60,23 +60,9 @@ export class PaymentService {
     }
 
     if (order.paymentSessionId) {
-      try {
-        const existingSession = await this.stripe.checkout.sessions.retrieve(order.paymentSessionId);
-        if (existingSession.status === 'open' && existingSession.url) {
-          return {
-            sessionId: existingSession.id,
-            url: existingSession.url,
-            orderId: order.id,
-            orderNumber: order.orderNumber,
-            message: 'Checkout session already exists.',
-          };
-        }
-      } catch (error) {
-        this.logger.error(
-          `Failed to retrieve existing Stripe checkout session ${order.paymentSessionId} for order ${order.id}`,
-          error instanceof Error ? error.stack : String(error),
-        );
-        throw new BadRequestException('Unable to retrieve the existing checkout session');
+      const reused = await this.tryReuseExistingCheckoutSession(order.id, order.orderNumber, order.paymentSessionId);
+      if (reused) {
+        return reused;
       }
       throw new BadRequestException('This order already has a checkout session');
     }
@@ -109,6 +95,14 @@ export class PaymentService {
         idempotencyKey: `checkout-session:${order.id}`,
       });
 
+      // NOTE: theoretical race — two concurrent requests for the same PENDING order can both
+      // reach this point (Stripe session creation happens outside any DB lock on paymentSessionId).
+      // The conditional `updateMany` below (status still PENDING AND paymentSessionId still null)
+      // ensures only one request "wins" and persists its session; the loser detects this via the
+      // re-read below and reuses the winner's session instead of erroring, so the client always
+      // gets a usable checkout link. Left as-is: a stronger fix (e.g. a DB-level advisory lock)
+      // adds complexity disproportionate to the risk (Stripe's own idempotencyKey already
+      // prevents duplicate charges even in the rare case both requests hit Stripe first).
       const updated = await this.prisma.order.updateMany({
         where: { id: order.id, status: OrderStatus.PENDING, paymentSessionId: null },
         data: { paymentSessionId: session.id },
@@ -149,6 +143,34 @@ export class PaymentService {
     }
   }
 
+  /**
+   * If the order already has a Stripe checkout session recorded, checks whether it is still
+   * open/usable and returns a "reuse" response for it. Returns `null` if the existing session
+   * is no longer usable (caller should then reject with a "duplicate session" error) —
+   * extracted from createCheckoutSession purely for readability.
+   */
+  private async tryReuseExistingCheckoutSession(orderId: string, orderNumber: string, paymentSessionId: string) {
+    try {
+      const existingSession = await this.stripe.checkout.sessions.retrieve(paymentSessionId);
+      if (existingSession.status === 'open' && existingSession.url) {
+        return {
+          sessionId: existingSession.id,
+          url: existingSession.url,
+          orderId,
+          orderNumber,
+          message: 'Checkout session already exists.',
+        };
+      }
+      return null;
+    } catch (error) {
+      this.logger.error(
+        `Failed to retrieve existing Stripe checkout session ${paymentSessionId} for order ${orderId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw new BadRequestException('Unable to retrieve the existing checkout session');
+    }
+  }
+
   async handleWebhook(rawBody: Buffer, signature?: string) {
     if (!signature || !rawBody) {
       throw new BadRequestException('Webhook signature or raw body missing');
@@ -170,9 +192,8 @@ export class PaymentService {
     }
 
     const eventType = event.type;
-    const eventData = event.data.object as Stripe.Checkout.Session;
 
-    if (!event.id || !eventType || !eventData) {
+    if (!event.id || !eventType || !event.data.object) {
       throw new BadRequestException('Webhook payload missing required event data');
     }
 
@@ -185,6 +206,10 @@ export class PaymentService {
     if (!processedEventTypes.has(eventType)) {
       return { received: true, eventType, message: 'Unhandled webhook event type received.' };
     }
+
+    // Safe to cast now: eventType is one of the checkout.session.* events above,
+    // so event.data.object is guaranteed by Stripe to be a Checkout Session.
+    const eventData = event.data.object as Stripe.Checkout.Session;
 
     const orderId = eventData.metadata?.orderId;
     try {
