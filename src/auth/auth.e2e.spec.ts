@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../app.module';
 import { configureApp } from '../app.config';
+import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const describeWithDatabase =
@@ -13,12 +14,12 @@ const describeWithDatabase =
 describeWithDatabase('AuthController e2e flows', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let authService: AuthService;
 
   const testUser = {
     email: `auth-e2e-${Date.now()}@example.com`,
     password: 'Password123!',
-    firstName: 'Test',
-    lastName: 'User',
+    fullName: 'Test User',
   };
 
   const createdUserEmails: string[] = [];
@@ -34,6 +35,7 @@ describeWithDatabase('AuthController e2e flows', () => {
     await app.init();
 
     prisma = moduleRef.get(PrismaService);
+    authService = moduleRef.get(AuthService);
   });
 
   afterAll(async () => {
@@ -65,8 +67,7 @@ describeWithDatabase('AuthController e2e flows', () => {
       expect(res.body).toHaveProperty('refreshToken');
       expect(res.body.user).toBeDefined();
       expect(res.body.user.email).toBe(testUser.email);
-      expect(res.body.user.firstName).toBe(testUser.firstName);
-      expect(res.body.user.lastName).toBe(testUser.lastName);
+      expect(res.body.user.fullName).toBe(testUser.fullName);
       expect(res.body.user.passwordHash).toBeUndefined();
     });
 
@@ -76,7 +77,7 @@ describeWithDatabase('AuthController e2e flows', () => {
         .send(testUser)
         .expect(409);
 
-      expect(res.body.message).toMatch(/already exists|duplicate/i);
+      expect(res.body.error).toMatch(/already exists|duplicate/i);
     });
   });
 
@@ -116,7 +117,7 @@ describeWithDatabase('AuthController e2e flows', () => {
         })
         .expect(401);
 
-      expect(res.body.message).toMatch(/Invalid credentials/i);
+      expect(res.body.error).toMatch(/Invalid credentials/i);
     });
   });
 
@@ -124,13 +125,11 @@ describeWithDatabase('AuthController e2e flows', () => {
     let refreshToken: string;
 
     beforeEach(async () => {
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({
-          email: testUser.email,
-          password: testUser.password,
-        });
-      refreshToken = res.body.refreshToken;
+      const res = await authService.login({
+        email: testUser.email,
+        password: testUser.password,
+      });
+      refreshToken = res.refreshToken;
     });
 
     it('returns a new token pair given a valid refresh token', async () => {
@@ -156,13 +155,11 @@ describeWithDatabase('AuthController e2e flows', () => {
     let refreshToken: string;
 
     beforeEach(async () => {
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({
-          email: testUser.email,
-          password: testUser.password,
-        });
-      refreshToken = res.body.refreshToken;
+      const res = await authService.login({
+        email: testUser.email,
+        password: testUser.password,
+      });
+      refreshToken = res.refreshToken;
     });
 
     it('logs out successfully with a valid refresh token', async () => {
@@ -190,13 +187,11 @@ describeWithDatabase('AuthController e2e flows', () => {
     let accessToken: string;
 
     beforeEach(async () => {
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({
-          email: testUser.email,
-          password: testUser.password,
-        });
-      accessToken = res.body.accessToken;
+      const res = await authService.login({
+        email: testUser.email,
+        password: testUser.password,
+      });
+      accessToken = res.accessToken;
     });
 
     it('returns user profile with valid access token', async () => {
