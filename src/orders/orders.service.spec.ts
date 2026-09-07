@@ -147,7 +147,16 @@ describe('OrdersService inventory reservations', () => {
   });
 });
 
-describe('OrdersService.findOne ownership enforcement', () => {
+describe('OrdersService.findOne ownership enforcement and missing order handling', () => {
+  it('throws NotFoundException when order is not found in database (!order branch)', async () => {
+    const context = transactionPrisma();
+    context.prisma.order.findUnique.mockResolvedValue(null);
+    const service = new OrdersService(context.prisma as any, context.auditLogService as any);
+
+    await expect(service.findOne('RIV-NONEXISTENT', { role: 'ADMIN' }))
+      .rejects.toThrow(new NotFoundException('Order RIV-NONEXISTENT was not found'));
+  });
+
   it('returns the order for the matching guest access token holder', async () => {
     const context = transactionPrisma();
     const service = new OrdersService(context.prisma as any, context.auditLogService as any);
