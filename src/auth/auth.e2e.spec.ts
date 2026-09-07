@@ -1,3 +1,5 @@
+process.env.JWT_SECRET = 'test-jwt-secret-min-32-characters-long!!';
+
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -19,14 +21,12 @@ describeWithDatabase('AuthController e2e flows', () => {
   const testUser = {
     email: `auth-e2e-${Date.now()}@example.com`,
     password: 'Password123!',
-    firstName: 'Test',
-    lastName: 'User',
+    fullName: 'Test User',
   };
 
   const createdUserEmails: string[] = [];
 
   beforeAll(async () => {
-    process.env.JWT_SECRET = 'test-jwt-secret-min-32-characters-long!!';
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -37,6 +37,12 @@ describeWithDatabase('AuthController e2e flows', () => {
 
     prisma = moduleRef.get(PrismaService);
     authService = moduleRef.get(AuthService);
+
+    try {
+      await authService.register(testUser);
+    } catch {
+      // ignore if user already exists
+    }
   });
 
   afterAll(async () => {
@@ -58,18 +64,22 @@ describeWithDatabase('AuthController e2e flows', () => {
 
   describe('POST /api/v1/auth/register', () => {
     it('registers a new user successfully and returns user without passwordHash', async () => {
-      createdUserEmails.push(testUser.email);
+      const newUser = {
+        email: `new-user-${Date.now()}@example.com`,
+        password: 'Password123!',
+        fullName: 'New User',
+      };
+      createdUserEmails.push(newUser.email);
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/register')
-        .send(testUser)
+        .send(newUser)
         .expect(201);
 
       expect(res.body).toHaveProperty('accessToken');
       expect(res.body).toHaveProperty('refreshToken');
       expect(res.body.user).toBeDefined();
-      expect(res.body.user.email).toBe(testUser.email);
-      expect(res.body.user.firstName).toBe(testUser.firstName);
-      expect(res.body.user.lastName).toBe(testUser.lastName);
+      expect(res.body.user.email).toBe(newUser.email);
+      expect(res.body.user.fullName).toBe(newUser.fullName);
       expect(res.body.user.passwordHash).toBeUndefined();
     });
 
@@ -79,7 +89,7 @@ describeWithDatabase('AuthController e2e flows', () => {
         .send(testUser)
         .expect(409);
 
-      expect(res.body.message).toMatch(/already exists|duplicate/i);
+      expect(res.body.error).toMatch(/already exists|duplicate/i);
     });
   });
 
@@ -119,7 +129,7 @@ describeWithDatabase('AuthController e2e flows', () => {
         })
         .expect(401);
 
-      expect(res.body.message).toMatch(/Invalid credentials/i);
+      expect(res.body.error).toMatch(/Invalid credentials/i);
     });
   });
 
@@ -143,6 +153,28 @@ describeWithDatabase('AuthController e2e flows', () => {
       expect(res.body).toHaveProperty('accessToken');
       expect(res.body).toHaveProperty('refreshToken');
       expect(res.body.refreshToken).not.toBe(refreshToken);
+    });
+
+    it('revokes all user sessions when a rotated refresh token is reused', async () => {
+      // 1. POST /api/v1/auth/refresh with RT_1 -> succeeds (201), issues RT_2
+      const rt1 = refreshToken;
+      const res1 = await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: rt1 })
+        .expect(201);
+      const rt2 = res1.body.refreshToken;
+
+      // 2. POST /api/v1/auth/refresh with RT_1 again (reuse of rotated token) -> returns 401
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: rt1 })
+        .expect(401);
+
+      // 3. POST /api/v1/auth/refresh with RT_2 -> should be rejected with 401 because RT_1 reuse revoked all user sessions
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: rt2 })
+        .expect(401);
     });
 
     it('rejects an invalid or fake refresh token with 401', async () => {

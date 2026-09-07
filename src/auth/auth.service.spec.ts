@@ -126,17 +126,43 @@ describe('AuthService', () => {
     const { service, prisma } = createService();
     const existingRefresh = { id: 'refresh-1', tokenHash: 'old-hash', revokedAt: null, expiresAt: new Date(Date.now() + 60_000), user: baseUser };
     prisma.refreshToken.findFirst.mockResolvedValue(existingRefresh);
-    prisma.refreshToken.update.mockResolvedValue({ ...existingRefresh, revokedAt: new Date() });
+    prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
     prisma.refreshToken.create.mockResolvedValue({ id: 'refresh-2' });
 
     const result = await service.refresh('raw-refresh-token');
 
-    expect(prisma.refreshToken.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'refresh-1' } }));
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'refresh-1', revokedAt: null } }));
     expect(prisma.refreshToken.create).toHaveBeenCalledTimes(1);
     expect(result.refreshToken).toBeDefined();
+  });
 
-    prisma.refreshToken.findFirst.mockResolvedValueOnce(null);
-    await expect(service.refresh('raw-refresh-token')).rejects.toBeInstanceOf(UnauthorizedException);
+  it('detects refresh token reuse, revokes all user sessions, and logs an audit event', async () => {
+    const { service, prisma, auditLogService } = createService();
+    const revokedRefresh = {
+      id: 'refresh-1',
+      userId: 'user-1',
+      tokenHash: hashToken('reused-token'),
+      revokedAt: new Date(Date.now() - 5000),
+      expiresAt: new Date(Date.now() + 60_000),
+      user: baseUser,
+    };
+    prisma.refreshToken.findFirst.mockResolvedValue(revokedRefresh);
+    prisma.refreshToken.updateMany.mockResolvedValue({ count: 2 });
+
+    await expect(service.refresh('reused-token')).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1', revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
+    expect(auditLogService.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        action: 'auth.refresh-token-reuse-detected',
+        entityType: 'User',
+        entityId: 'user-1',
+      }),
+    );
   });
 
   it('rejects unknown refresh tokens', async () => {
