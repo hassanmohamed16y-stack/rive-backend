@@ -50,6 +50,7 @@ describeWithDatabase('Auth Rate Limiting e2e', () => {
       .send(loginPayload);
 
     expect(rateLimitedResponse.status).toBe(429);
-    expect(rateLimitedResponse.body.message).toMatch(/ThrottlerException|Too Many Requests/i);
+    const errorMessage = rateLimitedResponse.body.error ?? rateLimitedResponse.body.message;
+    expect(errorMessage).toMatch(/ThrottlerException|Too Many Requests/i);
   });
 });

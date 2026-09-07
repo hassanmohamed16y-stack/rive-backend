@@ -184,20 +184,50 @@ export class AuthService {
   async refresh(refreshToken: string) {
     const tokenHash = this.hashToken(refreshToken);
 
-    return this.prisma.$transaction(async (tx) => {
-      const storedToken = await tx.refreshToken.findFirst({
-        where: { tokenHash },
-        include: { user: true },
+    const storedToken = await this.prisma.refreshToken.findFirst({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (!storedToken || storedToken.expiresAt <= new Date()) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    if (storedToken.revokedAt !== null) {
+      // Reuse of an already-rotated/revoked token: treat as a possible
+      // token theft and invalidate all of this user's sessions.
+      await this.prisma.refreshToken.updateMany({
+        where: { userId: storedToken.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
       });
 
-      if (!storedToken || storedToken.expiresAt <= new Date()) {
-        throw new UnauthorizedException('Invalid or expired refresh token');
-      }
+      await this.auditLogService.record({
+        userId: storedToken.userId,
+        action: 'auth.refresh-token-reuse-detected',
+        entityType: 'User',
+        entityId: storedToken.userId,
+        changes: { reason: 'A revoked refresh token was reused; all sessions were revoked.' },
+      });
 
-      if (storedToken.revokedAt !== null) {
-        // Reuse of an already-rotated/revoked token: treat as a possible
-        // token theft and invalidate all of this user's sessions.
-        await tx.refreshToken.updateMany({
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.refreshToken.updateMany({
+          where: { id: storedToken.id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+
+        if (updated.count === 0) {
+          throw new ConflictException('CONCURRENT_ROTATION');
+        }
+
+        return this.issueTokenPair(storedToken.user, tx);
+      });
+    } catch (error) {
+      if (error instanceof ConflictException && error.message === 'CONCURRENT_ROTATION') {
+        await this.prisma.refreshToken.updateMany({
           where: { userId: storedToken.userId, revokedAt: null },
           data: { revokedAt: new Date() },
         });
@@ -212,14 +242,8 @@ export class AuthService {
 
         throw new UnauthorizedException('Invalid or expired refresh token');
       }
-
-      await tx.refreshToken.update({
-        where: { id: storedToken.id },
-        data: { revokedAt: new Date() },
-      });
-
-      return this.issueTokenPair(storedToken.user, tx);
-    });
+      throw error;
+    }
   }
 
   async logout(refreshToken: string) {
