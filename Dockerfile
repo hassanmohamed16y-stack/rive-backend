@@ -12,8 +12,10 @@ WORKDIR /app
 # ever generated here, at build time, never at container start.
 ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 
-# Pin openssl, libssl3, and libcrypto3 to 3.5.8-r0 to remediate OpenSSL vulnerabilities (Snyk CVEs).
-RUN apk add --no-cache "openssl=3.5.8-r0" "libssl3=3.5.8-r0" "libcrypto3=3.5.8-r0"
+# Upgrade all packages to latest to avoid pinning to a version that
+# will become outdated and vulnerable again. This keeps OpenSSL/libssl
+# patched automatically on every rebuild.
+RUN apk update && apk upgrade --no-cache
 
 COPY package*.json ./
 RUN npm ci
@@ -46,8 +48,10 @@ WORKDIR /app
 
 # Prisma's query engine needs OpenSSL to detect libssl at runtime; without
 # it Prisma logs "failed to detect the libssl/openssl" warnings/errors.
-# Pin openssl, libssl3, and libcrypto3 to 3.5.8-r0 to remediate OpenSSL vulnerabilities (Snyk CVEs).
-RUN apk add --no-cache "openssl=3.5.8-r0" "libssl3=3.5.8-r0" "libcrypto3=3.5.8-r0"
+# Upgrade all packages to latest to avoid pinning to a version that
+# will become outdated and vulnerable again. This keeps OpenSSL/libssl
+# patched automatically on every rebuild.
+RUN apk update && apk upgrade --no-cache
 
 ENV NODE_ENV=production
 ENV PORT=3000
