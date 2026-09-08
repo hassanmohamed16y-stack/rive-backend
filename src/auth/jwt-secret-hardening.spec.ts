@@ -10,14 +10,22 @@ describe("JWT_SECRET hardening outside local development/test", () => {
     jest.resetModules();
     process.env.NODE_ENV = nodeEnv;
     if (jwtSecret === undefined) {
-      delete process.env.JWT_SECRET;
+      process.env.JWT_SECRET = "";
     } else {
       process.env.JWT_SECRET = jwtSecret;
     }
 
     // Must re-require after jest.resetModules() so the module-level check re-runs.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return () => require("./auth.module");
+    return () => {
+      process.env.NODE_ENV = nodeEnv;
+      if (jwtSecret === undefined) {
+        process.env.JWT_SECRET = "";
+      } else {
+        process.env.JWT_SECRET = jwtSecret;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      return require("./auth.module");
+    };
   }
 
   it.each(["production", "staging", "qa"])(
