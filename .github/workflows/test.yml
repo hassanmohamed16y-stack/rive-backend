@@ -28,6 +28,7 @@ jobs:
     env:
       RUN_DATABASE_INTEGRATION_TESTS: 'true'
       DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+      DIRECT_DATABASE_URL: postgresql://test:test@localhost:5432/test_db
 
     steps:
       - name: Checkout code
