@@ -36,7 +36,9 @@ export function configureApp(app: INestApplication) {
   app.use(
     bodyParser.json({
       limit: "1mb",
-      type: (request) => !request.url?.startsWith("/api/v1/payments/webhook"),
+      type: (request) =>
+        Boolean(request.headers["content-type"]?.includes("json")) &&
+        !request.url?.startsWith("/api/v1/payments/webhook"),
     }),
   );
 

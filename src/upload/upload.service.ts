@@ -29,9 +29,18 @@ export class UploadService {
     }
 
     // Validate magic bytes to prevent spoofed file uploads
-    const fileTypeFromBuffer = await loadFileTypeFromBuffer();
-    const fileTypeResult = await fileTypeFromBuffer(file.buffer);
-    if (!fileTypeResult || !allowed.includes(fileTypeResult.mime)) {
+    try {
+      const fileTypeFromBuffer = await loadFileTypeFromBuffer();
+      const fileTypeResult = await fileTypeFromBuffer(file.buffer);
+      if (!fileTypeResult || !allowed.includes(fileTypeResult.mime)) {
+        throw new BadRequestException(
+          "File magic bytes do not match declared MIME type. Only JPEG, PNG, and WEBP are allowed.",
+        );
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       throw new BadRequestException(
         "File magic bytes do not match declared MIME type. Only JPEG, PNG, and WEBP are allowed.",
       );
