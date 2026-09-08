@@ -1,16 +1,27 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Size } from '@prisma/client';
-import { Type } from 'class-transformer';
-import { IsBoolean, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Size } from "@prisma/client";
+import { Type } from "class-transformer";
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  Min,
+} from "class-validator";
 
 export class CreateProductVariantDto {
-  @ApiProperty({ example: 'LUNA-SET-S-BEIGE', maxLength: 128 })
+  @ApiProperty({ example: "LUNA-SET-S-BEIGE", maxLength: 128 })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(128, { message: 'SKU must be 128 characters or less' })
+  @MaxLength(128, { message: "SKU must be 128 characters or less" })
   sku!: string;
 
-  @ApiPropertyOptional({ example: '#945958', default: '#945958' })
+  @ApiPropertyOptional({ example: "#945958", default: "#945958" })
   @IsOptional()
   @IsString()
   @Matches(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/)

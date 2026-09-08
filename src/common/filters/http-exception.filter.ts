@@ -5,8 +5,8 @@ import {
   HttpException,
   HttpStatus,
   Logger,
-} from '@nestjs/common';
-import { Request, Response } from 'express';
+} from "@nestjs/common";
+import { Request, Response } from "express";
 
 type RequestWithContext = Request & { requestId?: string };
 
@@ -14,8 +14,10 @@ interface HttpExceptionResponseBody {
   message?: string | string[];
 }
 
-function isHttpExceptionResponseBody(value: unknown): value is HttpExceptionResponseBody {
-  return typeof value === 'object' && value !== null;
+function isHttpExceptionResponseBody(
+  value: unknown,
+): value is HttpExceptionResponseBody {
+  return typeof value === "object" && value !== null;
 }
 
 @Catch()
@@ -33,14 +35,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const responseBody: unknown =
-      exception instanceof HttpException ? exception.getResponse() : { message: 'Internal server error' };
+      exception instanceof HttpException
+        ? exception.getResponse()
+        : { message: "Internal server error" };
 
     const message =
-      typeof responseBody === 'string'
+      typeof responseBody === "string"
         ? responseBody
-        : isHttpExceptionResponseBody(responseBody) && Array.isArray(responseBody.message)
+        : isHttpExceptionResponseBody(responseBody) &&
+            Array.isArray(responseBody.message)
           ? responseBody.message[0]
-          : (isHttpExceptionResponseBody(responseBody) ? responseBody.message : undefined) ?? 'Unexpected error';
+          : ((isHttpExceptionResponseBody(responseBody)
+              ? responseBody.message
+              : undefined) ?? "Unexpected error");
 
     const payload = {
       statusCode: status,
@@ -52,7 +59,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     };
 
     this.logger.error(
-      `${request.method} ${request.url} ${status} requestId=${request.requestId ?? 'unknown'} - ${message}`,
+      `${request.method} ${request.url} ${status} requestId=${request.requestId ?? "unknown"} - ${message}`,
       exception instanceof Error ? exception.name : undefined,
     );
 

@@ -11,6 +11,8 @@
  * re-implement `NODE_ENV === 'production'` checks elsewhere for the same
  * purpose (see auth.module.ts, jwt.strategy.ts, auth.service.ts).
  */
-export function isLocalOnlyEnvironment(nodeEnv: string | undefined = process.env.NODE_ENV): boolean {
-  return nodeEnv === 'development' || nodeEnv === 'test';
+export function isLocalOnlyEnvironment(
+  nodeEnv: string | undefined = process.env.NODE_ENV,
+): boolean {
+  return nodeEnv === "development" || nodeEnv === "test";
 }

@@ -1,8 +1,17 @@
-import { Controller, ForbiddenException, HttpCode, HttpStatus, Logger, Post, UnauthorizedException, Headers } from '@nestjs/common';
-import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
-import { timingSafeStringEqual } from '../common/utils/timing-safe-compare';
-import { OrdersService } from './orders.service';
+import {
+  Controller,
+  ForbiddenException,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  Post,
+  UnauthorizedException,
+  Headers,
+} from "@nestjs/common";
+import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
+import { timingSafeStringEqual } from "../common/utils/timing-safe-compare";
+import { OrdersService } from "./orders.service";
 
 /**
  * Internal-only endpoint invoked by an external scheduler (GitHub Actions scheduled
@@ -14,32 +23,46 @@ import { OrdersService } from './orders.service';
  * intentionally NOT a JwtAuthGuard/RolesGuard route: it is meant to be called by
  * infrastructure, not by end users or admins.
  */
-@ApiTags('internal')
-@Controller('api/v1/internal')
+@ApiTags("internal")
+@Controller("api/v1/internal")
 export class InternalOrdersController {
   private readonly logger = new Logger(InternalOrdersController.name);
 
   constructor(private readonly ordersService: OrdersService) {}
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  @Post('expire-reservations')
+  @Post("expire-reservations")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Expire lapsed PENDING order reservations (internal cron only)' })
-  @ApiHeader({ name: 'x-internal-cron-secret', required: true })
-  @ApiResponse({ status: 200, description: 'Number of reservations expired.' })
-  @ApiResponse({ status: 401, description: 'Missing or invalid internal cron secret.' })
-  @ApiResponse({ status: 403, description: 'INTERNAL_CRON_SECRET is not configured on this server.' })
-  async expireReservations(@Headers('x-internal-cron-secret') providedSecret?: string) {
+  @ApiOperation({
+    summary: "Expire lapsed PENDING order reservations (internal cron only)",
+  })
+  @ApiHeader({ name: "x-internal-cron-secret", required: true })
+  @ApiResponse({ status: 200, description: "Number of reservations expired." })
+  @ApiResponse({
+    status: 401,
+    description: "Missing or invalid internal cron secret.",
+  })
+  @ApiResponse({
+    status: 403,
+    description: "INTERNAL_CRON_SECRET is not configured on this server.",
+  })
+  async expireReservations(
+    @Headers("x-internal-cron-secret") providedSecret?: string,
+  ) {
     const expectedSecret = process.env.INTERNAL_CRON_SECRET;
 
     if (!expectedSecret) {
-      this.logger.error('Rejected expire-reservations call: INTERNAL_CRON_SECRET is not configured');
-      throw new ForbiddenException('INTERNAL_CRON_SECRET is not configured');
+      this.logger.error(
+        "Rejected expire-reservations call: INTERNAL_CRON_SECRET is not configured",
+      );
+      throw new ForbiddenException("INTERNAL_CRON_SECRET is not configured");
     }
 
     if (!timingSafeStringEqual(providedSecret, expectedSecret)) {
-      this.logger.warn('Rejected expire-reservations call: invalid internal cron secret');
-      throw new UnauthorizedException('Invalid internal cron secret');
+      this.logger.warn(
+        "Rejected expire-reservations call: invalid internal cron secret",
+      );
+      throw new UnauthorizedException("Invalid internal cron secret");
     }
 
     const expiredCount = await this.ordersService.expirePendingReservations();

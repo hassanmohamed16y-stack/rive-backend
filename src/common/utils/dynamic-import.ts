@@ -10,7 +10,7 @@
  * consuming ESM-only packages from a CommonJS TypeScript codebase until the project fully
  * migrates to ESM (or enables `verbatimModuleSyntax`, which preserves `import()` as-is).
  */
-const dynamicImport = new Function('specifier', 'return import(specifier)') as (
+const dynamicImport = new Function("specifier", "return import(specifier)") as (
   specifier: string,
 ) => Promise<unknown>;
 

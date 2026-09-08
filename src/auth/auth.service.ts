@@ -1,16 +1,23 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { Prisma, User } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
-import { AuditLogService } from '../audit-log/audit-log.service';
-import { isLocalOnlyEnvironment } from '../common/utils/environment';
-import { isPrismaErrorCode } from '../common/utils/prisma-error';
-import { EmailService } from '../email/email.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { ChangePasswordDto } from './dto/change-password.dto';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { Prisma, User } from "@prisma/client";
+import * as bcrypt from "bcrypt";
+import * as crypto from "crypto";
+import { AuditLogService } from "../audit-log/audit-log.service";
+import { isLocalOnlyEnvironment } from "../common/utils/environment";
+import { isPrismaErrorCode } from "../common/utils/prisma-error";
+import { EmailService } from "../email/email.service";
+import { PrismaService } from "../prisma/prisma.service";
+import { ChangePasswordDto } from "./dto/change-password.dto";
+import { LoginDto } from "./dto/login.dto";
+import { RegisterDto } from "./dto/register.dto";
 
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
@@ -21,11 +28,28 @@ const ACCOUNT_LOCKOUT_MS = 15 * 60 * 1000;
 // Computed once at module load (not per login attempt) so that comparing against a
 // non-existent user costs the same bcrypt work as a real user, without paying the
 // (expensive) bcrypt.hash cost on every single login request.
-const DUMMY_HASH_FOR_TIMING = bcrypt.hashSync('dummy-password-for-timing-safety', 12);
+const DUMMY_HASH_FOR_TIMING = bcrypt.hashSync(
+  "dummy-password-for-timing-safety",
+  12,
+);
 
-const GENERIC_FORGOT_PASSWORD_MESSAGE = 'If an account with that email exists, a password reset link has been sent.';
+const GENERIC_FORGOT_PASSWORD_MESSAGE =
+  "If an account with that email exists, a password reset link has been sent.";
 
-type SafeUser = Omit<User, 'passwordHash' | 'emailVerificationToken' | 'emailVerificationExpiresAt' | 'passwordResetToken' | 'passwordResetExpiresAt' | 'failedLoginAttempts' | 'lockedUntil'>;
+export function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+type SafeUser = Omit<
+  User,
+  | "passwordHash"
+  | "emailVerificationToken"
+  | "emailVerificationExpiresAt"
+  | "passwordResetToken"
+  | "passwordResetExpiresAt"
+  | "failedLoginAttempts"
+  | "lockedUntil"
+>;
 type PrismaLike = PrismaService | Prisma.TransactionClient;
 
 @Injectable()
@@ -63,7 +87,7 @@ export class AuthService {
   }
 
   private hashToken(token: string) {
-    return crypto.createHash('sha256').update(token).digest('hex');
+    return hashToken(token);
   }
 
   /**
@@ -73,7 +97,7 @@ export class AuthService {
    * already-rotated/revoked token is presented again) is implemented in `refresh()`.
    */
   private async issueTokenPair(user: User, client: PrismaLike = this.prisma) {
-    const refreshToken = crypto.randomBytes(48).toString('hex');
+    const refreshToken = crypto.randomBytes(48).toString("hex");
     await client.refreshToken.create({
       data: {
         userId: user.id,
@@ -95,7 +119,7 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ConflictException('User already exists');
+      throw new ConflictException("User already exists");
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 12);
@@ -105,7 +129,7 @@ export class AuthService {
         fullName: dto.fullName.trim(),
         email: dto.email.toLowerCase(),
         passwordHash: hashedPassword,
-        role: 'CUSTOMER',
+        role: "CUSTOMER",
       },
     });
 
@@ -122,15 +146,20 @@ export class AuthService {
       // Always run bcrypt.compare, even for a non-existent user, so that the response
       // timing for "user not found" and "wrong password" is indistinguishable.
       await bcrypt.compare(dto.password, DUMMY_HASH_FOR_TIMING);
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
 
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       await bcrypt.compare(dto.password, DUMMY_HASH_FOR_TIMING);
-      throw new ForbiddenException('Account locked due to too many failed login attempts. Try again later.');
+      throw new ForbiddenException(
+        "Account locked due to too many failed login attempts. Try again later.",
+      );
     }
 
-    const passwordIsValid = await bcrypt.compare(dto.password, user.passwordHash);
+    const passwordIsValid = await bcrypt.compare(
+      dto.password,
+      user.passwordHash,
+    );
 
     if (!passwordIsValid) {
       const failedLoginAttempts = user.failedLoginAttempts + 1;
@@ -150,22 +179,26 @@ export class AuthService {
       if (isNowLocked) {
         await this.auditLogService.record({
           userId: user.id,
-          action: 'auth.account-locked',
-          entityType: 'User',
+          action: "auth.account-locked",
+          entityType: "User",
           entityId: user.id,
-          changes: { reason: 'Too many failed login attempts', lockedUntilMs: ACCOUNT_LOCKOUT_MS },
+          changes: {
+            reason: "Too many failed login attempts",
+            lockedUntilMs: ACCOUNT_LOCKOUT_MS,
+          },
         });
       }
 
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
 
-    const authenticatedUser = user.failedLoginAttempts > 0 || user.lockedUntil
-      ? await this.prisma.user.update({
-          where: { id: user.id },
-          data: { failedLoginAttempts: 0, lockedUntil: null },
-        })
-      : user;
+    const authenticatedUser =
+      user.failedLoginAttempts > 0 || user.lockedUntil
+        ? await this.prisma.user.update({
+            where: { id: user.id },
+            data: { failedLoginAttempts: 0, lockedUntil: null },
+          })
+        : user;
 
     return this.issueTokenPair(authenticatedUser);
   }
@@ -190,26 +223,14 @@ export class AuthService {
     });
 
     if (!storedToken || storedToken.expiresAt <= new Date()) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw new UnauthorizedException("Invalid or expired refresh token");
     }
 
     if (storedToken.revokedAt !== null) {
       // Reuse of an already-rotated/revoked token: treat as a possible
       // token theft and invalidate all of this user's sessions.
-      await this.prisma.refreshToken.updateMany({
-        where: { userId: storedToken.userId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
-
-      await this.auditLogService.record({
-        userId: storedToken.userId,
-        action: 'auth.refresh-token-reuse-detected',
-        entityType: 'User',
-        entityId: storedToken.userId,
-        changes: { reason: 'A revoked refresh token was reused; all sessions were revoked.' },
-      });
-
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      await this.revokeAllUserSessionsAndLogReuse(storedToken.userId);
+      throw new UnauthorizedException("Invalid or expired refresh token");
     }
 
     try {
@@ -220,27 +241,18 @@ export class AuthService {
         });
 
         if (updated.count === 0) {
-          throw new ConflictException('CONCURRENT_ROTATION');
+          throw new ConflictException("CONCURRENT_ROTATION");
         }
 
         return this.issueTokenPair(storedToken.user, tx);
       });
     } catch (error) {
-      if (error instanceof ConflictException && error.message === 'CONCURRENT_ROTATION') {
-        await this.prisma.refreshToken.updateMany({
-          where: { userId: storedToken.userId, revokedAt: null },
-          data: { revokedAt: new Date() },
-        });
-
-        await this.auditLogService.record({
-          userId: storedToken.userId,
-          action: 'auth.refresh-token-reuse-detected',
-          entityType: 'User',
-          entityId: storedToken.userId,
-          changes: { reason: 'A revoked refresh token was reused; all sessions were revoked.' },
-        });
-
-        throw new UnauthorizedException('Invalid or expired refresh token');
+      if (
+        error instanceof ConflictException &&
+        error.message === "CONCURRENT_ROTATION"
+      ) {
+        await this.revokeAllUserSessionsAndLogReuse(storedToken.userId);
+        throw new UnauthorizedException("Invalid or expired refresh token");
       }
       throw error;
     }
@@ -259,7 +271,7 @@ export class AuthService {
   }
 
   async requestEmailVerification(userId: string) {
-    const token = crypto.randomBytes(32).toString('hex');
+    const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
 
     let user;
@@ -272,8 +284,8 @@ export class AuthService {
         },
       });
     } catch (error) {
-      if (isPrismaErrorCode(error, 'P2025')) {
-        throw new NotFoundException('User not found');
+      if (isPrismaErrorCode(error, "P2025")) {
+        throw new NotFoundException("User not found");
       }
       throw error;
     }
@@ -283,7 +295,7 @@ export class AuthService {
     return {
       ...(isLocalOnlyEnvironment() ? { token } : {}),
       expiresAt,
-      message: 'Email verification token generated successfully.',
+      message: "Email verification token generated successfully.",
     };
   }
 
@@ -293,11 +305,14 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new BadRequestException('Invalid email verification token');
+      throw new BadRequestException("Invalid email verification token");
     }
 
-    if (!user.emailVerificationExpiresAt || user.emailVerificationExpiresAt <= new Date()) {
-      throw new BadRequestException('Email verification token has expired');
+    if (
+      !user.emailVerificationExpiresAt ||
+      user.emailVerificationExpiresAt <= new Date()
+    ) {
+      throw new BadRequestException("Email verification token has expired");
     }
 
     await this.prisma.user.update({
@@ -309,19 +324,22 @@ export class AuthService {
       },
     });
 
-    return { message: 'Email verified successfully.' };
+    return { message: "Email verified successfully." };
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException("User not found");
     }
 
-    const currentPasswordIsValid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    const currentPasswordIsValid = await bcrypt.compare(
+      dto.currentPassword,
+      user.passwordHash,
+    );
     if (!currentPasswordIsValid) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new UnauthorizedException("Current password is incorrect");
     }
 
     const newPasswordHash = await bcrypt.hash(dto.newPassword, 12);
@@ -339,18 +357,22 @@ export class AuthService {
 
     await this.auditLogService.record({
       userId: user.id,
-      action: 'auth.password-change',
-      entityType: 'User',
+      action: "auth.password-change",
+      entityType: "User",
       entityId: user.id,
-      changes: { reason: 'User changed their password via change-password endpoint' },
+      changes: {
+        reason: "User changed their password via change-password endpoint",
+      },
     });
 
-    return { message: 'Password changed successfully. Please log in again.' };
+    return { message: "Password changed successfully. Please log in again." };
   }
 
   async forgotPassword(email: string) {
     const normalizedEmail = email.toLowerCase();
-    const user = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
 
     // Always return the same generic message, regardless of whether the account exists,
     // to prevent user enumeration via response differences or timing.
@@ -358,7 +380,7 @@ export class AuthService {
       return { message: GENERIC_FORGOT_PASSWORD_MESSAGE };
     }
 
-    const token = crypto.randomBytes(32).toString('hex');
+    const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
 
     await this.prisma.user.update({
@@ -373,10 +395,10 @@ export class AuthService {
 
     await this.auditLogService.record({
       userId: user.id,
-      action: 'auth.password-reset-requested',
-      entityType: 'User',
+      action: "auth.password-reset-requested",
+      entityType: "User",
       entityId: user.id,
-      changes: { reason: 'Password reset token generated' },
+      changes: { reason: "Password reset token generated" },
     });
 
     return {
@@ -391,11 +413,14 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new BadRequestException('Invalid password reset token');
+      throw new BadRequestException("Invalid password reset token");
     }
 
-    if (!user.passwordResetExpiresAt || user.passwordResetExpiresAt <= new Date()) {
-      throw new BadRequestException('Password reset token has expired');
+    if (
+      !user.passwordResetExpiresAt ||
+      user.passwordResetExpiresAt <= new Date()
+    ) {
+      throw new BadRequestException("Password reset token has expired");
     }
 
     const newPasswordHash = await bcrypt.hash(newPassword, 12);
@@ -417,13 +442,33 @@ export class AuthService {
 
     await this.auditLogService.record({
       userId: user.id,
-      action: 'auth.password-reset',
-      entityType: 'User',
+      action: "auth.password-reset",
+      entityType: "User",
       entityId: user.id,
-      changes: { reason: 'Password reset via forgot-password token' },
+      changes: { reason: "Password reset via forgot-password token" },
     });
 
-    return { message: 'Password reset successfully. Please log in again.' };
+    return { message: "Password reset successfully. Please log in again." };
+  }
+
+  private async revokeAllUserSessionsAndLogReuse(
+    userId: string,
+  ): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    await this.auditLogService.record({
+      userId,
+      action: "auth.refresh-token-reuse-detected",
+      entityType: "User",
+      entityId: userId,
+      changes: {
+        reason:
+          "A revoked refresh token was reused; all sessions were revoked.",
+      },
+    });
   }
 
   async validateUser(userId: string) {
@@ -439,14 +484,12 @@ export class AuthService {
   }
 
   async me(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+    const user = await this.validateUser(userId);
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException("User not found");
     }
 
-    return this.sanitizeUser(user);
+    return user;
   }
 }
