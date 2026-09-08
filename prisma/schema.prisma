@@ -104,6 +104,7 @@ model Product {
   @@index([categoryId])
   @@index([status])
   @@index([isFeatured])
+  @@index([status, isFeatured])
   @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
   @@index([description(ops: raw("gin_trgm_ops"))], type: Gin)
   @@index([shortDescription(ops: raw("gin_trgm_ops"))], type: Gin)

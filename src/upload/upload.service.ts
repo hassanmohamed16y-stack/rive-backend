@@ -1,8 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { v2 as cloudinary } from 'cloudinary';
-import * as streamifier from 'streamifier';
-import { loadFileTypeFromBuffer } from './file-type-loader';
-import { UploadedImageFile } from './uploaded-image-file.type';
+import { BadRequestException, Injectable } from "@nestjs/common";
+import { v2 as cloudinary } from "cloudinary";
+import * as streamifier from "streamifier";
+import { loadFileTypeFromBuffer } from "./file-type-loader";
+import { UploadedImageFile } from "./uploaded-image-file.type";
 
 @Injectable()
 export class UploadService {
@@ -16,14 +16,16 @@ export class UploadService {
   }
 
   private async validateMimeType(file: UploadedImageFile) {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
 
     if (!file || !file.mimetype || !allowed.includes(file.mimetype)) {
-      throw new BadRequestException('Only JPEG, PNG, and WEBP images are allowed');
+      throw new BadRequestException(
+        "Only JPEG, PNG, and WEBP images are allowed",
+      );
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      throw new BadRequestException('Image size must be 5MB or less');
+      throw new BadRequestException("Image size must be 5MB or less");
     }
 
     // Validate magic bytes to prevent spoofed file uploads
@@ -31,24 +33,28 @@ export class UploadService {
     const fileTypeResult = await fileTypeFromBuffer(file.buffer);
     if (!fileTypeResult || !allowed.includes(fileTypeResult.mime)) {
       throw new BadRequestException(
-        'File magic bytes do not match declared MIME type. Only JPEG, PNG, and WEBP are allowed.',
+        "File magic bytes do not match declared MIME type. Only JPEG, PNG, and WEBP are allowed.",
       );
     }
   }
 
-  async uploadImage(file: UploadedImageFile): Promise<{ url: string; public_id: string }> {
+  async uploadImage(
+    file: UploadedImageFile,
+  ): Promise<{ url: string; public_id: string }> {
     await this.validateMimeType(file);
 
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: 'rive-products',
-          resource_type: 'image',
-          transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+          folder: "rive-products",
+          resource_type: "image",
+          transformation: [{ quality: "auto", fetch_format: "auto" }],
         },
         (error, result) => {
           if (error || !result) {
-            reject(new BadRequestException('Failed to upload image to Cloudinary.'));
+            reject(
+              new BadRequestException("Failed to upload image to Cloudinary."),
+            );
             return;
           }
 

@@ -1,16 +1,16 @@
-import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { AuditLogModule } from './audit-log/audit-log.module';
-import { AuthModule } from './auth/auth.module';
-import { CategoriesModule } from './categories/categories.module';
-import { EmailModule } from './email/email.module';
-import { HealthModule } from './health/health.module';
-import { OrdersModule } from './orders/orders.module';
-import { PaymentModule } from './payment/payment.module';
-import { PrismaModule } from './prisma/prisma.module';
-import { ProductsModule } from './products/products.module';
-import { UploadModule } from './upload/upload.module';
+import { Module } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { AuditLogModule } from "./audit-log/audit-log.module";
+import { AuthModule } from "./auth/auth.module";
+import { CategoriesModule } from "./categories/categories.module";
+import { EmailModule } from "./email/email.module";
+import { HealthModule } from "./health/health.module";
+import { OrdersModule } from "./orders/orders.module";
+import { PaymentModule } from "./payment/payment.module";
+import { PrismaModule } from "./prisma/prisma.module";
+import { ProductsModule } from "./products/products.module";
+import { UploadModule } from "./upload/upload.module";
 
 @Module({
   imports: [

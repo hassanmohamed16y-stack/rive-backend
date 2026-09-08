@@ -1,35 +1,35 @@
-import { NotFoundException } from '@nestjs/common';
-import { plainToInstance } from 'class-transformer';
-import { validate } from 'class-validator';
-import { JwtStrategy } from '../auth/jwt.strategy';
-import { RegisterDto } from '../auth/dto/register.dto';
-import { RolesGuard } from '../auth/roles.guard';
-import { OrdersController } from '../orders/orders.controller';
-import { PaymentService } from '../payment/payment.service';
-import { CreateOrderDto } from '../orders/dto/create-order.dto';
-import { CreateProductDto } from '../products/dto/create-product.dto';
-import { CreateCheckoutSessionDto } from '../payment/dto/create-checkout-session.dto';
+import { NotFoundException } from "@nestjs/common";
+import { plainToInstance } from "class-transformer";
+import { validate } from "class-validator";
+import { JwtStrategy } from "../auth/jwt.strategy";
+import { RegisterDto } from "../auth/dto/register.dto";
+import { RolesGuard } from "../auth/roles.guard";
+import { OrdersController } from "../orders/orders.controller";
+import { PaymentService } from "../payment/payment.service";
+import { CreateOrderDto } from "../orders/dto/create-order.dto";
+import { CreateProductDto } from "../products/dto/create-product.dto";
+import { CreateCheckoutSessionDto } from "../payment/dto/create-checkout-session.dto";
 
-describe('Backend security regression tests', () => {
-  describe('Authentication - Role injection prevention', () => {
-    it('rejects a password without uppercase, lowercase, and numeric characters', async () => {
+describe("Backend security regression tests", () => {
+  describe("Authentication - Role injection prevention", () => {
+    it("rejects a password without uppercase, lowercase, and numeric characters", async () => {
       const dto = plainToInstance(RegisterDto, {
-        fullName: 'Aisha Rahman',
-        email: 'aisha@example.com',
-        password: 'alllowercase',
+        fullName: "Aisha Rahman",
+        email: "aisha@example.com",
+        password: "alllowercase",
       });
 
       const errors = await validate(dto);
-      expect(errors.some((error) => error.property === 'password')).toBe(true);
+      expect(errors.some((error) => error.property === "password")).toBe(true);
     });
 
-    it('rejects role injection attempt in register payload', async () => {
+    it("rejects role injection attempt in register payload", async () => {
       const dto = plainToInstance(RegisterDto, {
-        fullName: 'Aisha Rahman',
-        email: 'aisha@example.com',
-        password: 'StrongPassword123!',
-        role: 'ADMIN',
-        permissions: ['all'],
+        fullName: "Aisha Rahman",
+        email: "aisha@example.com",
+        password: "StrongPassword123!",
+        role: "ADMIN",
+        permissions: ["all"],
       });
 
       const errors = await validate(dto, {
@@ -38,14 +38,19 @@ describe('Backend security regression tests', () => {
       } as any);
 
       expect(errors.length).toBeGreaterThan(0);
-      expect(errors.some((error) => error.property === 'role' || error.property === 'permissions')).toBe(true);
+      expect(
+        errors.some(
+          (error) =>
+            error.property === "role" || error.property === "permissions",
+        ),
+      ).toBe(true);
     });
 
-    it('rejects privilege escalation via mass assignment (isAdmin)', async () => {
+    it("rejects privilege escalation via mass assignment (isAdmin)", async () => {
       const dto = plainToInstance(RegisterDto, {
-        fullName: 'Aisha Rahman',
-        email: 'aisha@example.com',
-        password: 'StrongPassword123!',
+        fullName: "Aisha Rahman",
+        email: "aisha@example.com",
+        password: "StrongPassword123!",
         isAdmin: true,
       });
 
@@ -54,15 +59,15 @@ describe('Backend security regression tests', () => {
         forbidNonWhitelisted: true,
       } as any);
 
-      expect(errors.some((error) => error.property === 'isAdmin')).toBe(true);
+      expect(errors.some((error) => error.property === "isAdmin")).toBe(true);
     });
 
-    it('rejects extra unknown fields in register DTO', async () => {
+    it("rejects extra unknown fields in register DTO", async () => {
       const dto = plainToInstance(RegisterDto, {
-        fullName: 'Aisha Rahman',
-        email: 'aisha@example.com',
-        password: 'StrongPassword123!',
-        adminSecret: 'secret-code',
+        fullName: "Aisha Rahman",
+        email: "aisha@example.com",
+        password: "StrongPassword123!",
+        adminSecret: "secret-code",
       });
 
       const errors = await validate(dto, {
@@ -75,14 +80,14 @@ describe('Backend security regression tests', () => {
     });
   });
 
-  describe('Input validation - DTO security', () => {
-    it('rejects duplicate items in order', async () => {
+  describe("Input validation - DTO security", () => {
+    it("rejects duplicate items in order", async () => {
       const dto = plainToInstance(CreateOrderDto, {
-        customerName: 'Aisha Rahman',
-        customerEmail: 'aisha@example.com',
+        customerName: "Aisha Rahman",
+        customerEmail: "aisha@example.com",
         items: [
-          { productVariantId: 'variant-1', quantity: 1 },
-          { productVariantId: 'variant-1', quantity: 2 },
+          { productVariantId: "variant-1", quantity: 1 },
+          { productVariantId: "variant-1", quantity: 2 },
         ],
       });
 
@@ -92,54 +97,48 @@ describe('Backend security regression tests', () => {
       expect(Array.isArray(dto.items)).toBe(true);
     });
 
-    it('rejects invalid product variant IDs', async () => {
+    it("rejects invalid product variant IDs", async () => {
       const dto = plainToInstance(CreateOrderDto, {
-        customerName: 'Aisha Rahman',
-        customerEmail: 'aisha@example.com',
-        items: [
-          { productVariantId: '', quantity: 1 },
-        ],
+        customerName: "Aisha Rahman",
+        customerEmail: "aisha@example.com",
+        items: [{ productVariantId: "", quantity: 1 }],
       });
 
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
     });
 
-    it('rejects invalid quantities (zero or negative)', async () => {
+    it("rejects invalid quantities (zero or negative)", async () => {
       const dto = plainToInstance(CreateOrderDto, {
-        customerName: 'Aisha Rahman',
-        customerEmail: 'aisha@example.com',
-        items: [
-          { productVariantId: 'variant-1', quantity: 0 },
-        ],
+        customerName: "Aisha Rahman",
+        customerEmail: "aisha@example.com",
+        items: [{ productVariantId: "variant-1", quantity: 0 }],
       });
 
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
     });
 
-    it('rejects quantities exceeding maximum', async () => {
+    it("rejects quantities exceeding maximum", async () => {
       const dto = plainToInstance(CreateOrderDto, {
-        customerName: 'Aisha Rahman',
-        customerEmail: 'aisha@example.com',
-        items: [
-          { productVariantId: 'variant-1', quantity: 100 },
-        ],
+        customerName: "Aisha Rahman",
+        customerEmail: "aisha@example.com",
+        items: [{ productVariantId: "variant-1", quantity: 100 }],
       });
 
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
     });
 
-    it('rejects oversized arrays in order items', async () => {
+    it("rejects oversized arrays in order items", async () => {
       const largeItems = Array.from({ length: 100 }, (_, i) => ({
         productVariantId: `variant-${i}`,
         quantity: 1,
       }));
 
       const dto = plainToInstance(CreateOrderDto, {
-        customerName: 'Aisha Rahman',
-        customerEmail: 'aisha@example.com',
+        customerName: "Aisha Rahman",
+        customerEmail: "aisha@example.com",
         items: largeItems,
       });
 
@@ -147,36 +146,36 @@ describe('Backend security regression tests', () => {
       expect(errors.length).toBeGreaterThan(0);
     });
 
-    it('rejects oversized product names', async () => {
+    it("rejects oversized product names", async () => {
       const dto = plainToInstance(CreateProductDto, {
-        name: 'x'.repeat(300),
-        slug: 'test-product',
-        categorySlug: 'test',
-        images: [{ url: 'https://example.com/image.png' }],
-        variants: [{ sku: 'TEST-1', size: 'S', price: 100 }],
+        name: "x".repeat(300),
+        slug: "test-product",
+        categorySlug: "test",
+        images: [{ url: "https://example.com/image.png" }],
+        variants: [{ sku: "TEST-1", size: "S", price: 100 }],
       });
 
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
     });
 
-    it('rejects oversized product descriptions', async () => {
+    it("rejects oversized product descriptions", async () => {
       const dto = plainToInstance(CreateProductDto, {
-        name: 'Test Product',
-        slug: 'test-product',
-        categorySlug: 'test',
-        description: 'x'.repeat(2500),
-        images: [{ url: 'https://example.com/image.png' }],
-        variants: [{ sku: 'TEST-1', size: 'S', price: 100 }],
+        name: "Test Product",
+        slug: "test-product",
+        categorySlug: "test",
+        description: "x".repeat(2500),
+        images: [{ url: "https://example.com/image.png" }],
+        variants: [{ sku: "TEST-1", size: "S", price: 100 }],
       });
 
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
     });
 
-    it('rejects invalid checkout session DTO (malformed orderId)', async () => {
+    it("rejects invalid checkout session DTO (malformed orderId)", async () => {
       const dto = plainToInstance(CreateCheckoutSessionDto, {
-        orderId: 'x'.repeat(200),
+        orderId: "x".repeat(200),
       });
 
       const errors = await validate(dto);
@@ -184,13 +183,13 @@ describe('Backend security regression tests', () => {
     });
   });
 
-  describe('Authorization - Role-based access control', () => {
-    it('denies customer access to admin-only operations', () => {
+  describe("Authorization - Role-based access control", () => {
+    it("denies customer access to admin-only operations", () => {
       const guard = new RolesGuard({
-        getAllAndOverride: () => ['ADMIN'],
+        getAllAndOverride: () => ["ADMIN"],
       } as any);
 
-      const customerReq = { user: { userId: 'user-a', role: 'CUSTOMER' } };
+      const customerReq = { user: { userId: "user-a", role: "CUSTOMER" } };
 
       expect(() =>
         guard.canActivate({
@@ -198,15 +197,15 @@ describe('Backend security regression tests', () => {
           getHandler: () => ({}),
           getClass: () => ({}),
         } as any),
-      ).toThrow('Access denied');
+      ).toThrow("Access denied");
     });
 
-    it('allows admin access to admin-only operations', () => {
+    it("allows admin access to admin-only operations", () => {
       const guard = new RolesGuard({
-        getAllAndOverride: () => ['ADMIN'],
+        getAllAndOverride: () => ["ADMIN"],
       } as any);
 
-      const adminReq = { user: { userId: 'admin-1', role: 'ADMIN' } };
+      const adminReq = { user: { userId: "admin-1", role: "ADMIN" } };
 
       expect(
         guard.canActivate({
@@ -217,12 +216,12 @@ describe('Backend security regression tests', () => {
       ).toBe(true);
     });
 
-    it('allows access when no roles are required', () => {
+    it("allows access when no roles are required", () => {
       const guard = new RolesGuard({
         getAllAndOverride: () => null,
       } as any);
 
-      const customerReq = { user: { userId: 'user-a', role: 'CUSTOMER' } };
+      const customerReq = { user: { userId: "user-a", role: "CUSTOMER" } };
 
       expect(
         guard.canActivate({
@@ -233,12 +232,12 @@ describe('Backend security regression tests', () => {
       ).toBe(true);
     });
 
-    it('denies access when user is missing role', () => {
+    it("denies access when user is missing role", () => {
       const guard = new RolesGuard({
-        getAllAndOverride: () => ['ADMIN'],
+        getAllAndOverride: () => ["ADMIN"],
       } as any);
 
-      const invalidReq = { user: { userId: 'user-a' } };
+      const invalidReq = { user: { userId: "user-a" } };
 
       expect(() =>
         guard.canActivate({
@@ -246,94 +245,98 @@ describe('Backend security regression tests', () => {
           getHandler: () => ({}),
           getClass: () => ({}),
         } as any),
-      ).toThrow('Access denied');
+      ).toThrow("Access denied");
     });
   });
 
-  describe('IDOR - Insecure Direct Object Reference', () => {
-    it('denies customer access to other user orders (enforced by OrdersService.findOne)', async () => {
+  describe("IDOR - Insecure Direct Object Reference", () => {
+    it("denies customer access to other user orders (enforced by OrdersService.findOne)", async () => {
       // Ownership is enforced inside OrdersService.findOne (shared isOrderOwnedByActor
       // helper) rather than in the controller, and it uses the same NotFoundException
       // for "not owned" as for "does not exist" to avoid leaking order existence.
       const mockService = {
-        findOne: jest.fn().mockRejectedValue(new NotFoundException('Order RIV-1000-ABC was not found')),
+        findOne: jest
+          .fn()
+          .mockRejectedValue(
+            new NotFoundException("Order RIV-1000-ABC was not found"),
+          ),
       };
       const ordersController = new OrdersController(mockService as any);
 
       await expect(
-        ordersController.findOne('RIV-1000-ABC', {
-          user: { userId: 'user-a', role: 'CUSTOMER' },
+        ordersController.findOne("RIV-1000-ABC", {
+          user: { userId: "user-a", role: "CUSTOMER" },
           headers: {},
         } as any),
       ).rejects.toBeInstanceOf(NotFoundException);
 
-      expect(mockService.findOne).toHaveBeenCalledWith('RIV-1000-ABC', {
-        userId: 'user-a',
-        role: 'CUSTOMER',
+      expect(mockService.findOne).toHaveBeenCalledWith("RIV-1000-ABC", {
+        userId: "user-a",
+        role: "CUSTOMER",
         guestAccessToken: undefined,
       });
     });
 
-    it('allows admin access to any order', async () => {
+    it("allows admin access to any order", async () => {
       const mockService = {
         findOne: jest.fn().mockResolvedValue({
-          id: 'order-1',
-          orderNumber: 'RIV-1000-ABC',
-          userId: 'user-b',
+          id: "order-1",
+          orderNumber: "RIV-1000-ABC",
+          userId: "user-b",
           guestAccessToken: null,
         }),
       };
 
       const ordersController = new OrdersController(mockService as any);
 
-      const result = await ordersController.findOne('RIV-1000-ABC', {
-        user: { userId: 'admin-1', role: 'ADMIN' },
+      const result = await ordersController.findOne("RIV-1000-ABC", {
+        user: { userId: "admin-1", role: "ADMIN" },
         headers: {},
       } as any);
 
       expect(result).toBeDefined();
-      expect(result.orderNumber).toBe('RIV-1000-ABC');
+      expect(result.orderNumber).toBe("RIV-1000-ABC");
     });
 
-    it('allows customer access to their own order', async () => {
+    it("allows customer access to their own order", async () => {
       const mockService = {
         findOne: jest.fn().mockResolvedValue({
-          id: 'order-1',
-          orderNumber: 'RIV-1000-ABC',
-          userId: 'user-a',
+          id: "order-1",
+          orderNumber: "RIV-1000-ABC",
+          userId: "user-a",
           guestAccessToken: null,
         }),
       };
 
       const ordersController = new OrdersController(mockService as any);
 
-      const result = await ordersController.findOne('RIV-1000-ABC', {
-        user: { userId: 'user-a', role: 'CUSTOMER' },
+      const result = await ordersController.findOne("RIV-1000-ABC", {
+        user: { userId: "user-a", role: "CUSTOMER" },
         headers: {},
       } as any);
 
       expect(result).toBeDefined();
-      expect(result.userId).toBe('user-a');
+      expect(result.userId).toBe("user-a");
     });
   });
 
-  describe('Payment ownership - Order authorization', () => {
-    it('denies customer checkout creation for another user order', async () => {
+  describe("Payment ownership - Order authorization", () => {
+    it("denies customer checkout creation for another user order", async () => {
       const prisma = {
         order: {
           findUnique: jest.fn().mockResolvedValue({
-            id: 'order-1',
-            userId: 'user-b',
-            status: 'PENDING',
+            id: "order-1",
+            userId: "user-b",
+            status: "PENDING",
             reservationExpiresAt: new Date(Date.now() + 60_000),
-            orderNumber: 'RIV-1000-ABC',
+            orderNumber: "RIV-1000-ABC",
             items: [
               {
                 productVariant: {
-                  product: { name: 'Luna Silk Set' },
-                  size: 'S',
+                  product: { name: "Luna Silk Set" },
+                  size: "S",
                 },
-                unitPrice: '120.00',
+                unitPrice: "120.00",
                 quantity: 1,
               },
             ],
@@ -342,30 +345,36 @@ describe('Backend security regression tests', () => {
         },
       };
 
-      const service = new PaymentService(prisma as any, { expireOrder: jest.fn() } as any);
+      const service = new PaymentService(
+        prisma as any,
+        { expireOrder: jest.fn() } as any,
+      );
 
       await expect(
-        service.createCheckoutSession('order-1', { userId: 'user-a', role: 'CUSTOMER' } as any),
-      ).rejects.toThrow('permission');
+        service.createCheckoutSession("order-1", {
+          userId: "user-a",
+          role: "CUSTOMER",
+        } as any),
+      ).rejects.toThrow("permission");
     });
 
-    it('allows customer checkout for their own order', async () => {
+    it("allows customer checkout for their own order", async () => {
       const prisma = {
         order: {
           findUnique: jest.fn().mockResolvedValue({
-            id: 'order-1',
-            userId: 'user-a',
-            status: 'PENDING',
+            id: "order-1",
+            userId: "user-a",
+            status: "PENDING",
             reservationExpiresAt: new Date(Date.now() + 60_000),
-            orderNumber: 'RIV-1000-ABC',
+            orderNumber: "RIV-1000-ABC",
             items: [
               {
                 productVariant: {
-                  product: { name: 'Luna Silk Set', id: 'prod-1' },
-                  size: 'S',
-                  id: 'variant-1',
+                  product: { name: "Luna Silk Set", id: "prod-1" },
+                  size: "S",
+                  id: "variant-1",
                 },
-                unitPrice: '120.00',
+                unitPrice: "120.00",
                 quantity: 1,
               },
             ],
@@ -374,42 +383,48 @@ describe('Backend security regression tests', () => {
         },
       };
 
-      const service = new PaymentService(prisma as any, { expireOrder: jest.fn() } as any);
+      const service = new PaymentService(
+        prisma as any,
+        { expireOrder: jest.fn() } as any,
+      );
 
       // Mock Stripe
       (service as any).stripe = {
         checkout: {
           sessions: {
             create: jest.fn().mockResolvedValue({
-              id: 'cs_test_1234',
-              url: 'https://checkout.stripe.com/pay/cs_test_1234',
+              id: "cs_test_1234",
+              url: "https://checkout.stripe.com/pay/cs_test_1234",
             }),
           },
         },
       };
 
-      const result = await service.createCheckoutSession('order-1', { userId: 'user-a', role: 'CUSTOMER' } as any);
+      const result = await service.createCheckoutSession("order-1", {
+        userId: "user-a",
+        role: "CUSTOMER",
+      } as any);
 
-      expect(result.sessionId).toBe('cs_test_1234');
+      expect(result.sessionId).toBe("cs_test_1234");
     });
 
-    it('allows admin checkout for any order', async () => {
+    it("allows admin checkout for any order", async () => {
       const prisma = {
         order: {
           findUnique: jest.fn().mockResolvedValue({
-            id: 'order-1',
-            userId: 'user-b',
-            status: 'PENDING',
+            id: "order-1",
+            userId: "user-b",
+            status: "PENDING",
             reservationExpiresAt: new Date(Date.now() + 60_000),
-            orderNumber: 'RIV-1000-ABC',
+            orderNumber: "RIV-1000-ABC",
             items: [
               {
                 productVariant: {
-                  product: { name: 'Luna Silk Set', id: 'prod-1' },
-                  size: 'S',
-                  id: 'variant-1',
+                  product: { name: "Luna Silk Set", id: "prod-1" },
+                  size: "S",
+                  id: "variant-1",
                 },
-                unitPrice: '120.00',
+                unitPrice: "120.00",
                 quantity: 1,
               },
             ],
@@ -418,101 +433,121 @@ describe('Backend security regression tests', () => {
         },
       };
 
-      const service = new PaymentService(prisma as any, { expireOrder: jest.fn() } as any);
+      const service = new PaymentService(
+        prisma as any,
+        { expireOrder: jest.fn() } as any,
+      );
 
       // Mock Stripe
       (service as any).stripe = {
         checkout: {
           sessions: {
             create: jest.fn().mockResolvedValue({
-              id: 'cs_test_1234',
-              url: 'https://checkout.stripe.com/pay/cs_test_1234',
+              id: "cs_test_1234",
+              url: "https://checkout.stripe.com/pay/cs_test_1234",
             }),
           },
         },
       };
 
-      const result = await service.createCheckoutSession('order-1', { userId: 'admin-1', role: 'ADMIN' } as any);
+      const result = await service.createCheckoutSession("order-1", {
+        userId: "admin-1",
+        role: "ADMIN",
+      } as any);
 
-      expect(result.sessionId).toBe('cs_test_1234');
+      expect(result.sessionId).toBe("cs_test_1234");
     });
 
-    it('rejects checkout for already-paid orders', async () => {
+    it("rejects checkout for already-paid orders", async () => {
       const prisma = {
         order: {
           findUnique: jest.fn().mockResolvedValue({
-            id: 'order-1',
-            userId: 'user-a',
-            status: 'PAID',
-            orderNumber: 'RIV-1000-ABC',
+            id: "order-1",
+            userId: "user-a",
+            status: "PAID",
+            orderNumber: "RIV-1000-ABC",
             items: [],
           }),
         },
       };
 
-      const service = new PaymentService(prisma as any, { expireOrder: jest.fn() } as any);
+      const service = new PaymentService(
+        prisma as any,
+        { expireOrder: jest.fn() } as any,
+      );
 
       await expect(
-        service.createCheckoutSession('order-1', { userId: 'user-a', role: 'CUSTOMER' } as any),
-      ).rejects.toThrow('not awaiting payment');
+        service.createCheckoutSession("order-1", {
+          userId: "user-a",
+          role: "CUSTOMER",
+        } as any),
+      ).rejects.toThrow("not awaiting payment");
     });
   });
 
-  describe('JWT validation - Token security', () => {
-    it('rejects invalid JWT payloads (missing userId)', async () => {
-      const authService = { validateUser: jest.fn().mockResolvedValue(null) } as any;
+  describe("JWT validation - Token security", () => {
+    it("rejects invalid JWT payloads (missing userId)", async () => {
+      const authService = {
+        validateUser: jest.fn().mockResolvedValue(null),
+      } as any;
       const strategy = new JwtStrategy(authService);
 
-      await expect(strategy.validate({})).rejects.toThrow('Invalid token payload');
+      await expect(strategy.validate({})).rejects.toThrow(
+        "Invalid token payload",
+      );
     });
 
-    it('rejects tokens for deleted users', async () => {
-      const authService = { validateUser: jest.fn().mockResolvedValue(null) } as any;
+    it("rejects tokens for deleted users", async () => {
+      const authService = {
+        validateUser: jest.fn().mockResolvedValue(null),
+      } as any;
       const strategy = new JwtStrategy(authService);
 
-      await expect(strategy.validate({ userId: 'missing-user' })).rejects.toThrow('User no longer exists');
+      await expect(
+        strategy.validate({ userId: "missing-user" }),
+      ).rejects.toThrow("User no longer exists");
     });
 
-    it('accepts valid JWT payloads with existing user', async () => {
+    it("accepts valid JWT payloads with existing user", async () => {
       const authService = {
         validateUser: jest.fn().mockResolvedValue({
-          id: 'user-1',
-          email: 'aisha@example.com',
-          role: 'CUSTOMER',
+          id: "user-1",
+          email: "aisha@example.com",
+          role: "CUSTOMER",
         }),
       } as any;
       const strategy = new JwtStrategy(authService);
 
       const result = await strategy.validate({
-        userId: 'user-1',
-        email: 'aisha@example.com',
-        role: 'CUSTOMER',
+        userId: "user-1",
+        email: "aisha@example.com",
+        role: "CUSTOMER",
       });
 
       expect(result).toMatchObject({
-        userId: 'user-1',
-        email: 'aisha@example.com',
-        role: 'CUSTOMER',
+        userId: "user-1",
+        email: "aisha@example.com",
+        role: "CUSTOMER",
       });
     });
 
-    it('accepts tokens with sub field instead of userId', async () => {
+    it("accepts tokens with sub field instead of userId", async () => {
       const authService = {
         validateUser: jest.fn().mockResolvedValue({
-          id: 'user-1',
-          email: 'aisha@example.com',
-          role: 'CUSTOMER',
+          id: "user-1",
+          email: "aisha@example.com",
+          role: "CUSTOMER",
         }),
       } as any;
       const strategy = new JwtStrategy(authService);
 
       const result = await strategy.validate({
-        sub: 'user-1',
-        email: 'aisha@example.com',
-        role: 'CUSTOMER',
+        sub: "user-1",
+        email: "aisha@example.com",
+        role: "CUSTOMER",
       });
 
-      expect(result.userId).toBe('user-1');
+      expect(result.userId).toBe("user-1");
     });
   });
 });

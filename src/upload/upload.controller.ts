@@ -4,8 +4,8 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import {
   ApiBearerAuth,
   ApiBody,
@@ -13,36 +13,41 @@ import {
   ApiOperation,
   ApiResponse,
   ApiTags,
-} from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Roles } from '../auth/roles.decorator';
-import { RolesGuard } from '../auth/roles.guard';
-import { UploadService } from './upload.service';
-import { UploadedImageFile } from './uploaded-image-file.type';
+} from "@nestjs/swagger";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { Roles } from "../auth/roles.decorator";
+import { RolesGuard } from "../auth/roles.guard";
+import { UploadService } from "./upload.service";
+import { UploadedImageFile } from "./uploaded-image-file.type";
 
-@ApiTags('upload')
-@Controller('api/v1')
+@ApiTags("upload")
+@Controller("api/v1")
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
-  @Post('upload/image')
+  @Post("upload/image")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles("ADMIN")
   @ApiBearerAuth()
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
-  @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Upload an image to Cloudinary (ADMIN only)' })
-  @ApiResponse({ status: 201, description: 'Image uploaded successfully.' })
-  @ApiResponse({ status: 400, description: 'Invalid file type or file too large.' })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  @ApiResponse({ status: 403, description: 'Forbidden. ADMIN role required.' })
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024 } }),
+  )
+  @ApiConsumes("multipart/form-data")
+  @ApiOperation({ summary: "Upload an image to Cloudinary (ADMIN only)" })
+  @ApiResponse({ status: 201, description: "Image uploaded successfully." })
+  @ApiResponse({
+    status: 400,
+    description: "Invalid file type or file too large.",
+  })
+  @ApiResponse({ status: 401, description: "Unauthorized." })
+  @ApiResponse({ status: 403, description: "Forbidden. ADMIN role required." })
   @ApiBody({
     schema: {
-      type: 'object',
+      type: "object",
       properties: {
         file: {
-          type: 'string',
-          format: 'binary',
+          type: "string",
+          format: "binary",
         },
       },
     },

@@ -1,9 +1,13 @@
-import { ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { AuthenticatedUser } from '../common/types/authenticated-request';
+import {
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
+import { AuthenticatedUser } from "../common/types/authenticated-request";
 
 @Injectable()
-export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
+export class OptionalJwtAuthGuard extends AuthGuard("jwt") {
   /**
    * "Optional" means the route works for anonymous callers (no Authorization header at all —
    * `canActivate` short-circuits to `true` below, and no JWT validation ever runs). It is NOT
@@ -13,7 +17,8 @@ export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
    * header entirely for guest access, not send a bad token expecting it to be ignored.
    */
   canActivate(context: ExecutionContext) {
-    const authorization = context.switchToHttp().getRequest().headers.authorization;
+    const authorization = context.switchToHttp().getRequest()
+      .headers.authorization;
     return authorization ? super.canActivate(context) : true;
   }
 
@@ -25,7 +30,7 @@ export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
     _status?: number,
   ): TUser {
     if (err || !user) {
-      throw err ?? new UnauthorizedException('Unauthorized');
+      throw err ?? new UnauthorizedException("Unauthorized");
     }
     return user;
   }

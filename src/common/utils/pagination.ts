@@ -41,6 +41,10 @@ export function resolvePagination(
 }
 
 /** Builds the `meta` block returned alongside paginated `data` arrays. */
-export function buildPaginationMeta(page: number, limit: number, total: number): PaginationMeta {
+export function buildPaginationMeta(
+  page: number,
+  limit: number,
+  total: number,
+): PaginationMeta {
   return { page, limit, total, totalPages: Math.ceil(total / limit) };
 }

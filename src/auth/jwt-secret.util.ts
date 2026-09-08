@@ -1,4 +1,4 @@
-import { isLocalOnlyEnvironment } from '../common/utils/environment';
+import { isLocalOnlyEnvironment } from "../common/utils/environment";
 
 /**
  * Fallback secret used only when running in a local development/test
@@ -6,7 +6,7 @@ import { isLocalOnlyEnvironment } from '../common/utils/environment';
  * `isLocalOnlyEnvironment()` (see `resolveJwtSecret` below), which fails
  * fast instead in any other environment.
  */
-export const DEV_ONLY_JWT_SECRET = 'development-only-secret';
+export const DEV_ONLY_JWT_SECRET = "development-only-secret";
 
 /**
  * Single algorithm used to sign and verify access tokens. Pinning this
@@ -14,7 +14,7 @@ export const DEV_ONLY_JWT_SECRET = 'development-only-secret';
  * in `JwtStrategy`) avoids relying on library defaults for algorithm
  * negotiation.
  */
-export const JWT_ALGORITHM = 'HS256' as const;
+export const JWT_ALGORITHM = "HS256" as const;
 
 /**
  * Resolves the JWT signing/verification secret. Fails fast (throws) if
@@ -30,7 +30,9 @@ export function resolveJwtSecret(): string {
   }
 
   if (!isLocalOnlyEnvironment()) {
-    throw new Error('JWT_SECRET is required outside local development/test environments');
+    throw new Error(
+      "JWT_SECRET is required outside local development/test environments",
+    );
   }
 
   return DEV_ONLY_JWT_SECRET;

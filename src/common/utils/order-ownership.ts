@@ -1,4 +1,4 @@
-import { timingSafeStringEqual } from './timing-safe-compare';
+import { timingSafeStringEqual } from "./timing-safe-compare";
 
 /**
  * Determines whether an actor (authenticated user or guest) owns an order,
@@ -14,8 +14,9 @@ export function isOrderOwnedByActor(
   actor?: { userId?: string; guestAccessToken?: string },
 ): boolean {
   const isUserOwner = order.userId !== null && order.userId === actor?.userId;
-  const isGuestOwner = order.userId === null
-    && timingSafeStringEqual(order.guestAccessToken, actor?.guestAccessToken);
+  const isGuestOwner =
+    order.userId === null &&
+    timingSafeStringEqual(order.guestAccessToken, actor?.guestAccessToken);
 
   return isUserOwner || isGuestOwner;
 }

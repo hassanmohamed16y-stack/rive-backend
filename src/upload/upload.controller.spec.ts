@@ -1,9 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { UploadController } from './upload.controller';
-import { UploadService } from './upload.service';
-import { UploadedImageFile } from './uploaded-image-file.type';
+import { Test, TestingModule } from "@nestjs/testing";
+import { UploadController } from "./upload.controller";
+import { UploadService } from "./upload.service";
+import { UploadedImageFile } from "./uploaded-image-file.type";
 
-describe('UploadController', () => {
+describe("UploadController", () => {
   let controller: UploadController;
   let uploadService: jest.Mocked<UploadService>;
 
@@ -25,18 +25,18 @@ describe('UploadController', () => {
     jest.clearAllMocks();
   });
 
-  describe('uploadImage', () => {
-    it('delegates image upload to UploadService', async () => {
+  describe("uploadImage", () => {
+    it("delegates image upload to UploadService", async () => {
       const mockFile: UploadedImageFile = {
-        originalname: 'test.png',
-        mimetype: 'image/png',
-        buffer: Buffer.from('test-image'),
+        originalname: "test.png",
+        mimetype: "image/png",
+        buffer: Buffer.from("test-image"),
         size: 100,
       };
 
       const mockResponse = {
-        public_id: 'rive/test-public-id',
-        url: 'https://res.cloudinary.com/demo/image/upload/v123456/test.png',
+        public_id: "rive/test-public-id",
+        url: "https://res.cloudinary.com/demo/image/upload/v123456/test.png",
       };
 
       uploadService.uploadImage.mockResolvedValue(mockResponse);

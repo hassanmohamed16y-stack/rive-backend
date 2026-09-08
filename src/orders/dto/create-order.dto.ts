@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -13,10 +13,10 @@ import {
   Max,
   Min,
   ValidateNested,
-} from 'class-validator';
+} from "class-validator";
 
 class OrderItemDto {
-  @ApiProperty({ example: 'cm3r5xj4g0000s7d7f1q2n9v' })
+  @ApiProperty({ example: "cm3r5xj4g0000s7d7f1q2n9v" })
   @IsString()
   @IsNotEmpty()
   @Length(10, 128)
@@ -31,20 +31,20 @@ class OrderItemDto {
 }
 
 export class CreateOrderDto {
-  @ApiProperty({ example: 'Aisha Rahman', minLength: 2, maxLength: 120 })
+  @ApiProperty({ example: "Aisha Rahman", minLength: 2, maxLength: 120 })
   @IsString()
   @IsNotEmpty()
   @Length(2, 120)
   customerName!: string;
 
-  @ApiProperty({ example: 'aisha@example.com', maxLength: 254 })
+  @ApiProperty({ example: "aisha@example.com", maxLength: 254 })
   @IsEmail()
   @IsString()
   @IsNotEmpty()
   @Length(3, 254)
   customerEmail!: string;
 
-  @ApiPropertyOptional({ example: 'Gift wrap requested', maxLength: 500 })
+  @ApiPropertyOptional({ example: "Gift wrap requested", maxLength: 500 })
   @IsOptional()
   @IsString()
   @Length(0, 500)

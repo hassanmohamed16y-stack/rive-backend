@@ -1,27 +1,28 @@
-process.env.JWT_SECRET = 'test-jwt-secret-min-32-characters-long!!';
+process.env.JWT_SECRET = "test-jwt-secret-min-32-characters-long!!";
 
-import { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
-import request from 'supertest';
-import { AppModule } from '../app.module';
-import { configureApp } from '../app.config';
-import { AuthService } from './auth.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { INestApplication } from "@nestjs/common";
+import { Test } from "@nestjs/testing";
+import request from "supertest";
+import { AppModule } from "../app.module";
+import { configureApp } from "../app.config";
+import { AuthService } from "./auth.service";
+import { PrismaService } from "../prisma/prisma.service";
 
 const describeWithDatabase =
-  process.env.RUN_DATABASE_INTEGRATION_TESTS === 'true' && process.env.DATABASE_URL
+  process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
+  process.env.DATABASE_URL
     ? describe
     : describe.skip;
 
-describeWithDatabase('AuthController e2e flows', () => {
+describeWithDatabase("AuthController e2e flows", () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let authService: AuthService;
 
   const testUser = {
     email: `auth-e2e-${Date.now()}@example.com`,
-    password: 'Password123!',
-    fullName: 'Test User',
+    password: "Password123!",
+    fullName: "Test User",
   };
 
   const createdUserEmails: string[] = [];
@@ -53,7 +54,9 @@ describeWithDatabase('AuthController e2e flows', () => {
       });
       const userIds = users.map((u) => u.id);
       if (userIds.length > 0) {
-        await prisma.refreshToken.deleteMany({ where: { userId: { in: userIds } } });
+        await prisma.refreshToken.deleteMany({
+          where: { userId: { in: userIds } },
+        });
         await prisma.user.deleteMany({ where: { id: { in: userIds } } });
       }
     }
@@ -62,30 +65,30 @@ describeWithDatabase('AuthController e2e flows', () => {
     }
   });
 
-  describe('POST /api/v1/auth/register', () => {
-    it('registers a new user successfully and returns user without passwordHash', async () => {
+  describe("POST /api/v1/auth/register", () => {
+    it("registers a new user successfully and returns user without passwordHash", async () => {
       const newUser = {
         email: `new-user-${Date.now()}@example.com`,
-        password: 'Password123!',
-        fullName: 'New User',
+        password: "Password123!",
+        fullName: "New User",
       };
       createdUserEmails.push(newUser.email);
       const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/register')
+        .post("/api/v1/auth/register")
         .send(newUser)
         .expect(201);
 
-      expect(res.body).toHaveProperty('accessToken');
-      expect(res.body).toHaveProperty('refreshToken');
+      expect(res.body).toHaveProperty("accessToken");
+      expect(res.body).toHaveProperty("refreshToken");
       expect(res.body.user).toBeDefined();
       expect(res.body.user.email).toBe(newUser.email);
       expect(res.body.user.fullName).toBe(newUser.fullName);
       expect(res.body.user.passwordHash).toBeUndefined();
     });
 
-    it('returns 409 Conflict when registering with a duplicate email', async () => {
+    it("returns 409 Conflict when registering with a duplicate email", async () => {
       const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/register')
+        .post("/api/v1/auth/register")
         .send(testUser)
         .expect(409);
 
@@ -93,36 +96,36 @@ describeWithDatabase('AuthController e2e flows', () => {
     });
   });
 
-  describe('POST /api/v1/auth/login', () => {
-    it('logs in successfully with valid credentials and returns tokens', async () => {
+  describe("POST /api/v1/auth/login", () => {
+    it("logs in successfully with valid credentials and returns tokens", async () => {
       const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
+        .post("/api/v1/auth/login")
         .send({
           email: testUser.email,
           password: testUser.password,
         })
         .expect(201);
 
-      expect(res.body).toHaveProperty('accessToken');
-      expect(res.body).toHaveProperty('refreshToken');
+      expect(res.body).toHaveProperty("accessToken");
+      expect(res.body).toHaveProperty("refreshToken");
       expect(res.body.user).toBeDefined();
       expect(res.body.user.email).toBe(testUser.email);
       expect(res.body.user.passwordHash).toBeUndefined();
     });
 
-    it('returns 401 Unauthorized for wrong password', async () => {
+    it("returns 401 Unauthorized for wrong password", async () => {
       await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
+        .post("/api/v1/auth/login")
         .send({
           email: testUser.email,
-          password: 'WrongPassword123!',
+          password: "WrongPassword123!",
         })
         .expect(401);
     });
 
-    it('returns generic 401 Unauthorized for non-existent user without user enumeration', async () => {
+    it("returns generic 401 Unauthorized for non-existent user without user enumeration", async () => {
       const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
+        .post("/api/v1/auth/login")
         .send({
           email: `nonexistent-${Date.now()}@example.com`,
           password: testUser.password,
@@ -133,7 +136,7 @@ describeWithDatabase('AuthController e2e flows', () => {
     });
   });
 
-  describe('POST /api/v1/auth/refresh', () => {
+  describe("POST /api/v1/auth/refresh", () => {
     let refreshToken: string;
 
     beforeEach(async () => {
@@ -144,48 +147,48 @@ describeWithDatabase('AuthController e2e flows', () => {
       refreshToken = res.refreshToken;
     });
 
-    it('returns a new token pair given a valid refresh token', async () => {
+    it("returns a new token pair given a valid refresh token", async () => {
       const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/refresh')
+        .post("/api/v1/auth/refresh")
         .send({ refreshToken })
         .expect(201);
 
-      expect(res.body).toHaveProperty('accessToken');
-      expect(res.body).toHaveProperty('refreshToken');
+      expect(res.body).toHaveProperty("accessToken");
+      expect(res.body).toHaveProperty("refreshToken");
       expect(res.body.refreshToken).not.toBe(refreshToken);
     });
 
-    it('revokes all user sessions when a rotated refresh token is reused', async () => {
+    it("revokes all user sessions when a rotated refresh token is reused", async () => {
       // 1. POST /api/v1/auth/refresh with RT_1 -> succeeds (201), issues RT_2
       const rt1 = refreshToken;
       const res1 = await request(app.getHttpServer())
-        .post('/api/v1/auth/refresh')
+        .post("/api/v1/auth/refresh")
         .send({ refreshToken: rt1 })
         .expect(201);
       const rt2 = res1.body.refreshToken;
 
       // 2. POST /api/v1/auth/refresh with RT_1 again (reuse of rotated token) -> returns 401
       await request(app.getHttpServer())
-        .post('/api/v1/auth/refresh')
+        .post("/api/v1/auth/refresh")
         .send({ refreshToken: rt1 })
         .expect(401);
 
       // 3. POST /api/v1/auth/refresh with RT_2 -> should be rejected with 401 because RT_1 reuse revoked all user sessions
       await request(app.getHttpServer())
-        .post('/api/v1/auth/refresh')
+        .post("/api/v1/auth/refresh")
         .send({ refreshToken: rt2 })
         .expect(401);
     });
 
-    it('rejects an invalid or fake refresh token with 401', async () => {
+    it("rejects an invalid or fake refresh token with 401", async () => {
       await request(app.getHttpServer())
-        .post('/api/v1/auth/refresh')
-        .send({ refreshToken: 'invalid-token-uuid-12345' })
+        .post("/api/v1/auth/refresh")
+        .send({ refreshToken: "invalid-token-uuid-12345" })
         .expect(401);
     });
   });
 
-  describe('POST /api/v1/auth/logout', () => {
+  describe("POST /api/v1/auth/logout", () => {
     let refreshToken: string;
 
     beforeEach(async () => {
@@ -196,28 +199,28 @@ describeWithDatabase('AuthController e2e flows', () => {
       refreshToken = res.refreshToken;
     });
 
-    it('logs out successfully with a valid refresh token', async () => {
+    it("logs out successfully with a valid refresh token", async () => {
       await request(app.getHttpServer())
-        .post('/api/v1/auth/logout')
+        .post("/api/v1/auth/logout")
         .send({ refreshToken })
         .expect(200);
 
       // Verify token cannot be reused
       await request(app.getHttpServer())
-        .post('/api/v1/auth/refresh')
+        .post("/api/v1/auth/refresh")
         .send({ refreshToken })
         .expect(401);
     });
 
-    it('does not throw on an already-invalid/revoked token', async () => {
+    it("does not throw on an already-invalid/revoked token", async () => {
       await request(app.getHttpServer())
-        .post('/api/v1/auth/logout')
-        .send({ refreshToken: 'already-invalid-token-123' })
+        .post("/api/v1/auth/logout")
+        .send({ refreshToken: "already-invalid-token-123" })
         .expect(200);
     });
   });
 
-  describe('GET /api/v1/auth/me', () => {
+  describe("GET /api/v1/auth/me", () => {
     let accessToken: string;
 
     beforeEach(async () => {
@@ -228,26 +231,24 @@ describeWithDatabase('AuthController e2e flows', () => {
       accessToken = res.accessToken;
     });
 
-    it('returns user profile with valid access token', async () => {
+    it("returns user profile with valid access token", async () => {
       const res = await request(app.getHttpServer())
-        .get('/api/v1/auth/me')
-        .set('Authorization', `Bearer ${accessToken}`)
+        .get("/api/v1/auth/me")
+        .set("Authorization", `Bearer ${accessToken}`)
         .expect(200);
 
       expect(res.body.email).toBe(testUser.email);
       expect(res.body.passwordHash).toBeUndefined();
     });
 
-    it('rejects request with missing token with 401', async () => {
-      await request(app.getHttpServer())
-        .get('/api/v1/auth/me')
-        .expect(401);
+    it("rejects request with missing token with 401", async () => {
+      await request(app.getHttpServer()).get("/api/v1/auth/me").expect(401);
     });
 
-    it('rejects request with invalid access token with 401', async () => {
+    it("rejects request with invalid access token with 401", async () => {
       await request(app.getHttpServer())
-        .get('/api/v1/auth/me')
-        .set('Authorization', 'Bearer invalid-jwt-token')
+        .get("/api/v1/auth/me")
+        .set("Authorization", "Bearer invalid-jwt-token")
         .expect(401);
     });
   });

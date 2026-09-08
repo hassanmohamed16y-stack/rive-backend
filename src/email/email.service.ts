@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from "@nestjs/common";
 
 export interface SendEmailOptions {
   to: string;
@@ -18,22 +18,26 @@ export interface SendEmailOptions {
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly apiKey = process.env.EMAIL_PROVIDER_API_KEY;
-  private readonly fromAddress = process.env.EMAIL_FROM_ADDRESS ?? 'no-reply@example.com';
-  private readonly apiUrl = process.env.EMAIL_PROVIDER_API_URL ?? 'https://api.resend.com/emails';
+  private readonly fromAddress =
+    process.env.EMAIL_FROM_ADDRESS ?? "no-reply@example.com";
+  private readonly apiUrl =
+    process.env.EMAIL_PROVIDER_API_URL ?? "https://api.resend.com/emails";
 
   async sendEmail(options: SendEmailOptions): Promise<void> {
     if (!this.apiKey) {
       // Local development/test environments may not have an email provider configured.
       // Log instead of throwing so the calling flow (register/forgot-password/etc.) still succeeds.
-      this.logger.warn(`EMAIL_PROVIDER_API_KEY is not set; skipping email send to ${options.to} (${options.subject}).`);
+      this.logger.warn(
+        `EMAIL_PROVIDER_API_KEY is not set; skipping email send to ${options.to} (${options.subject}).`,
+      );
       return;
     }
 
     const response = await fetch(this.apiUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        Authorization: 'Bearer ' + this.apiKey,
-        'Content-Type': 'application/json',
+        Authorization: "Bearer " + this.apiKey,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         from: this.fromAddress,
@@ -45,25 +49,32 @@ export class EmailService {
     });
 
     if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      this.logger.error(`Failed to send email to ${options.to}: ${response.status} ${body}`);
-      throw new Error(`Email provider request failed with status ${response.status}`);
+      const body = await response.text().catch(() => "");
+      this.logger.error(
+        `Failed to send email to ${options.to}: ${response.status} ${body}`,
+      );
+      throw new Error(
+        `Email provider request failed with status ${response.status}`,
+      );
     }
   }
 
   async sendPasswordResetEmail(to: string, resetToken: string): Promise<void> {
     await this.sendEmail({
       to,
-      subject: 'Reset your RIVÉ password',
+      subject: "Reset your RIVÉ password",
       html: `<p>Use the following token to reset your password. It expires in 1 hour.</p><p><strong>${resetToken}</strong></p>`,
       text: `Use the following token to reset your password (expires in 1 hour): ${resetToken}`,
     });
   }
 
-  async sendEmailVerificationEmail(to: string, verificationToken: string): Promise<void> {
+  async sendEmailVerificationEmail(
+    to: string,
+    verificationToken: string,
+  ): Promise<void> {
     await this.sendEmail({
       to,
-      subject: 'Verify your RIVÉ email address',
+      subject: "Verify your RIVÉ email address",
       html: `<p>Use the following token to verify your email address.</p><p><strong>${verificationToken}</strong></p>`,
       text: `Use the following token to verify your email address: ${verificationToken}`,
     });
