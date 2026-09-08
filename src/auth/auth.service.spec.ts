@@ -5,7 +5,6 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
-import * as crypto from "crypto";
 import { AuthService, hashToken } from "./auth.service";
 
 jest.mock("bcrypt", () => ({
