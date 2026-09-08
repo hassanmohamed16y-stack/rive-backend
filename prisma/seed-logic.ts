@@ -29,6 +29,25 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
     });
   }
 
+  const existingUser = await prisma.user.findUnique({
+    where: { email: "user@rive.com" },
+  });
+
+  if (!existingUser) {
+    const userPassword =
+      process.env.USER_INITIAL_PASSWORD ?? "development-only-user-password";
+    const hashedPassword = await bcrypt.hash(userPassword, 10);
+
+    await prisma.user.create({
+      data: {
+        fullName: "RIVÉ Customer",
+        email: "user@rive.com",
+        passwordHash: hashedPassword,
+        role: UserRole.CUSTOMER,
+      },
+    });
+  }
+
   const categories = [
     {
       name: "Lingerie",
