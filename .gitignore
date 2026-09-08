@@ -4,6 +4,7 @@ node_modules
 
 dist
 npm-debug.log*
+server.log
 .DS_Store
 coverage/
 
