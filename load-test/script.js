@@ -3,9 +3,13 @@ import { check, sleep } from 'k6';
 
 export const options = {
   stages: [
-    { duration: '30s', target: 20 }, // Ramp up to 20 virtual users over 30s
-    { duration: '1m', target: 20 },  // Hold at 20 virtual users for 1 minute
-    { duration: '30s', target: 0 },  // Ramp down to 0 virtual users over 30s
+    { duration: '30s', target: 100 }, // Ramp up 0 to 100 VUs over 30s
+    { duration: '30s', target: 100 }, // Hold 100 VUs for 30s
+    { duration: '30s', target: 250 }, // Ramp up 100 to 250 VUs over 30s
+    { duration: '30s', target: 250 }, // Hold 250 VUs for 30s
+    { duration: '30s', target: 500 }, // Ramp up 250 to 500 VUs over 30s
+    { duration: '1m', target: 500 },  // Hold 500 VUs for 1 minute
+    { duration: '30s', target: 0 },   // Ramp down 500 to 0 VUs over 30s
   ],
   thresholds: {
     http_req_duration: ['p(95)<500'], // 95% of requests must complete under 500ms
