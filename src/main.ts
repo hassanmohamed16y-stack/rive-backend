@@ -1,8 +1,17 @@
 import { INestApplication } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import * as Sentry from "@sentry/nestjs";
 import { configureApp } from "./app.config";
 import { AppModule } from "./app.module";
 import { validateEnvironment } from "./config/environment.validation";
+
+if (process.env.SENTRY_DSN?.trim()) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN.trim(),
+    environment: process.env.NODE_ENV ?? "development",
+    tracesSampleRate: 1.0,
+  });
+}
 
 export async function createApp(): Promise<INestApplication> {
   validateEnvironment();
