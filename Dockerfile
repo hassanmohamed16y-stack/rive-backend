@@ -3,7 +3,8 @@ FROM node:22.23.2-alpine AS builder
 # Update Alpine system packages to their latest patched versions immediately
 # after pulling the base image, to pick up security fixes for base image
 # libraries (e.g. openssl/libcrypto3) flagged by vulnerability scanners.
-RUN apk update && apk upgrade --no-cache
+# Explicitly install openssl so Prisma runtime detection works as expected.
+RUN apk update && apk upgrade --no-cache && apk add --no-cache openssl
 
 WORKDIR /app
 
@@ -51,7 +52,7 @@ WORKDIR /app
 # Upgrade all packages to latest to avoid pinning to a version that
 # will become outdated and vulnerable again. This keeps OpenSSL/libssl
 # patched automatically on every rebuild.
-RUN apk update && apk upgrade --no-cache
+RUN apk update && apk upgrade --no-cache && apk add --no-cache openssl
 
 ENV NODE_ENV=production
 ENV PORT=3000
