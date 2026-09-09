@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from "@nestjs/common";
+import * as Sentry from "@sentry/nestjs";
 import { Request, Response } from "express";
 
 type RequestWithContext = Request & { requestId?: string };
@@ -62,6 +63,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
       `${request.method} ${request.url} ${status} requestId=${request.requestId ?? "unknown"} - ${message}`,
       exception instanceof Error ? exception.name : undefined,
     );
+
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      try {
+        Sentry.captureException(exception);
+      } catch (sentryError) {
+        this.logger.warn(
+          `Failed to report exception to Sentry: ${sentryError instanceof Error ? sentryError.message : String(sentryError)}`,
+        );
+      }
+    }
 
     response.status(status).json(payload);
   }
