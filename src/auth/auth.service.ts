@@ -15,7 +15,12 @@ import { isLocalOnlyEnvironment } from "../common/utils/environment";
 import { isPrismaErrorCode } from "../common/utils/prisma-error";
 import { EmailService } from "../email/email.service";
 import { PrismaService } from "../prisma/prisma.service";
+import {
+  buildPaginationMeta,
+  resolvePagination,
+} from "../common/utils/pagination";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { CreateAdminDto } from "./dto/create-admin.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 
@@ -110,6 +115,81 @@ export class AuthService {
       refreshToken,
       user: this.sanitizeUser(user),
     };
+  }
+
+  async createAdminUser(dto: CreateAdminDto, creatorUserId: string) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email.toLowerCase() },
+    });
+
+    if (existingUser) {
+      throw new ConflictException("User already exists");
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 12);
+    const role = dto.role ?? "ADMIN";
+
+    const user = await this.prisma.user.create({
+      data: {
+        fullName: dto.fullName.trim(),
+        email: dto.email.toLowerCase(),
+        passwordHash: hashedPassword,
+        role,
+        emailVerifiedAt: new Date(),
+      },
+    });
+
+    await this.auditLogService.record({
+      userId: creatorUserId,
+      action: "admin.user-created",
+      entityType: "User",
+      entityId: user.id,
+      changes: { email: user.email, role: user.role },
+    });
+
+    return this.sanitizeUser(user);
+  }
+
+  async findAllUsers(
+    pagination: { page?: number; limit?: number },
+    search?: string,
+    role?: string,
+  ) {
+    const { page, limit, skip, take } = resolvePagination(pagination);
+    const where: Prisma.UserWhereInput = {
+      ...(role ? { role: role as any } : {}),
+      ...(search
+        ? {
+            OR: [
+              { fullName: { contains: search, mode: "insensitive" } },
+              { email: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take,
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return {
+      data: users.map((u) => this.sanitizeUser(u)),
+      meta: buildPaginationMeta(page, limit, total),
+    };
+  }
+
+  async findUserByIdForAdmin(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} was not found`);
+    }
+    return this.sanitizeUser(user);
   }
 
   async register(dto: RegisterDto) {

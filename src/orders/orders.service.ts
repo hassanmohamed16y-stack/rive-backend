@@ -7,7 +7,7 @@ import {
   NotFoundException,
   OnModuleInit,
 } from "@nestjs/common";
-import { OrderStatus, Prisma, ProductStatus } from "@prisma/client";
+import { OrderStatus, PaymentStatus, Prisma, ProductStatus } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { AuditLogService } from "../audit-log/audit-log.service";
 import { isOrderOwnedByActor } from "../common/utils/order-ownership";
@@ -22,11 +22,24 @@ import { CreateOrderDto } from "./dto/create-order.dto";
 const RESERVATION_DURATION_MS = 30 * 60 * 1000;
 
 const allowedTransitions: Record<OrderStatus, OrderStatus[]> = {
-  PENDING: [OrderStatus.PAID, OrderStatus.CANCELLED, OrderStatus.EXPIRED],
-  PAID: [OrderStatus.SHIPPED],
-  SHIPPED: [OrderStatus.DELIVERED],
-  DELIVERED: [],
+  PENDING: [
+    OrderStatus.CONFIRMED,
+    OrderStatus.PAID,
+    OrderStatus.CANCELLED,
+    OrderStatus.EXPIRED,
+  ],
+  CONFIRMED: [OrderStatus.PROCESSING, OrderStatus.PAID, OrderStatus.CANCELLED],
+  PROCESSING: [OrderStatus.SHIPPED, OrderStatus.PAID, OrderStatus.CANCELLED],
+  PAID: [
+    OrderStatus.CONFIRMED,
+    OrderStatus.PROCESSING,
+    OrderStatus.SHIPPED,
+    OrderStatus.REFUNDED,
+  ],
+  SHIPPED: [OrderStatus.DELIVERED, OrderStatus.REFUNDED],
+  DELIVERED: [OrderStatus.REFUNDED],
   CANCELLED: [],
+  REFUNDED: [],
   EXPIRED: [],
 };
 
@@ -165,19 +178,35 @@ export class OrdersService implements OnModuleInit {
         }
       }
 
-      const totalAmount = orderItemsData.reduce(
+      const subtotal = orderItemsData.reduce(
         (sum, item) => sum.plus(new Decimal(item.totalPrice)),
         new Decimal(0),
       );
+      const discount = new Decimal(dto.discount ?? 0);
+      const shippingFee = new Decimal(dto.shippingFee ?? 0);
+      const totalAmount = Decimal.max(
+        subtotal.minus(discount).plus(shippingFee),
+        new Decimal(0),
+      );
+
       return tx.order.create({
         data: {
           orderNumber: this.generateOrderNumber(),
           userId,
           guestAccessToken,
           status: OrderStatus.PENDING,
+          paymentStatus: PaymentStatus.PENDING,
+          subtotal: subtotal.toString(),
+          discount: discount.toString(),
+          shippingFee: shippingFee.toString(),
           totalAmount: totalAmount.toString(),
           customerName: dto.customerName,
           customerEmail: dto.customerEmail,
+          shippingAddress: dto.shippingAddress,
+          shippingCity: dto.shippingCity,
+          shippingCountry: dto.shippingCountry,
+          shippingPhone: dto.shippingPhone,
+          shippingZipCode: dto.shippingZipCode,
           notes: dto.notes,
           reservationExpiresAt,
           items: { create: orderItemsData },
@@ -211,11 +240,11 @@ export class OrdersService implements OnModuleInit {
     const updated = await tx.order.updateMany({
       where: {
         id: orderId,
-        status: OrderStatus.PENDING,
-        reservationExpiresAt: { gt: new Date() },
+        paymentStatus: { not: PaymentStatus.PAID },
       },
       data: {
         status: OrderStatus.PAID,
+        paymentStatus: PaymentStatus.PAID,
         reservationExpiresAt: null,
         ...(updatedById ? { updatedById } : {}),
       },

@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import { PrismaModule } from "../prisma/prisma.module";
+import { AdminUsersController } from "./admin-users.controller";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
@@ -26,7 +27,7 @@ const jwtSecret = resolveJwtSecret();
       },
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, AdminUsersController],
   providers: [AuthService, JwtStrategy, JwtAuthGuard, RolesGuard],
   exports: [AuthService, JwtAuthGuard, RolesGuard],
 })

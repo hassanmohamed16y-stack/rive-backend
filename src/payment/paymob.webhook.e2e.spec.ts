@@ -5,6 +5,7 @@ import { configureApp } from "../app.config";
 import { OrdersService } from "../orders/orders.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { PaymentController } from "./payment.controller";
+import { PaymentService } from "./payment.service";
 import { PaymobService } from "./paymob.service";
 
 describe("Paymob webhook raw & JSON body HTTP integration", () => {
@@ -14,11 +15,19 @@ describe("Paymob webhook raw & JSON body HTTP integration", () => {
     createCheckoutSession: jest.fn(),
     refundTransaction: jest.fn(),
   };
+  const paymentService = {
+    handleWebhook: jest.fn().mockResolvedValue({ received: true }),
+    createCheckoutSession: jest.fn(),
+    refundTransaction: jest.fn(),
+  };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [PaymentController],
-      providers: [{ provide: PaymobService, useValue: paymobService }],
+      providers: [
+        { provide: PaymobService, useValue: paymobService },
+        { provide: PaymentService, useValue: paymentService },
+      ],
     }).compile();
     app = moduleRef.createNestApplication({ bodyParser: false });
 
@@ -70,6 +79,11 @@ describe("Paymob signed webhook HTTP integration", () => {
       .mockResolvedValue({ id: "order-http", status: "PAID" }),
     cancelPendingOrderInTransaction: jest.fn(),
   };
+  const paymentService = {
+    handleWebhook: jest.fn().mockResolvedValue({ received: true }),
+    createCheckoutSession: jest.fn(),
+    refundTransaction: jest.fn(),
+  };
 
   beforeAll(async () => {
     process.env.PAYMOB_HMAC_SECRET = "486CF40C8BEBD130F7CEF8CCFCF7BEBA";
@@ -78,6 +92,7 @@ describe("Paymob signed webhook HTTP integration", () => {
       controllers: [PaymentController],
       providers: [
         PaymobService,
+        { provide: PaymentService, useValue: paymentService },
         { provide: PrismaService, useValue: prisma },
         { provide: OrdersService, useValue: ordersService },
       ],

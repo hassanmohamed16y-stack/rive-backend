@@ -37,6 +37,10 @@ export class ProductsService {
   async findAll(
     filters?: {
       category?: string;
+      collection?: string;
+      maxPrice?: string;
+      minPrice?: string;
+      hasDiscount?: string;
       isFeatured?: string;
       search?: string;
       status?: ProductStatus;
@@ -52,6 +56,37 @@ export class ProductsService {
       where.category = {
         slug: filters.category,
       };
+    }
+
+    if (filters?.collection) {
+      where.collections = {
+        some: {
+          collection: {
+            OR: [
+              { slug: filters.collection },
+              { id: filters.collection },
+            ],
+          },
+        },
+      };
+    }
+
+    if (filters?.maxPrice !== undefined) {
+      const max = parseFloat(filters.maxPrice);
+      if (!isNaN(max)) {
+        where.price = { ...(typeof where.price === "object" ? where.price : {}), lte: max };
+      }
+    }
+
+    if (filters?.minPrice !== undefined) {
+      const min = parseFloat(filters.minPrice);
+      if (!isNaN(min)) {
+        where.price = { ...(typeof where.price === "object" ? where.price : {}), gte: min };
+      }
+    }
+
+    if (filters?.hasDiscount === "true") {
+      where.compareAtPrice = { not: null };
     }
 
     if (filters?.isFeatured !== undefined) {

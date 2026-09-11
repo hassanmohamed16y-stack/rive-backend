@@ -8,9 +8,9 @@ import { PaymentController } from "./payment.controller";
 import { PaymentService } from "./payment.service";
 import { PaymobService } from "./paymob.service";
 
-describe("Legacy Stripe webhook raw body integration", () => {
+describe("Stripe webhook raw body integration", () => {
   let app: INestApplication;
-  const paymobService = {
+  const paymentService = {
     handleWebhook: jest.fn().mockResolvedValue({ received: true }),
     createCheckoutSession: jest.fn(),
     refundTransaction: jest.fn(),
@@ -20,10 +20,10 @@ describe("Legacy Stripe webhook raw body integration", () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [PaymentController],
       providers: [
-        PaymentService,
+        { provide: PaymentService, useValue: paymentService },
+        { provide: PaymobService, useValue: {} },
         { provide: PrismaService, useValue: {} },
         { provide: OrdersService, useValue: {} },
-        { provide: PaymobService, useValue: paymobService },
       ],
     }).compile();
     app = moduleRef.createNestApplication({ bodyParser: false });
@@ -48,6 +48,6 @@ describe("Legacy Stripe webhook raw body integration", () => {
       .send(payload)
       .expect(200);
 
-    expect(paymobService.handleWebhook).toHaveBeenCalled();
+    expect(paymentService.handleWebhook).toHaveBeenCalled();
   });
 });

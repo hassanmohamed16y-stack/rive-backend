@@ -19,11 +19,21 @@ enum ProductStatus {
 
 enum OrderStatus {
   PENDING
+  CONFIRMED
+  PROCESSING
   PAID
   SHIPPED
   DELIVERED
   CANCELLED
+  REFUNDED
   EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
 }
 
 enum UserRole {
@@ -40,28 +50,29 @@ enum Size {
 }
 
 model User {
-  id                         String         @id @default(cuid())
+  id                         String             @id @default(cuid())
   fullName                   String
-  email                      String         @unique
+  email                      String             @unique
   passwordHash               String
-  role                       UserRole       @default(CUSTOMER)
+  role                       UserRole           @default(CUSTOMER)
   emailVerifiedAt            DateTime?
-  emailVerificationToken     String?        @unique
+  emailVerificationToken     String?            @unique
   emailVerificationExpiresAt DateTime?
-  passwordResetToken         String?        @unique
+  passwordResetToken         String?            @unique
   passwordResetExpiresAt     DateTime?
-  failedLoginAttempts        Int            @default(0)
+  failedLoginAttempts        Int                @default(0)
   lockedUntil                DateTime?
-  createdAt                  DateTime       @default(now())
-  updatedAt                  DateTime       @updatedAt
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
   orders                     Order[]
-  createdProducts            Product[]      @relation("ProductCreatedBy")
-  updatedProducts            Product[]      @relation("ProductUpdatedBy")
-  createdCategories          Category[]     @relation("CategoryCreatedBy")
-  updatedCategories          Category[]     @relation("CategoryUpdatedBy")
-  updatedOrders              Order[]        @relation("OrderUpdatedBy")
+  createdProducts            Product[]          @relation("ProductCreatedBy")
+  updatedProducts            Product[]          @relation("ProductUpdatedBy")
+  createdCategories          Category[]         @relation("CategoryCreatedBy")
+  updatedCategories          Category[]         @relation("CategoryUpdatedBy")
+  updatedOrders              Order[]            @relation("OrderUpdatedBy")
   refreshTokens              RefreshToken[]
   auditLogs                  AuditLog[]
+  metaConversations          MetaConversation[]
 }
 
 model Category {
@@ -81,26 +92,51 @@ model Category {
   @@index([isFeatured])
 }
 
+model Collection {
+  id          String              @id @default(cuid())
+  name        String              @unique
+  slug        String              @unique
+  description String?
+  imageUrl    String?
+  isFeatured  Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  products    ProductCollection[]
+
+  @@index([isFeatured])
+}
+
+model ProductCollection {
+  productId    String
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@id([productId, collectionId])
+  @@index([collectionId])
+}
+
 model Product {
-  id               String           @id @default(cuid())
+  id               String              @id @default(cuid())
   name             String
-  slug             String           @unique
+  slug             String              @unique
   description      String?
   shortDescription String?
-  price            Decimal          @db.Decimal(10, 2)
-  compareAtPrice   Decimal?         @db.Decimal(10, 2)
-  isFeatured       Boolean          @default(false)
-  status           ProductStatus    @default(ACTIVE)
+  price            Decimal             @db.Decimal(10, 2)
+  compareAtPrice   Decimal?            @db.Decimal(10, 2)
+  isFeatured       Boolean             @default(false)
+  status           ProductStatus       @default(ACTIVE)
   categoryId       String
-  category         Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  category         Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   createdById      String?
-  createdBy        User?            @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy        User?               @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedById      String?
-  updatedBy        User?            @relation("ProductUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedBy        User?               @relation("ProductUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   images           ProductImage[]
   variants         ProductVariant[]
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  collections      ProductCollection[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
   @@index([categoryId])
   @@index([status])
@@ -142,24 +178,33 @@ model ProductVariant {
 }
 
 model Order {
-  id                   String      @id @default(cuid())
-  orderNumber          String      @unique
-  guestAccessToken     String?     @unique
+  id                   String        @id @default(cuid())
+  orderNumber          String        @unique
+  guestAccessToken     String?       @unique
   userId               String?
-  user                 User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  status               OrderStatus @default(PENDING)
-  totalAmount          Decimal     @db.Decimal(10, 2)
+  user                 User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status               OrderStatus   @default(PENDING)
+  paymentStatus        PaymentStatus @default(PENDING)
+  subtotal             Decimal       @default(0) @db.Decimal(10, 2)
+  discount             Decimal       @default(0) @db.Decimal(10, 2)
+  shippingFee          Decimal       @default(0) @db.Decimal(10, 2)
+  totalAmount          Decimal       @db.Decimal(10, 2)
   customerName         String?
   customerEmail        String?
+  shippingAddress      String?
+  shippingCity         String?
+  shippingCountry      String?
+  shippingPhone        String?
+  shippingZipCode      String?
   notes                String?
   reservationExpiresAt DateTime?
-  paymentSessionId     String?     @unique
-  paymobIntentionId    String?     @unique
-  paymobTransactionId  String?     @unique
+  paymentSessionId     String?       @unique
+  paymobIntentionId    String?       @unique
+  paymobTransactionId  String?       @unique
   updatedById          String?
-  updatedBy            User?       @relation("OrderUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
+  updatedBy            User?         @relation("OrderUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
   items                OrderItem[]
 
   @@index([userId])
@@ -231,6 +276,53 @@ model AuditLog {
   @@index([userId])
   @@index([entityType, entityId])
   @@index([createdAt])
+}
+
+model WhatsAppMessage {
+  id          String   @id @default(cuid())
+  messageId   String?  @unique
+  recipient   String
+  direction   String
+  messageType String
+  body        String
+  status      String
+  rawPayload  Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([recipient])
+  @@index([status])
+}
+
+model MetaConversation {
+  id              String        @id @default(cuid())
+  platform        String
+  platformUserId  String        @unique
+  customerName    String?
+  customerEmail   String?
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status          String        @default("OPEN")
+  lastMessageText String?
+  lastMessageAt   DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  messages        MetaMessage[]
+
+  @@index([platform])
+  @@index([userId])
+}
+
+model MetaMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   MetaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         String
+  text           String
+  rawPayload     Json?
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId])
 }
 
 model SystemSettings {

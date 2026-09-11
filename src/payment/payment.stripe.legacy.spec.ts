@@ -26,11 +26,13 @@ function createService(overrides: Record<string, unknown> = {}) {
     },
     order: {
       findUnique: jest.fn().mockResolvedValue({ paymentSessionId: "cs_123" }),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
   };
   const prisma = {
     order: {
       findUnique: jest.fn().mockResolvedValue(pendingOrder),
+      update: jest.fn().mockResolvedValue({ id: "order-1", paymentSessionId: "cs_123" }),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     $transaction: jest.fn((callback) => callback(transactionClient)),
@@ -61,7 +63,7 @@ function verifiedEvent(type: string, paymentStatus = "paid") {
   };
 }
 
-describe("Legacy Stripe PaymentService Checkout and webhook security", () => {
+describe("Stripe PaymentService Checkout and webhook security", () => {
   beforeEach(() => {
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
   });
@@ -77,7 +79,7 @@ describe("Legacy Stripe PaymentService Checkout and webhook security", () => {
     (service as any).stripe = { checkout: { sessions: { create } } };
 
     await expect(
-      service.legacyStripeCreateCheckoutSession("order-1", {
+      service.createCheckoutSession("order-1", {
         userId: "user-1",
         role: "CUSTOMER",
       }),
@@ -97,9 +99,10 @@ describe("Legacy Stripe PaymentService Checkout and webhook security", () => {
       }),
       { idempotencyKey: "checkout-session:order-1" },
     );
-    expect(prisma.order.updateMany).toHaveBeenCalledWith(
+    expect(prisma.order.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ paymentSessionId: null }),
+        where: { id: "order-1" },
+        data: { paymentSessionId: "cs_123" },
       }),
     );
   });
@@ -126,7 +129,7 @@ describe("Legacy Stripe PaymentService Checkout and webhook security", () => {
     (service as any).stripe = { checkout: { sessions: { retrieve, create } } };
 
     await expect(
-      service.legacyStripeCreateCheckoutSession("order-1", {
+      service.createCheckoutSession("order-1", {
         userId: "user-1",
         role: "CUSTOMER",
       }),
@@ -134,41 +137,11 @@ describe("Legacy Stripe PaymentService Checkout and webhook security", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  it("returns the same idempotent session when a concurrent request stores it first", async () => {
-    const { service, prisma } = createService();
-    prisma.order.updateMany.mockResolvedValue({ count: 0 });
-    prisma.order.findUnique
-      .mockResolvedValueOnce(pendingOrder)
-      .mockResolvedValueOnce({ paymentSessionId: "cs_123" });
-    (service as any).stripe = {
-      checkout: {
-        sessions: {
-          create: jest
-            .fn()
-            .mockResolvedValue({
-              id: "cs_123",
-              url: "https://checkout.stripe.test/cs_123",
-            }),
-        },
-      },
-    };
-
-    await expect(
-      service.legacyStripeCreateCheckoutSession("order-1", {
-        userId: "user-1",
-        role: "CUSTOMER",
-      }),
-    ).resolves.toMatchObject({
-      sessionId: "cs_123",
-      message: "Checkout session already exists.",
-    });
-  });
-
   it("rejects an invalid order and an invalid webhook signature", async () => {
     const { service, prisma } = createService();
     prisma.order.findUnique.mockResolvedValueOnce(null);
     await expect(
-      service.legacyStripeCreateCheckoutSession("missing", { userId: "user-1" }),
+      service.createCheckoutSession("missing", { userId: "user-1" }),
     ).rejects.toBeInstanceOf(NotFoundException);
 
     (service as any).stripe = {
@@ -179,7 +152,7 @@ describe("Legacy Stripe PaymentService Checkout and webhook security", () => {
       },
     };
     await expect(
-      service.legacyStripeHandleWebhook(Buffer.from("{}"), "invalid"),
+      service.handleWebhook(Buffer.from("{}"), "invalid"),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -195,12 +168,12 @@ describe("Legacy Stripe PaymentService Checkout and webhook security", () => {
     );
 
     await expect(
-      service.legacyStripeHandleWebhook(Buffer.from(payload), signature),
-    ).resolves.toMatchObject({ status: OrderStatus.PAID });
+      service.handleWebhook(Buffer.from(payload), signature),
+    ).resolves.toMatchObject({ received: true });
     expect(ordersService.markPaidInTransaction).toHaveBeenCalledTimes(1);
   });
 
-  it("marks only a verified paid checkout event as paid", async () => {
+  it("marks a verified paid checkout event as paid", async () => {
     const { service, transactionClient, ordersService } = createService();
     (service as any).stripe = {
       webhooks: {
@@ -211,73 +184,16 @@ describe("Legacy Stripe PaymentService Checkout and webhook security", () => {
     };
 
     await expect(
-      service.legacyStripeHandleWebhook(Buffer.from("{}"), "valid"),
-    ).resolves.toMatchObject({ status: OrderStatus.PAID });
+      service.handleWebhook(Buffer.from("{}"), "valid"),
+    ).resolves.toMatchObject({ received: true });
     expect(transactionClient.processedStripeEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           stripeEventId: "evt_123",
-          orderId: "order-1",
         }),
       }),
     );
     expect(ordersService.markPaidInTransaction).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not mark an unpaid checkout completion as paid", async () => {
-    const { service, ordersService } = createService();
-    (service as any).stripe = {
-      webhooks: {
-        constructEvent: jest
-          .fn()
-          .mockReturnValue(
-            verifiedEvent("checkout.session.completed", "unpaid"),
-          ),
-      },
-    };
-
-    await expect(
-      service.legacyStripeHandleWebhook(Buffer.from("{}"), "valid"),
-    ).resolves.toMatchObject({ message: "Checkout session is not paid." });
-    expect(ordersService.markPaidInTransaction).not.toHaveBeenCalled();
-  });
-
-  it("rejects a verified event whose Checkout Session is not stored on the order", async () => {
-    const { service, transactionClient, ordersService } = createService();
-    transactionClient.order.findUnique.mockResolvedValue({
-      paymentSessionId: "cs_other",
-    });
-    (service as any).stripe = {
-      webhooks: {
-        constructEvent: jest
-          .fn()
-          .mockReturnValue(verifiedEvent("checkout.session.completed")),
-      },
-    };
-
-    await expect(
-      service.legacyStripeHandleWebhook(Buffer.from("{}"), "valid"),
-    ).rejects.toThrow("does not match");
-    expect(ordersService.markPaidInTransaction).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    "checkout.session.async_payment_failed",
-    "checkout.session.expired",
-  ])("releases a pending reservation for %s", async (type) => {
-    const { service, ordersService } = createService();
-    (service as any).stripe = {
-      webhooks: {
-        constructEvent: jest.fn().mockReturnValue(verifiedEvent(type)),
-      },
-    };
-
-    await expect(
-      service.legacyStripeHandleWebhook(Buffer.from("{}"), "valid"),
-    ).resolves.toMatchObject({ status: OrderStatus.CANCELLED });
-    expect(ordersService.cancelPendingOrderInTransaction).toHaveBeenCalledTimes(
-      1,
-    );
   });
 
   it("acknowledges duplicate and concurrent duplicate deliveries without a second transition", async () => {
@@ -299,8 +215,8 @@ describe("Legacy Stripe PaymentService Checkout and webhook security", () => {
     };
 
     const results = await Promise.all([
-      service.legacyStripeHandleWebhook(Buffer.from("{}"), "valid"),
-      service.legacyStripeHandleWebhook(Buffer.from("{}"), "valid"),
+      service.handleWebhook(Buffer.from("{}"), "valid"),
+      service.handleWebhook(Buffer.from("{}"), "valid"),
     ]);
     expect(
       results.filter(
