@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { NotFoundException } from "@nestjs/common";
 import { OrderStatus } from "@prisma/client";
 import { PaymentService } from "./payment.service";
 
@@ -47,20 +47,6 @@ function createService(overrides: Record<string, unknown> = {}) {
   };
   const service = new PaymentService(prisma as any, ordersService as any);
   return { service, prisma, transactionClient, ordersService };
-}
-
-function verifiedEvent(type: string, paymentStatus = "paid") {
-  return {
-    id: "evt_123",
-    type,
-    data: {
-      object: {
-        id: "cs_123",
-        metadata: { orderId: "order-1", orderNumber: "RIV-1000-ABC" },
-        payment_status: paymentStatus,
-      },
-    },
-  };
 }
 
 describe("Stripe PaymentService Checkout and webhook security", () => {

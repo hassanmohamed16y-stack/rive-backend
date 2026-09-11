@@ -1,4 +1,4 @@
-import { INestApplication } from "@nestjs/common";
+import { BadRequestException, INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { configureApp } from "../app.config";
@@ -42,7 +42,7 @@ describe("Stripe webhook raw body integration", () => {
     const payload = '{"id":"evt_raw","type":"checkout.session.completed"}';
 
     paymentService.handleWebhook.mockRejectedValueOnce(
-      new (require("@nestjs/common").BadRequestException)(
+      new BadRequestException(
         "Stripe payment gateway is disabled. Active payment provider is Paymob (/api/v1/payments/paymob-webhook).",
       ),
     );

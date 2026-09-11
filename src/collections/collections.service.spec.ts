@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import { ConflictException } from "@nestjs/common";
 import { CollectionsService } from "./collections.service";
 
 describe("CollectionsService", () => {

@@ -1,18 +1,14 @@
 import {
   BadRequestException,
   ForbiddenException,
-  HttpException,
   Injectable,
-  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
+import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import Stripe from "stripe";
 import { isOrderOwnedByActor } from "../common/utils/order-ownership";
-import { isPrismaErrorCode } from "../common/utils/prisma-error";
-import { timingSafeStringEqual } from "../common/utils/timing-safe-compare";
 import { OrdersService } from "../orders/orders.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -189,7 +185,7 @@ export class PaymentService {
         };
       }
       return null;
-    } catch (error) {
+    } catch {
       this.logger.warn(
         `Failed to retrieve existing Stripe checkout session ${paymentSessionId} for order ${orderId}`,
       );
@@ -197,7 +193,7 @@ export class PaymentService {
     }
   }
 
-  async handleWebhook(rawBody: Buffer, signature?: string) {
+  async handleWebhook(_rawBody: Buffer, _signature?: string) {
     throw new BadRequestException(
       "Stripe payment gateway is disabled. Active payment provider is Paymob (/api/v1/payments/paymob-webhook).",
     );
