@@ -7,8 +7,9 @@ describe("production environment validation", () => {
     DATABASE_URL: "postgresql://user:password@db.example/rive",
     JWT_SECRET: "a-secure-jwt-secret-that-is-longer-than-32-characters",
     JWT_EXPIRATION: "1h",
-    STRIPE_SECRET_KEY: "sk_test_example",
-    STRIPE_WEBHOOK_SECRET: "whsec_example",
+    PAYMOB_API_KEY: "paymob_api_key_example",
+    PAYMOB_HMAC_SECRET: "486CF40C8BEBD130F7CEF8CCFCF7BEBA",
+    PAYMOB_INTEGRATION_ID_CARD: "5911535",
     FRONTEND_URL: "https://store.example.com",
     ADMIN_FRONTEND_URL: "https://admin.example.com",
     CLOUDINARY_CLOUD_NAME: "rive",
@@ -28,9 +29,15 @@ describe("production environment validation", () => {
     expect(() =>
       validateEnvironment({
         ...productionEnvironment,
-        STRIPE_WEBHOOK_SECRET: "",
+        PAYMOB_HMAC_SECRET: "",
       }),
-    ).toThrow("STRIPE_WEBHOOK_SECRET");
+    ).toThrow("PAYMOB_HMAC_SECRET");
+    expect(() =>
+      validateEnvironment({
+        ...productionEnvironment,
+        PAYMOB_INTEGRATION_ID_CARD: "invalid",
+      }),
+    ).toThrow("PAYMOB_INTEGRATION_ID_CARD must be a numeric ID");
     expect(() =>
       validateEnvironment({ ...productionEnvironment, JWT_SECRET: "short" }),
     ).toThrow("JWT_SECRET must be at least 32 characters");

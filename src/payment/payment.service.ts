@@ -1,3 +1,5 @@
+// legacy — replaced by Paymob integration, kept temporarily for reference
+
 import {
   BadRequestException,
   ForbiddenException,
@@ -15,24 +17,47 @@ import { isPrismaErrorCode } from "../common/utils/prisma-error";
 import { timingSafeStringEqual } from "../common/utils/timing-safe-compare";
 import { OrdersService } from "../orders/orders.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { PaymobService } from "./paymob.service";
 
 @Injectable()
 export class PaymentService {
   private readonly logger = new Logger(PaymentService.name);
   private stripe: Stripe;
+  private paymobService: PaymobService;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly ordersService: OrdersService,
+    paymobService?: PaymobService,
   ) {
-    // Environment validation enforces STRIPE_SECRET_KEY in production.
-    // In dev/test without a key, Stripe SDK initializes with an empty key.
+    this.paymobService =
+      paymobService ?? new PaymobService(prisma, ordersService);
+    // legacy — replaced by Paymob integration, kept temporarily for reference
     this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
       apiVersion: "2024-04-10",
     });
   }
 
   async createCheckoutSession(
+    orderId: string,
+    actor?: { userId?: string; role?: string; guestAccessToken?: string },
+  ) {
+    return this.paymobService.createCheckoutSession(orderId, actor);
+  }
+
+  async handleWebhook(rawBodyOrPayload: any, signature?: string) {
+    return this.paymobService.handleWebhook(rawBodyOrPayload, signature);
+  }
+
+  async refundTransaction(orderId: string, amount?: number) {
+    return this.paymobService.refundTransaction(orderId, amount);
+  }
+
+  // =========================================================================
+  // Legacy Stripe Implementation Below (kept temporarily for reference)
+  // =========================================================================
+
+  async legacyStripeCreateCheckoutSession(
     orderId: string,
     actor?: { userId?: string; role?: string; guestAccessToken?: string },
   ) {
@@ -120,7 +145,6 @@ export class PaymentService {
         },
       );
 
-      // Atomic update ensures only one session is recorded if concurrent requests occur.
       const updated = await this.prisma.order.updateMany({
         where: {
           id: order.id,
@@ -165,12 +189,6 @@ export class PaymentService {
     }
   }
 
-  /**
-   * If the order already has a Stripe checkout session recorded, checks whether it is still
-   * open/usable and returns a "reuse" response for it. Returns `null` if the existing session
-   * is no longer usable (caller should then reject with a "duplicate session" error) —
-   * extracted from createCheckoutSession purely for readability.
-   */
   private async tryReuseExistingCheckoutSession(
     orderId: string,
     orderNumber: string,
@@ -200,7 +218,7 @@ export class PaymentService {
     }
   }
 
-  async handleWebhook(rawBody: Buffer, signature?: string) {
+  async legacyStripeHandleWebhook(rawBody: Buffer, signature?: string) {
     if (!signature || !rawBody) {
       throw new BadRequestException("Webhook signature or raw body missing");
     }
@@ -246,15 +264,9 @@ export class PaymentService {
       };
     }
 
-    // Safe to cast now: eventType is one of the checkout.session.* events above,
-    // so event.data.object is guaranteed by Stripe to be a Checkout Session.
     const eventData = event.data.object as Stripe.Checkout.Session;
-
     const orderId = eventData.metadata?.orderId;
     try {
-      // WHY: Recording event ID in ProcessedStripeEvent inside a transaction enforces strict
-      // idempotency. Unique constraint on stripeEventId causes duplicate webhook retries to throw P2002
-      // and safely exit without re-executing order status transitions.
       return await this.prisma.$transaction(async (tx) => {
         await tx.processedStripeEvent.create({
           data: { stripeEventId: event.id, eventType, orderId },
@@ -309,12 +321,6 @@ export class PaymentService {
     }
   }
 
-  /**
-   * Applies the outcome of a Stripe checkout event whose session has already been verified
-   * against the order (see handleWebhook). Extracted for readability: "paid" events mark the
-   * order PAID, everything else in the processed set (async_payment_failed, expired) releases
-   * the pending reservation as CANCELLED.
-   */
   private async applyVerifiedCheckoutEvent(
     tx: Prisma.TransactionClient,
     eventType: string,

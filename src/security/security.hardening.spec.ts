@@ -388,17 +388,13 @@ describe("Backend security regression tests", () => {
         { expireOrder: jest.fn() } as any,
       );
 
-      // Mock Stripe
-      (service as any).stripe = {
-        checkout: {
-          sessions: {
-            create: jest.fn().mockResolvedValue({
-              id: "cs_test_1234",
-              url: "https://checkout.stripe.com/pay/cs_test_1234",
-            }),
-          },
-        },
-      };
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          id: "int_test_1234",
+          client_secret: "cs_test_1234",
+        }),
+      } as any);
 
       const result = await service.createCheckoutSession("order-1", {
         userId: "user-a",
@@ -438,17 +434,13 @@ describe("Backend security regression tests", () => {
         { expireOrder: jest.fn() } as any,
       );
 
-      // Mock Stripe
-      (service as any).stripe = {
-        checkout: {
-          sessions: {
-            create: jest.fn().mockResolvedValue({
-              id: "cs_test_1234",
-              url: "https://checkout.stripe.com/pay/cs_test_1234",
-            }),
-          },
-        },
-      };
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          id: "int_test_1234",
+          client_secret: "cs_test_1234",
+        }),
+      } as any);
 
       const result = await service.createCheckoutSession("order-1", {
         userId: "admin-1",
