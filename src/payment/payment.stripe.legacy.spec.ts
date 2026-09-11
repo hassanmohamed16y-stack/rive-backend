@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { NotFoundException } from "@nestjs/common";
 import { OrderStatus } from "@prisma/client";
 import { PaymentService } from "./payment.service";
 
@@ -47,20 +47,6 @@ function createService(overrides: Record<string, unknown> = {}) {
   };
   const service = new PaymentService(prisma as any, ordersService as any);
   return { service, prisma, transactionClient, ordersService };
-}
-
-function verifiedEvent(type: string, paymentStatus = "paid") {
-  return {
-    id: "evt_123",
-    type,
-    data: {
-      object: {
-        id: "cs_123",
-        metadata: { orderId: "order-1", orderNumber: "RIV-1000-ABC" },
-        payment_status: paymentStatus,
-      },
-    },
-  };
 }
 
 describe("Stripe PaymentService Checkout and webhook security", () => {
@@ -137,92 +123,18 @@ describe("Stripe PaymentService Checkout and webhook security", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  it("rejects an invalid order and an invalid webhook signature", async () => {
+  it("rejects an invalid order when checkout session target does not exist", async () => {
     const { service, prisma } = createService();
     prisma.order.findUnique.mockResolvedValueOnce(null);
     await expect(
       service.createCheckoutSession("missing", { userId: "user-1" }),
     ).rejects.toBeInstanceOf(NotFoundException);
-
-    (service as any).stripe = {
-      webhooks: {
-        constructEvent: jest.fn(() => {
-          throw new Error("invalid");
-        }),
-      },
-    };
-    await expect(
-      service.handleWebhook(Buffer.from("{}"), "invalid"),
-    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it("accepts a webhook signed by the Stripe SDK test-signature generator", async () => {
-    const { service, ordersService } = createService();
-    const event = verifiedEvent("checkout.session.completed");
-    const payload = JSON.stringify(event);
-    const signature = (service as any).stripe.webhooks.generateTestHeaderString(
-      {
-        payload,
-        secret: "whsec_test",
-      },
-    );
-
+  it("rejects all Stripe webhooks with BadRequestException indicating gateway is disabled", async () => {
+    const { service } = createService();
     await expect(
-      service.handleWebhook(Buffer.from(payload), signature),
-    ).resolves.toMatchObject({ received: true });
-    expect(ordersService.markPaidInTransaction).toHaveBeenCalledTimes(1);
-  });
-
-  it("marks a verified paid checkout event as paid", async () => {
-    const { service, transactionClient, ordersService } = createService();
-    (service as any).stripe = {
-      webhooks: {
-        constructEvent: jest
-          .fn()
-          .mockReturnValue(verifiedEvent("checkout.session.completed")),
-      },
-    };
-
-    await expect(
-      service.handleWebhook(Buffer.from("{}"), "valid"),
-    ).resolves.toMatchObject({ received: true });
-    expect(transactionClient.processedStripeEvent.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          stripeEventId: "evt_123",
-        }),
-      }),
-    );
-    expect(ordersService.markPaidInTransaction).toHaveBeenCalledTimes(1);
-  });
-
-  it("acknowledges duplicate and concurrent duplicate deliveries without a second transition", async () => {
-    const { service, transactionClient, ordersService } = createService();
-    let eventAlreadyInserted = false;
-    transactionClient.processedStripeEvent.create.mockImplementation(
-      async () => {
-        if (eventAlreadyInserted) throw { code: "P2002" };
-        eventAlreadyInserted = true;
-        return { id: "event-record-1" };
-      },
-    );
-    (service as any).stripe = {
-      webhooks: {
-        constructEvent: jest
-          .fn()
-          .mockReturnValue(verifiedEvent("checkout.session.completed")),
-      },
-    };
-
-    const results = await Promise.all([
-      service.handleWebhook(Buffer.from("{}"), "valid"),
-      service.handleWebhook(Buffer.from("{}"), "valid"),
-    ]);
-    expect(
-      results.filter(
-        (result) => result.message === "Webhook already processed.",
-      ),
-    ).toHaveLength(1);
-    expect(ordersService.markPaidInTransaction).toHaveBeenCalledTimes(1);
+      service.handleWebhook(Buffer.from("{}"), "invalid_sig"),
+    ).rejects.toThrow("Stripe payment gateway is disabled");
   });
 });
