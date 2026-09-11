@@ -27,9 +27,8 @@ describe("GoogleSheetsService", () => {
     process.env = originalEnv;
   });
 
-  it("handles append row gracefully when credentials are missing", async () => {
-    const result = await service.appendRow(["test1", "test2"]);
-    expect(result).toEqual({ success: true, updatedRange: "Sheet1!A1" });
+  it("throws BadRequestException on append row when credentials are missing", async () => {
+    await expect(service.appendRow(["test1", "test2"])).rejects.toThrow(BadRequestException);
   });
 
   it("throws BadRequestException on test row when credentials are missing", async () => {

@@ -206,6 +206,13 @@ export class WhatsAppService implements WhatsAppProvider {
   }
 
   async sendTestMessage(recipientPhoneNumber: string, customMessage?: string) {
+    const { isConfigured } = this.credentials;
+    if (!isConfigured) {
+      this.logger.warn("WhatsApp test requested but credentials are not configured.");
+      throw new BadRequestException(
+        "WhatsApp API credentials are not configured. Please set WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID.",
+      );
+    }
     const messageText = customMessage || "This is a test message from RIVÉ luxury store backend.";
     return this.sendMessage(recipientPhoneNumber, messageText, "test");
   }

@@ -264,6 +264,106 @@
         ]
       }
     },
+    "/api/v1/admin/users": {
+      "post": {
+        "operationId": "AdminUsersController_createAdmin",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAdminDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Admin user created successfully."
+          },
+          "409": {
+            "description": "User already exists."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new Admin or Staff account (Admin)",
+        "tags": [
+          "admin users"
+        ]
+      },
+      "get": {
+        "operationId": "AdminUsersController_findAll",
+        "parameters": [
+          {
+            "name": "search",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of users returned."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all users (Admin)",
+        "tags": [
+          "admin users"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{id}": {
+      "get": {
+        "operationId": "AdminUsersController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User details returned."
+          },
+          "404": {
+            "description": "User not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get user details by ID (Admin)",
+        "tags": [
+          "admin users"
+        ]
+      }
+    },
     "/api/v1/categories": {
       "get": {
         "operationId": "CategoriesController_findAll",
@@ -452,6 +552,491 @@
         ]
       }
     },
+    "/api/v1/admin/dashboard/overview": {
+      "get": {
+        "operationId": "AdminDashboardController_getOverview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get top-level dashboard metrics (Admin)",
+        "tags": [
+          "admin dashboard"
+        ]
+      }
+    },
+    "/api/v1/admin/dashboard/recent-orders": {
+      "get": {
+        "operationId": "AdminDashboardController_getRecentOrders",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get recent orders for dashboard",
+        "tags": [
+          "admin dashboard"
+        ]
+      }
+    },
+    "/api/v1/admin/dashboard/recent-customers": {
+      "get": {
+        "operationId": "AdminDashboardController_getRecentCustomers",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get recent registered customers",
+        "tags": [
+          "admin dashboard"
+        ]
+      }
+    },
+    "/api/v1/admin/dashboard/low-stock": {
+      "get": {
+        "operationId": "AdminDashboardController_getLowStock",
+        "parameters": [
+          {
+            "name": "threshold",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get low stock variants",
+        "tags": [
+          "admin dashboard"
+        ]
+      }
+    },
+    "/api/v1/admin/dashboard/order-status-stats": {
+      "get": {
+        "operationId": "AdminDashboardController_getOrderStatusStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get order status distribution",
+        "tags": [
+          "admin dashboard"
+        ]
+      }
+    },
+    "/api/v1/admin/dashboard/payment-status-stats": {
+      "get": {
+        "operationId": "AdminDashboardController_getPaymentStatusStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get payment status distribution",
+        "tags": [
+          "admin dashboard"
+        ]
+      }
+    },
+    "/api/v1/admin/dashboard/top-products": {
+      "get": {
+        "operationId": "AdminDashboardController_getTopProducts",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get top selling products",
+        "tags": [
+          "admin dashboard"
+        ]
+      }
+    },
+    "/api/v1/admin/dashboard/sales-report": {
+      "get": {
+        "operationId": "AdminDashboardController_getSalesReport",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get consolidated sales report",
+        "tags": [
+          "admin dashboard"
+        ]
+      }
+    },
+    "/api/v1/collections": {
+      "get": {
+        "operationId": "CollectionsController_findAll",
+        "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isFeatured",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated collections returned."
+          }
+        },
+        "summary": "List all active collections",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/api/v1/collections/{slug}": {
+      "get": {
+        "operationId": "CollectionsController_findOne",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collection returned."
+          },
+          "404": {
+            "description": "Collection not found."
+          }
+        },
+        "summary": "Get collection details by slug",
+        "tags": [
+          "collections"
+        ]
+      }
+    },
+    "/api/v1/admin/collections": {
+      "get": {
+        "operationId": "AdminCollectionsController_findAll",
+        "parameters": [
+          {
+            "name": "search",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isFeatured",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List collections (Admin)",
+        "tags": [
+          "admin collections"
+        ]
+      },
+      "post": {
+        "operationId": "AdminCollectionsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCollectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new collection (Admin)",
+        "tags": [
+          "admin collections"
+        ]
+      }
+    },
+    "/api/v1/admin/collections/{id}": {
+      "get": {
+        "operationId": "AdminCollectionsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get collection by ID (Admin)",
+        "tags": [
+          "admin collections"
+        ]
+      },
+      "patch": {
+        "operationId": "AdminCollectionsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCollectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a collection (Admin)",
+        "tags": [
+          "admin collections"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminCollectionsController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a collection (Admin)",
+        "tags": [
+          "admin collections"
+        ]
+      }
+    },
+    "/api/v1/admin/collections/{id}/products/{productId}": {
+      "post": {
+        "operationId": "AdminCollectionsController_addProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "productId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add a product to a collection (Admin)",
+        "tags": [
+          "admin collections"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminCollectionsController_removeProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "productId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove a product from a collection (Admin)",
+        "tags": [
+          "admin collections"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "HealthController_check",
@@ -482,6 +1067,43 @@
             "schema": {
               "maxLength": 160,
               "type": "string"
+            }
+          },
+          {
+            "name": "collection",
+            "required": false,
+            "in": "query",
+            "description": "Collection slug to filter by",
+            "schema": {
+              "maxLength": 160,
+              "type": "string"
+            }
+          },
+          {
+            "name": "maxPrice",
+            "required": false,
+            "in": "query",
+            "description": "Maximum price filter (e.g. 200 for Under 200 EGP)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minPrice",
+            "required": false,
+            "in": "query",
+            "description": "Minimum price filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hasDiscount",
+            "required": false,
+            "in": "query",
+            "description": "Filter by discounted items (offers)",
+            "schema": {
+              "type": "boolean"
             }
           },
           {
@@ -1064,7 +1686,7 @@
             "bearer": []
           }
         ],
-        "summary": "Create or reuse Paymob Intention for an authenticated order owner, admin, or guest access-token holder",
+        "summary": "Create or reuse Paymob Checkout Session for an authenticated order owner, admin, or guest access-token holder",
         "tags": [
           "payments"
         ]
@@ -1100,25 +1722,34 @@
     "/api/v1/payments/webhook": {
       "post": {
         "operationId": "PaymentController_handleWebhook",
-        "parameters": [
-          {
-            "name": "hmac",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "Webhook received and processed."
           },
           "400": {
-            "description": "Invalid webhook payload."
+            "description": "Invalid webhook payload or signature."
           }
         },
-        "summary": "Handle payment provider webhook events (Paymob)",
+        "summary": "Handle Stripe payment provider webhook events",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments/stripe-webhook": {
+      "post": {
+        "operationId": "PaymentController_handleStripeWebhook",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Webhook received and processed."
+          },
+          "400": {
+            "description": "Invalid webhook payload or signature."
+          }
+        },
+        "summary": "Handle Stripe payment provider webhook events",
         "tags": [
           "payments"
         ]
@@ -1284,10 +1915,13 @@
             "schema": {
               "enum": [
                 "PENDING",
+                "CONFIRMED",
+                "PROCESSING",
                 "PAID",
                 "SHIPPED",
                 "DELIVERED",
                 "CANCELLED",
+                "REFUNDED",
                 "EXPIRED"
               ],
               "type": "string"
@@ -1338,10 +1972,13 @@
             "schema": {
               "enum": [
                 "PENDING",
+                "CONFIRMED",
+                "PROCESSING",
                 "PAID",
                 "SHIPPED",
                 "DELIVERED",
                 "CANCELLED",
+                "REFUNDED",
                 "EXPIRED"
               ],
               "type": "string"
@@ -1946,6 +2583,59 @@
         ]
       }
     },
+    "/api/v1/integrations/whatsapp/webhook": {
+      "get": {
+        "operationId": "WhatsAppController_verifyWebhook",
+        "parameters": [
+          {
+            "name": "hub.mode",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hub.verify_token",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hub.challenge",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Verify WhatsApp Business API webhook challenge",
+        "tags": [
+          "whatsapp"
+        ]
+      },
+      "post": {
+        "operationId": "WhatsAppController_handleWebhook",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Webhook event received"
+          }
+        },
+        "summary": "Receive WhatsApp Business API webhook events",
+        "tags": [
+          "whatsapp"
+        ]
+      }
+    },
     "/api/admin/integrations/google-sheets/test": {
       "post": {
         "operationId": "AdminIntegrationsController_testGoogleSheets[0]",
@@ -2009,6 +2699,433 @@
         "summary": "Send a test row to Google Sheets via Service Account (Admin)",
         "tags": [
           "admin integrations"
+        ]
+      }
+    },
+    "/api/admin/integrations/google-sheets/export/orders": {
+      "post": {
+        "operationId": "AdminIntegrationsController_exportOrders[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export orders to Google Sheets",
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/google-sheets/export/orders": {
+      "post": {
+        "operationId": "AdminIntegrationsController_exportOrders[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export orders to Google Sheets",
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/admin/integrations/google-sheets/export/customers": {
+      "post": {
+        "operationId": "AdminIntegrationsController_exportCustomers[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export customers to Google Sheets",
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/google-sheets/export/customers": {
+      "post": {
+        "operationId": "AdminIntegrationsController_exportCustomers[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export customers to Google Sheets",
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/admin/integrations/google-sheets/export/products": {
+      "post": {
+        "operationId": "AdminIntegrationsController_exportProducts[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export products to Google Sheets",
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/google-sheets/export/products": {
+      "post": {
+        "operationId": "AdminIntegrationsController_exportProducts[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export products to Google Sheets",
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/admin/integrations/google-sheets/export/inventory": {
+      "post": {
+        "operationId": "AdminIntegrationsController_exportInventory[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export inventory to Google Sheets",
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/google-sheets/export/inventory": {
+      "post": {
+        "operationId": "AdminIntegrationsController_exportInventory[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export inventory to Google Sheets",
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/admin/integrations/google-sheets/export/sales-report": {
+      "post": {
+        "operationId": "AdminIntegrationsController_exportSalesReport[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export sales report to Google Sheets",
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/google-sheets/export/sales-report": {
+      "post": {
+        "operationId": "AdminIntegrationsController_exportSalesReport[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export sales report to Google Sheets",
+        "tags": [
+          "admin integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/meta/webhook": {
+      "get": {
+        "operationId": "MetaController_verifyWebhook",
+        "parameters": [
+          {
+            "name": "hub.mode",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hub.verify_token",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hub.challenge",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Verify Meta (Facebook/Instagram) webhook challenge",
+        "tags": [
+          "meta"
+        ]
+      },
+      "post": {
+        "operationId": "MetaController_handleWebhook",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Webhook event received"
+          }
+        },
+        "summary": "Receive Meta (Facebook/Instagram) webhook events",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/api/v1/admin/meta/conversations": {
+      "get": {
+        "operationId": "AdminMetaController_getConversations",
+        "parameters": [
+          {
+            "name": "platform",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of conversations returned."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get social conversations (Facebook/Instagram) for Admin Dashboard",
+        "tags": [
+          "admin meta"
+        ]
+      }
+    },
+    "/api/v1/admin/meta/conversations/{id}/messages": {
+      "get": {
+        "operationId": "AdminMetaController_getMessages",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Conversation messages returned."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get messages for a conversation",
+        "tags": [
+          "admin meta"
+        ]
+      }
+    },
+    "/api/v1/admin/excel/export/products": {
+      "get": {
+        "operationId": "ExcelController_exportProducts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export products and variants as Excel file (.xlsx)",
+        "tags": [
+          "admin excel"
+        ]
+      }
+    },
+    "/api/v1/admin/excel/export/orders": {
+      "get": {
+        "operationId": "ExcelController_exportOrders",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export orders as Excel file (.xlsx)",
+        "tags": [
+          "admin excel"
+        ]
+      }
+    },
+    "/api/v1/admin/excel/export/customers": {
+      "get": {
+        "operationId": "ExcelController_exportCustomers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export customers as Excel file (.xlsx)",
+        "tags": [
+          "admin excel"
+        ]
+      }
+    },
+    "/api/v1/admin/excel/import/products": {
+      "post": {
+        "operationId": "ExcelController_importProducts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Products imported successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Import products and variants from Excel file (.xlsx)",
+        "tags": [
+          "admin excel"
+        ]
+      }
+    },
+    "/api/v1/admin/excel/import/inventory": {
+      "post": {
+        "operationId": "ExcelController_importInventory",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Inventory updated successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Import inventory stock counts from Excel file (.xlsx)",
+        "tags": [
+          "admin excel"
         ]
       }
     }
@@ -2174,6 +3291,41 @@
           "newPassword"
         ]
       },
+      "CreateAdminDto": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "example": "Admin Staff",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "email": {
+            "type": "string",
+            "example": "staff@rive.com",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "example": "AdminPass123!",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "CUSTOMER"
+            ],
+            "default": "ADMIN"
+          }
+        },
+        "required": [
+          "fullName",
+          "email",
+          "password"
+        ]
+      },
       "CreateCategoryDto": {
         "type": "object",
         "properties": {
@@ -2220,6 +3372,60 @@
           },
           "isFeatured": {
             "type": "boolean"
+          }
+        }
+      },
+      "CreateCollectionDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Summer Luxury Collection"
+          },
+          "slug": {
+            "type": "string",
+            "example": "summer-luxury-collection"
+          },
+          "description": {
+            "type": "string",
+            "example": "Exclusive luxury items for summer"
+          },
+          "imageUrl": {
+            "type": "string",
+            "example": "https://example.com/collection.jpg"
+          },
+          "isFeatured": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "name",
+          "slug"
+        ]
+      },
+      "UpdateCollectionDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Summer Luxury Collection"
+          },
+          "slug": {
+            "type": "string",
+            "example": "summer-luxury-collection"
+          },
+          "description": {
+            "type": "string",
+            "example": "Exclusive luxury items for summer"
+          },
+          "imageUrl": {
+            "type": "string",
+            "example": "https://example.com/collection.jpg"
+          },
+          "isFeatured": {
+            "type": "boolean",
+            "example": true
           }
         }
       },
@@ -2570,6 +3776,41 @@
             "example": "aisha@example.com",
             "maxLength": 254
           },
+          "shippingAddress": {
+            "type": "string",
+            "example": "123 Nile Street",
+            "maxLength": 255
+          },
+          "shippingCity": {
+            "type": "string",
+            "example": "Cairo",
+            "maxLength": 100
+          },
+          "shippingCountry": {
+            "type": "string",
+            "example": "Egypt",
+            "maxLength": 100
+          },
+          "shippingPhone": {
+            "type": "string",
+            "example": "+201000000000",
+            "maxLength": 30
+          },
+          "shippingZipCode": {
+            "type": "string",
+            "example": "11511",
+            "maxLength": 20
+          },
+          "discount": {
+            "type": "number",
+            "example": 0,
+            "minimum": 0
+          },
+          "shippingFee": {
+            "type": "number",
+            "example": 50,
+            "minimum": 0
+          },
           "notes": {
             "type": "string",
             "example": "Gift wrap requested",
@@ -2596,10 +3837,13 @@
             "type": "string",
             "enum": [
               "PENDING",
+              "CONFIRMED",
+              "PROCESSING",
               "PAID",
               "SHIPPED",
               "DELIVERED",
               "CANCELLED",
+              "REFUNDED",
               "EXPIRED"
             ]
           }
