@@ -41,12 +41,18 @@ describe("Stripe webhook raw body integration", () => {
   it("passes the payload and signature to the handler", async () => {
     const payload = '{"id":"evt_raw","type":"checkout.session.completed"}';
 
+    paymentService.handleWebhook.mockRejectedValueOnce(
+      new (require("@nestjs/common").BadRequestException)(
+        "Stripe payment gateway is disabled. Active payment provider is Paymob (/api/v1/payments/paymob-webhook).",
+      ),
+    );
+
     await request(app.getHttpServer())
       .post("/api/v1/payments/webhook")
       .set("stripe-signature", "t=1,v1=signature")
       .set("content-type", "application/json")
       .send(payload)
-      .expect(200);
+      .expect(400);
 
     expect(paymentService.handleWebhook).toHaveBeenCalled();
   });

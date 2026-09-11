@@ -42,22 +42,10 @@ export class WhatsAppService implements WhatsAppProvider {
     const cleanPhone = to.replace(/\+/g, "").trim();
 
     if (!isConfigured) {
-      this.logger.warn(
-        `WhatsApp Cloud API credentials missing. Logging outbound message to ${to} locally.`,
+      this.logger.warn("WhatsApp API credentials are not configured.");
+      throw new BadRequestException(
+        "WhatsApp API credentials are not configured. Please set WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID.",
       );
-
-      // Save log entry in DB even when dormant
-      const record = await this.prisma.whatsAppMessage.create({
-        data: {
-          recipient: cleanPhone,
-          direction: "OUTBOUND",
-          messageType,
-          body,
-          status: "SIMULATED",
-        },
-      });
-
-      return { success: true, messageId: record.id };
     }
 
     const url = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;

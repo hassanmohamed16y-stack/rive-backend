@@ -33,9 +33,10 @@ describe("WhatsAppService", () => {
     process.env = originalEnv;
   });
 
-  it("fails gracefully and logs warning when credentials are missing", async () => {
-    const result = await service.sendMessage("+201234567890", "Test message");
-    expect(result).toEqual({ success: true, messageId: "msg_123" });
+  it("throws BadRequestException when sendMessage is called without credentials", async () => {
+    await expect(
+      service.sendMessage("+201234567890", "Test message"),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it("throws BadRequestException when test message is requested without credentials", async () => {
