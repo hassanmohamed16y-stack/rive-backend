@@ -1,8 +1,5 @@
 /**
- * Shared pagination helpers used by every `findAll`-style list endpoint
- * (categories, products, orders, ...). Centralizing this avoids each service
- * reimplementing its own `page`/`limit` defaulting and `skip`/`take`/`totalPages`
- * arithmetic slightly differently.
+ * Shared pagination utilities for list endpoints.
  */
 
 export interface PaginationInput {

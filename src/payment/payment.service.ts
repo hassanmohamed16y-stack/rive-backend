@@ -25,12 +25,8 @@ export class PaymentService {
     private readonly prisma: PrismaService,
     private readonly ordersService: OrdersService,
   ) {
-    // STRIPE_SECRET_KEY presence outside local development/test is enforced at
-    // module-load time in environment.validation.ts (the single source of
-    // truth for this check). In local development/test without a configured
-    // key, the Stripe SDK is still constructed (with an empty key) so the
-    // module can load; any actual Stripe call in that case fails naturally
-    // instead of silently using a fake placeholder key.
+    // Environment validation enforces STRIPE_SECRET_KEY in production.
+    // In dev/test without a key, Stripe SDK initializes with an empty key.
     this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
       apiVersion: "2024-04-10",
     });
@@ -124,14 +120,7 @@ export class PaymentService {
         },
       );
 
-      // NOTE: theoretical race — two concurrent requests for the same PENDING order can both
-      // reach this point (Stripe session creation happens outside any DB lock on paymentSessionId).
-      // The conditional `updateMany` below (status still PENDING AND paymentSessionId still null)
-      // ensures only one request "wins" and persists its session; the loser detects this via the
-      // re-read below and reuses the winner's session instead of erroring, so the client always
-      // gets a usable checkout link. Left as-is: a stronger fix (e.g. a DB-level advisory lock)
-      // adds complexity disproportionate to the risk (Stripe's own idempotencyKey already
-      // prevents duplicate charges even in the rare case both requests hit Stripe first).
+      // Atomic update ensures only one session is recorded if concurrent requests occur.
       const updated = await this.prisma.order.updateMany({
         where: {
           id: order.id,

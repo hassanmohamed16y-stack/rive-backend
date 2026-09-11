@@ -25,9 +25,7 @@ const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const ACCOUNT_LOCKOUT_THRESHOLD = 5;
 const ACCOUNT_LOCKOUT_MS = 15 * 60 * 1000;
 
-// Computed once at module load (not per login attempt) so that comparing against a
-// non-existent user costs the same bcrypt work as a real user, without paying the
-// (expensive) bcrypt.hash cost on every single login request.
+// Pre-computed hash used to keep login response timing consistent when a user is not found.
 const DUMMY_HASH_FOR_TIMING = bcrypt.hashSync(
   "dummy-password-for-timing-safety",
   12,
@@ -143,8 +141,7 @@ export class AuthService {
     });
 
     if (!user) {
-      // Always run bcrypt.compare, even for a non-existent user, so that the response
-      // timing for "user not found" and "wrong password" is indistinguishable.
+      // Run comparison against dummy hash to prevent timing attacks.
       await bcrypt.compare(dto.password, DUMMY_HASH_FOR_TIMING);
       throw new UnauthorizedException("Invalid credentials");
     }
