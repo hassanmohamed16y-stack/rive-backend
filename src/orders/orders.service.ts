@@ -53,9 +53,8 @@ export class OrdersService implements OnModuleInit {
 
   async onModuleInit() {
     // Expire any reservations that lapsed while the process was offline. Ongoing expiry is
-    // driven externally by POST /api/v1/internal/expire-reservations (see
-    // internal-orders.controller.ts), invoked by an external cron/scheduler, instead of an
-    // in-process setInterval — this avoids redundant work and races across multiple instances.
+    // driven externally by POST /api/v1/internal/expire-reservations, invoked by an external cron/scheduler,
+    // instead of an in-process setInterval — this avoids redundant work across instances.
     await this.expirePendingReservations().catch((error: unknown) => {
       this.logger.error(
         "Unable to expire pending order reservations",
@@ -246,8 +245,7 @@ export class OrdersService implements OnModuleInit {
         nextStatus === OrderStatus.CANCELLED ||
         nextStatus === OrderStatus.EXPIRED
       ) {
-        // Cancelling and expiring a PENDING order follow the same reservation-release logic;
-        // only the resulting status differs.
+        // Cancelling and expiring a PENDING order follow the same reservation-release logic.
         const released = await this.cancelPendingOrderInTransaction(
           tx,
           orderId,
@@ -403,9 +401,7 @@ export class OrdersService implements OnModuleInit {
     });
     if (updated.count === 0) return false;
     const items = await tx.orderItem.findMany({ where: { orderId } });
-    // Each item can restore a different quantity, so a single updateMany() can't express
-    // per-row increments; run the per-variant updates concurrently (still inside the same
-    // interactive transaction) instead of sequentially awaiting each one.
+    // Restore variant stock concurrently within the transaction.
     await Promise.all(
       items.map((item) =>
         tx.productVariant.update({
