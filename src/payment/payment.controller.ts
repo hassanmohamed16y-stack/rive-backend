@@ -25,12 +25,16 @@ import { RolesGuard } from "../auth/roles.guard";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { CreateCheckoutSessionDto } from "./dto/create-checkout-session.dto";
 import { RefundPaymentDto } from "./dto/refund-payment.dto";
+import { PaymentService } from "./payment.service";
 import { PaymobService } from "./paymob.service";
 
 @ApiTags("payments")
 @Controller("api/v1/payments")
 export class PaymentController {
-  constructor(private readonly paymobService: PaymobService) {}
+  constructor(
+    private readonly paymentService: PaymentService,
+    private readonly paymobService: PaymobService,
+  ) {}
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(OptionalJwtAuthGuard)
@@ -43,7 +47,7 @@ export class PaymentController {
   @Post("create-checkout-session")
   @ApiOperation({
     summary:
-      "Create or reuse Paymob Intention for an authenticated order owner, admin, or guest access-token holder",
+      "Create or reuse Stripe Checkout Session for an authenticated order owner, admin, or guest access-token holder",
   })
   @ApiResponse({
     status: 200,
@@ -68,7 +72,7 @@ export class PaymentController {
     @Body() dto: CreateCheckoutSessionDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.paymobService.createCheckoutSession(dto.orderId, {
+    return this.paymentService.createCheckoutSession(dto.orderId, {
       userId: req.user?.userId,
       role: req.user?.role,
       guestAccessToken:
@@ -95,19 +99,29 @@ export class PaymentController {
   @SkipThrottle()
   @Post("webhook")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Handle payment provider webhook events (Paymob)" })
+  @ApiOperation({ summary: "Handle Stripe payment provider webhook events" })
   @ApiResponse({ status: 200, description: "Webhook received and processed." })
-  @ApiResponse({ status: 400, description: "Invalid webhook payload." })
-  async handleWebhook(
-    @Req() req: Request,
-    @Query("hmac") queryHmac?: string,
-  ) {
-    const rawOrBody = req.body;
-    const stripeSig = req.headers["stripe-signature"] as string | undefined;
-    return this.paymobService.handleWebhook(
-      rawOrBody,
-      queryHmac || stripeSig,
-    );
+  @ApiResponse({ status: 400, description: "Invalid webhook payload or signature." })
+  async handleWebhook(@Req() req: Request) {
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.from(typeof req.body === "string" ? req.body : JSON.stringify(req.body ?? {}));
+    const signature = req.headers["stripe-signature"] as string | undefined;
+    return this.paymentService.handleWebhook(rawBody, signature);
+  }
+
+  @SkipThrottle()
+  @Post("stripe-webhook")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Handle Stripe payment provider webhook events" })
+  @ApiResponse({ status: 200, description: "Webhook received and processed." })
+  @ApiResponse({ status: 400, description: "Invalid webhook payload or signature." })
+  async handleStripeWebhook(@Req() req: Request) {
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.from(typeof req.body === "string" ? req.body : JSON.stringify(req.body ?? {}));
+    const signature = req.headers["stripe-signature"] as string | undefined;
+    return this.paymentService.handleWebhook(rawBody, signature);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -115,11 +129,11 @@ export class PaymentController {
   @ApiBearerAuth()
   @Post("refund")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Process a payment refund via Paymob (Admin only)" })
+  @ApiOperation({ summary: "Process a payment refund via Stripe (Admin only)" })
   @ApiResponse({ status: 200, description: "Refund executed successfully." })
   @ApiResponse({ status: 400, description: "Order not eligible for refund." })
   @ApiResponse({ status: 403, description: "Forbidden - Admin access required." })
   async refundPayment(@Body() dto: RefundPaymentDto) {
-    return this.paymobService.refundTransaction(dto.orderId, dto.amount);
+    return this.paymentService.refundTransaction(dto.orderId, dto.amount);
   }
 }

@@ -27,4 +27,39 @@ export class AdminIntegrationsController {
   async testGoogleSheets(@Body() dto: TestGoogleSheetsDto) {
     return this.googleSheetsService.sendTestRow(dto.rowData);
   }
+
+  @Post("google-sheets/export/orders")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Export orders to Google Sheets" })
+  async exportOrders() {
+    return this.googleSheetsService.exportOrders();
+  }
+
+  @Post("google-sheets/export/customers")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Export customers to Google Sheets" })
+  async exportCustomers() {
+    return this.googleSheetsService.exportCustomers();
+  }
+
+  @Post("google-sheets/export/products")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Export products to Google Sheets" })
+  async exportProducts() {
+    return this.googleSheetsService.exportProducts();
+  }
+
+  @Post("google-sheets/export/inventory")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Export inventory to Google Sheets" })
+  async exportInventory() {
+    return this.googleSheetsService.exportInventory();
+  }
+
+  @Post("google-sheets/export/sales-report")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Export sales report to Google Sheets" })
+  async exportSalesReport() {
+    return this.googleSheetsService.exportSalesReport();
+  }
 }

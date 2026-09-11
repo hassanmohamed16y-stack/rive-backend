@@ -7,6 +7,7 @@ import {
   IsEmail,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   Length,
@@ -43,6 +44,50 @@ export class CreateOrderDto {
   @IsNotEmpty()
   @Length(3, 254)
   customerEmail!: string;
+
+  @ApiPropertyOptional({ example: "123 Nile Street", maxLength: 255 })
+  @IsOptional()
+  @IsString()
+  @Length(1, 255)
+  shippingAddress?: string;
+
+  @ApiPropertyOptional({ example: "Cairo", maxLength: 100 })
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  shippingCity?: string;
+
+  @ApiPropertyOptional({ example: "Egypt", maxLength: 100 })
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  shippingCountry?: string;
+
+  @ApiPropertyOptional({ example: "+201000000000", maxLength: 30 })
+  @IsOptional()
+  @IsString()
+  @Length(1, 30)
+  shippingPhone?: string;
+
+  @ApiPropertyOptional({ example: "11511", maxLength: 20 })
+  @IsOptional()
+  @IsString()
+  @Length(1, 20)
+  shippingZipCode?: string;
+
+  @ApiPropertyOptional({ example: 0, minimum: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  discount?: number;
+
+  @ApiPropertyOptional({ example: 50, minimum: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  shippingFee?: number;
 
   @ApiPropertyOptional({ example: "Gift wrap requested", maxLength: 500 })
   @IsOptional()

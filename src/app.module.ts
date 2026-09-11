@@ -4,6 +4,8 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { AuditLogModule } from "./audit-log/audit-log.module";
 import { AuthModule } from "./auth/auth.module";
 import { CategoriesModule } from "./categories/categories.module";
+import { DashboardModule } from "./dashboard/dashboard.module";
+import { CollectionsModule } from "./collections/collections.module";
 import { EmailModule } from "./email/email.module";
 import { HealthModule } from "./health/health.module";
 import { IntegrationsModule } from "./integrations/integrations.module";
@@ -29,6 +31,8 @@ import { UploadModule } from "./upload/upload.module";
     EmailModule,
     AuthModule,
     CategoriesModule,
+    DashboardModule,
+    CollectionsModule,
     HealthModule,
     ProductsModule,
     PaymentModule,

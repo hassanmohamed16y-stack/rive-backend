@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
 import {
   IsBooleanString,
+  IsNumberString,
   IsOptional,
   IsString,
   MaxLength,
@@ -17,6 +18,38 @@ export class ListProductsQueryDto extends PaginationDto {
   @IsString()
   @MaxLength(160)
   category?: string;
+
+  @ApiPropertyOptional({
+    description: "Collection slug to filter by",
+    maxLength: 160,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  collection?: string;
+
+  @ApiPropertyOptional({
+    description: "Maximum price filter (e.g. 200 for Under 200 EGP)",
+  })
+  @IsOptional()
+  @IsNumberString()
+  maxPrice?: string;
+
+  @ApiPropertyOptional({
+    description: "Minimum price filter",
+  })
+  @IsOptional()
+  @IsNumberString()
+  minPrice?: string;
+
+  @ApiPropertyOptional({
+    description: "Filter by discounted items (offers)",
+    type: Boolean,
+  })
+  @IsOptional()
+  @Transform(({ value }) => value)
+  @IsBooleanString()
+  hasDiscount?: string;
 
   @ApiPropertyOptional({
     description: "Filter by featured flag",

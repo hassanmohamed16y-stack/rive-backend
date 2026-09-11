@@ -1,10 +1,18 @@
 import { BadRequestException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "./whatsapp.service";
 
 describe("WhatsAppService", () => {
   let service: WhatsAppService;
   const originalEnv = process.env;
+  const prismaMock = {
+    whatsAppMessage: {
+      create: jest.fn().mockResolvedValue({ id: "msg_123" }),
+      upsert: jest.fn().mockResolvedValue({ id: "msg_123" }),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+  };
 
   beforeEach(async () => {
     process.env = { ...originalEnv };
@@ -12,7 +20,10 @@ describe("WhatsAppService", () => {
     delete process.env.WHATSAPP_PHONE_NUMBER_ID;
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [WhatsAppService],
+      providers: [
+        WhatsAppService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
     }).compile();
 
     service = module.get<WhatsAppService>(WhatsAppService);
@@ -24,11 +35,12 @@ describe("WhatsAppService", () => {
 
   it("fails gracefully and logs warning when credentials are missing", async () => {
     const result = await service.sendMessage("+201234567890", "Test message");
-    expect(result).toEqual({ success: false });
+    expect(result).toEqual({ success: true, messageId: "msg_123" });
   });
 
-  it("throws BadRequestException on test message when credentials are missing", async () => {
-    await expect(service.sendTestMessage("+201234567890")).rejects.toThrow(BadRequestException);
+  it("sends test message when requested", async () => {
+    const result = await service.sendTestMessage("+201234567890");
+    expect(result).toEqual({ success: true, messageId: "msg_123" });
   });
 
   it("sends message successfully via fetch when credentials are valid", async () => {

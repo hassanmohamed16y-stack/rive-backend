@@ -71,6 +71,10 @@ export class ProductsController {
     return this.productsService.findAll(
       {
         category: query.category,
+        collection: query.collection,
+        maxPrice: query.maxPrice,
+        minPrice: query.minPrice,
+        hasDiscount: query.hasDiscount,
         isFeatured: query.isFeatured,
         search: query.search,
       },
