@@ -47,7 +47,7 @@ export class PaymentController {
   @Post("create-checkout-session")
   @ApiOperation({
     summary:
-      "Create or reuse Stripe Checkout Session for an authenticated order owner, admin, or guest access-token holder",
+      "Create or reuse Paymob Checkout Session for an authenticated order owner, admin, or guest access-token holder",
   })
   @ApiResponse({
     status: 200,
@@ -72,7 +72,7 @@ export class PaymentController {
     @Body() dto: CreateCheckoutSessionDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.paymentService.createCheckoutSession(dto.orderId, {
+    return this.paymobService.createCheckoutSession(dto.orderId, {
       userId: req.user?.userId,
       role: req.user?.role,
       guestAccessToken:
@@ -129,11 +129,11 @@ export class PaymentController {
   @ApiBearerAuth()
   @Post("refund")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Process a payment refund via Stripe (Admin only)" })
+  @ApiOperation({ summary: "Process a payment refund via Paymob (Admin only)" })
   @ApiResponse({ status: 200, description: "Refund executed successfully." })
   @ApiResponse({ status: 400, description: "Order not eligible for refund." })
   @ApiResponse({ status: 403, description: "Forbidden - Admin access required." })
   async refundPayment(@Body() dto: RefundPaymentDto) {
-    return this.paymentService.refundTransaction(dto.orderId, dto.amount);
+    return this.paymobService.refundTransaction(dto.orderId, dto.amount);
   }
 }

@@ -29,8 +29,10 @@ export class GoogleSheetsService {
     const { isConfigured, sheetId, credentials } = this.credentials;
 
     if (!isConfigured || !sheetId || !credentials) {
-      this.logger.warn("Google Sheets API credentials missing. Export simulated locally.");
-      return { success: true, rowsExported: rows.length };
+      this.logger.warn("Google Sheets API credentials missing.");
+      throw new BadRequestException(
+        "Google Sheets API credentials are not configured. Please set GOOGLE_SERVICE_ACCOUNT_JSON and GOOGLE_SHEET_ID.",
+      );
     }
 
     try {

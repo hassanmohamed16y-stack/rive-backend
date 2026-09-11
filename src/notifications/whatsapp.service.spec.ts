@@ -38,9 +38,10 @@ describe("WhatsAppService", () => {
     expect(result).toEqual({ success: true, messageId: "msg_123" });
   });
 
-  it("sends test message when requested", async () => {
-    const result = await service.sendTestMessage("+201234567890");
-    expect(result).toEqual({ success: true, messageId: "msg_123" });
+  it("throws BadRequestException when test message is requested without credentials", async () => {
+    await expect(service.sendTestMessage("+201234567890")).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it("sends message successfully via fetch when credentials are valid", async () => {
