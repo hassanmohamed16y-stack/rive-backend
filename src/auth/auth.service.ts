@@ -25,7 +25,8 @@ const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const ACCOUNT_LOCKOUT_THRESHOLD = 5;
 const ACCOUNT_LOCKOUT_MS = 15 * 60 * 1000;
 
-// Pre-computed hash used to keep login response timing consistent when a user is not found.
+// WHY: Running bcrypt comparison against a pre-computed dummy hash when an account does not exist
+// prevents timing side-channel attacks that allow attackers to enumerate valid email addresses.
 const DUMMY_HASH_FOR_TIMING = bcrypt.hashSync(
   "dummy-password-for-timing-safety",
   12,
