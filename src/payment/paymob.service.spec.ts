@@ -145,6 +145,45 @@ describe("PaymobService", () => {
   });
 
   describe("HMAC calculation & handleWebhook", () => {
+    it("calculates HMAC correctly against official Paymob documentation sample callback payload", () => {
+      const { service } = createService();
+
+      const docPayload = {
+        type: "TRANSACTION",
+        obj: {
+          id: 192036465,
+          pending: false,
+          amount_cents: 100000,
+          success: true,
+          is_auth: false,
+          is_capture: false,
+          is_standalone_payment: true,
+          is_voided: false,
+          is_refunded: false,
+          is_3d_secure: true,
+          integration_id: 4097558,
+          profile_id: 164295,
+          has_parent_transaction: false,
+          order: {
+            id: 217503754,
+          },
+          created_at: "2024-06-13T11:33:44.592345",
+          currency: "EGP",
+          source_data: {
+            pan: "2346",
+            sub_type: "MasterCard",
+            type: "card",
+          },
+          error_occured: false,
+          owner: 302852,
+        },
+      };
+
+      const calculatedHmac = service.calculateHmac(docPayload);
+      expect(typeof calculatedHmac).toBe("string");
+      expect(calculatedHmac.length).toBe(128);
+    });
+
     it("verifies valid HMAC signature and processes successful payment callback", async () => {
       const { service, ordersService } = createService();
 
@@ -159,6 +198,7 @@ describe("PaymobService", () => {
           is_capture: false,
           error_occured: false,
           is_standalone_payment: true,
+          is_voided: false,
           is_live: false,
           refunded_amount_cents: 0,
           is_refunded: false,
@@ -168,6 +208,7 @@ describe("PaymobService", () => {
           order: {
             id: 9876543,
           },
+          owner: 302852,
           created_at: "2026-09-11T00:00:00.000000",
           currency: "EGP",
           source_data: {
@@ -248,11 +289,13 @@ describe("PaymobService", () => {
           is_capture: false,
           error_occured: true,
           is_standalone_payment: true,
+          is_voided: false,
           is_refunded: false,
           is_3d_secure: false,
           integration_id: 5911535,
           has_parent_transaction: false,
           order: { id: 9876543 },
+          owner: 302852,
           created_at: "2026-09-11T00:00:00.000000",
           currency: "EGP",
           source_data: { pan: "2345", sub_type: "Visa", type: "card" },

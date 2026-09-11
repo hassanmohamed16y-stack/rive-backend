@@ -279,6 +279,10 @@ export class PaymobService {
       obj?.is_standalone_payment === true
         ? "true"
         : "false";
+    const isVoided =
+      String(obj?.is_voided ?? false) === "true" || obj?.is_voided === true
+        ? "true"
+        : "false";
     const pending =
       String(obj?.pending ?? false) === "true" || obj?.pending === true
         ? "true"
@@ -293,6 +297,8 @@ export class PaymobService {
         ? String(obj.order.id ?? "")
         : String(obj?.order ?? "");
 
+    const owner = String(obj?.owner ?? "");
+
     const concatenated = [
       String(obj?.amount_cents ?? ""),
       String(obj?.created_at ?? ""),
@@ -306,12 +312,14 @@ export class PaymobService {
       isCapture,
       isRefunded,
       isStandalonePayment,
+      isVoided,
+      orderId,
+      owner,
       pending,
       String(obj?.source_data?.pan ?? ""),
       String(obj?.source_data?.sub_type ?? ""),
       String(obj?.source_data?.type ?? ""),
       success,
-      orderId,
     ].join("");
 
     return createHmac("sha512", this.getHmacSecret())
