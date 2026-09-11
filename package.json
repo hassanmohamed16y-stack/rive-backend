@@ -14,7 +14,7 @@
     "save": "bash scripts/auto-save.sh",
     "export:openapi": "ts-node scripts/export-openapi.ts",
     "lint": "eslint . --ext .ts",
-    "test": "jest --runInBand",
+    "test": "node --max-old-space-size=4096 ./node_modules/jest/bin/jest.js --runInBand",
     "test:watch": "jest --watch",
     "typecheck": "tsc --noEmit"
   },
@@ -45,6 +45,7 @@
     "class-validator": "^0.14.4",
     "cloudinary": "^2.11.0",
     "file-type": "^22.0.2",
+    "googleapis": "^180.0.0",
     "helmet": "^7.0.0",
     "multer": "^2.3.0",
     "passport": "^0.7.0",

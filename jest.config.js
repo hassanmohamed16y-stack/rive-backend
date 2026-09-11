@@ -5,4 +5,5 @@ module.exports = {
   testMatch: ['**/*.spec.ts'],
   moduleFileExtensions: ['ts', 'js'],
   clearMocks: true,
+  workerIdleMemoryLimit: '512MB',
 };

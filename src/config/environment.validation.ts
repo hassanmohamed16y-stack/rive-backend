@@ -95,4 +95,12 @@ export function validateEnvironment(environment = process.env) {
   if (!environment.EMAIL_FROM_ADDRESS?.includes("@")) {
     throw new Error("EMAIL_FROM_ADDRESS must be a valid email address");
   }
+
+  if (environment.GOOGLE_SERVICE_ACCOUNT_JSON?.trim()) {
+    try {
+      JSON.parse(environment.GOOGLE_SERVICE_ACCOUNT_JSON);
+    } catch {
+      throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON must be a valid JSON string");
+    }
+  }
 }

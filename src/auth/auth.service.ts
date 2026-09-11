@@ -198,7 +198,18 @@ export class AuthService {
           })
         : user;
 
-    return this.issueTokenPair(authenticatedUser);
+    const tokenPair = await this.issueTokenPair(authenticatedUser);
+
+    const settings = await this.prisma.systemSettings?.findUnique({
+      where: { id: "default" },
+    });
+    const requires2FA =
+      authenticatedUser.role === "ADMIN" && (settings?.enforce2FAGlobally ?? false);
+
+    return {
+      ...tokenPair,
+      requires2FA,
+    };
   }
 
   /**
