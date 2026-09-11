@@ -252,6 +252,9 @@ export class PaymentService {
 
     const orderId = eventData.metadata?.orderId;
     try {
+      // WHY: Recording event ID in ProcessedStripeEvent inside a transaction enforces strict
+      // idempotency. Unique constraint on stripeEventId causes duplicate webhook retries to throw P2002
+      // and safely exit without re-executing order status transitions.
       return await this.prisma.$transaction(async (tx) => {
         await tx.processedStripeEvent.create({
           data: { stripeEventId: event.id, eventType, orderId },

@@ -30,6 +30,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException("Invalid token payload");
     }
 
+    // WHY: Looking up user status on each request guarantees deactivated or deleted accounts
+    // cannot continue accessing protected routes before token expiry.
     const user = await this.authService.validateUser(userId);
     if (!user) {
       this.logger.warn(`Rejected JWT: user ${userId} no longer exists`);

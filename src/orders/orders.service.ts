@@ -147,6 +147,8 @@ export class OrdersService implements OnModuleInit {
         };
       });
 
+      // Atomic stock decrement within transaction: condition `stock >= item.quantity` prevents
+      // race conditions and overselling when multiple concurrent orders target the same variant.
       for (const item of orderItemsData) {
         const updated = await tx.productVariant.updateMany({
           where: {
@@ -380,6 +382,13 @@ export class OrdersService implements OnModuleInit {
     return order;
   }
 
+  /**
+   * Releases an unfulfilled PENDING order reservation, transitioning status to CANCELLED or EXPIRED
+   * and returning reserved item quantities back to available inventory.
+   *
+   * WHY: Using updateMany with status: PENDING ensures idempotent release — if concurrent requests
+   * attempt cancellation, only the first call matches updated.count === 1 and restores inventory.
+   */
   async cancelPendingOrderInTransaction(
     tx: Prisma.TransactionClient,
     orderId: string,
