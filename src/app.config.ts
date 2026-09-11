@@ -30,7 +30,7 @@ export function configureApp(app: INestApplication) {
   );
 
   app.use(
-    "/api/v1/payments/webhook",
+    ["/api/v1/payments/webhook", "/api/v1/payments/paymob-webhook"],
     express.raw({ type: "application/json" }),
   );
   app.use(
@@ -38,7 +38,8 @@ export function configureApp(app: INestApplication) {
       limit: "1mb",
       type: (request) =>
         Boolean(request.headers["content-type"]?.includes("json")) &&
-        !request.url?.startsWith("/api/v1/payments/webhook"),
+        !request.url?.startsWith("/api/v1/payments/webhook") &&
+        !request.url?.startsWith("/api/v1/payments/paymob-webhook"),
     }),
   );
 

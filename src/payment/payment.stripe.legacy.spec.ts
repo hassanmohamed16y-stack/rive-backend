@@ -61,7 +61,7 @@ function verifiedEvent(type: string, paymentStatus = "paid") {
   };
 }
 
-describe("PaymentService Stripe Checkout and webhook security", () => {
+describe("Legacy Stripe PaymentService Checkout and webhook security", () => {
   beforeEach(() => {
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
   });
@@ -77,7 +77,7 @@ describe("PaymentService Stripe Checkout and webhook security", () => {
     (service as any).stripe = { checkout: { sessions: { create } } };
 
     await expect(
-      service.createCheckoutSession("order-1", {
+      service.legacyStripeCreateCheckoutSession("order-1", {
         userId: "user-1",
         role: "CUSTOMER",
       }),
@@ -126,7 +126,7 @@ describe("PaymentService Stripe Checkout and webhook security", () => {
     (service as any).stripe = { checkout: { sessions: { retrieve, create } } };
 
     await expect(
-      service.createCheckoutSession("order-1", {
+      service.legacyStripeCreateCheckoutSession("order-1", {
         userId: "user-1",
         role: "CUSTOMER",
       }),
@@ -154,7 +154,7 @@ describe("PaymentService Stripe Checkout and webhook security", () => {
     };
 
     await expect(
-      service.createCheckoutSession("order-1", {
+      service.legacyStripeCreateCheckoutSession("order-1", {
         userId: "user-1",
         role: "CUSTOMER",
       }),
@@ -168,7 +168,7 @@ describe("PaymentService Stripe Checkout and webhook security", () => {
     const { service, prisma } = createService();
     prisma.order.findUnique.mockResolvedValueOnce(null);
     await expect(
-      service.createCheckoutSession("missing", { userId: "user-1" }),
+      service.legacyStripeCreateCheckoutSession("missing", { userId: "user-1" }),
     ).rejects.toBeInstanceOf(NotFoundException);
 
     (service as any).stripe = {
@@ -179,7 +179,7 @@ describe("PaymentService Stripe Checkout and webhook security", () => {
       },
     };
     await expect(
-      service.handleWebhook(Buffer.from("{}"), "invalid"),
+      service.legacyStripeHandleWebhook(Buffer.from("{}"), "invalid"),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -195,7 +195,7 @@ describe("PaymentService Stripe Checkout and webhook security", () => {
     );
 
     await expect(
-      service.handleWebhook(Buffer.from(payload), signature),
+      service.legacyStripeHandleWebhook(Buffer.from(payload), signature),
     ).resolves.toMatchObject({ status: OrderStatus.PAID });
     expect(ordersService.markPaidInTransaction).toHaveBeenCalledTimes(1);
   });
@@ -211,7 +211,7 @@ describe("PaymentService Stripe Checkout and webhook security", () => {
     };
 
     await expect(
-      service.handleWebhook(Buffer.from("{}"), "valid"),
+      service.legacyStripeHandleWebhook(Buffer.from("{}"), "valid"),
     ).resolves.toMatchObject({ status: OrderStatus.PAID });
     expect(transactionClient.processedStripeEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -237,7 +237,7 @@ describe("PaymentService Stripe Checkout and webhook security", () => {
     };
 
     await expect(
-      service.handleWebhook(Buffer.from("{}"), "valid"),
+      service.legacyStripeHandleWebhook(Buffer.from("{}"), "valid"),
     ).resolves.toMatchObject({ message: "Checkout session is not paid." });
     expect(ordersService.markPaidInTransaction).not.toHaveBeenCalled();
   });
@@ -256,7 +256,7 @@ describe("PaymentService Stripe Checkout and webhook security", () => {
     };
 
     await expect(
-      service.handleWebhook(Buffer.from("{}"), "valid"),
+      service.legacyStripeHandleWebhook(Buffer.from("{}"), "valid"),
     ).rejects.toThrow("does not match");
     expect(ordersService.markPaidInTransaction).not.toHaveBeenCalled();
   });
@@ -273,7 +273,7 @@ describe("PaymentService Stripe Checkout and webhook security", () => {
     };
 
     await expect(
-      service.handleWebhook(Buffer.from("{}"), "valid"),
+      service.legacyStripeHandleWebhook(Buffer.from("{}"), "valid"),
     ).resolves.toMatchObject({ status: OrderStatus.CANCELLED });
     expect(ordersService.cancelPendingOrderInTransaction).toHaveBeenCalledTimes(
       1,
@@ -299,8 +299,8 @@ describe("PaymentService Stripe Checkout and webhook security", () => {
     };
 
     const results = await Promise.all([
-      service.handleWebhook(Buffer.from("{}"), "valid"),
-      service.handleWebhook(Buffer.from("{}"), "valid"),
+      service.legacyStripeHandleWebhook(Buffer.from("{}"), "valid"),
+      service.legacyStripeHandleWebhook(Buffer.from("{}"), "valid"),
     ]);
     expect(
       results.filter(

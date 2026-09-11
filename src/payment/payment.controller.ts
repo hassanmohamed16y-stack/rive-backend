@@ -4,6 +4,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -17,15 +18,19 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { Request } from "express";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
+import { Roles } from "../auth/roles.decorator";
+import { RolesGuard } from "../auth/roles.guard";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { CreateCheckoutSessionDto } from "./dto/create-checkout-session.dto";
-import { PaymentService } from "./payment.service";
+import { RefundPaymentDto } from "./dto/refund-payment.dto";
+import { PaymobService } from "./paymob.service";
 
 @ApiTags("payments")
 @Controller("api/v1/payments")
 export class PaymentController {
-  constructor(private readonly paymentService: PaymentService) {}
+  constructor(private readonly paymobService: PaymobService) {}
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(OptionalJwtAuthGuard)
@@ -38,7 +43,7 @@ export class PaymentController {
   @Post("create-checkout-session")
   @ApiOperation({
     summary:
-      "Create or reuse Checkout for an authenticated order owner, admin, or guest access-token holder",
+      "Create or reuse Paymob Intention for an authenticated order owner, admin, or guest access-token holder",
   })
   @ApiResponse({
     status: 200,
@@ -63,7 +68,7 @@ export class PaymentController {
     @Body() dto: CreateCheckoutSessionDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.paymentService.createCheckoutSession(dto.orderId, {
+    return this.paymobService.createCheckoutSession(dto.orderId, {
       userId: req.user?.userId,
       role: req.user?.role,
       guestAccessToken:
@@ -74,19 +79,47 @@ export class PaymentController {
   }
 
   @SkipThrottle()
+  @Post("paymob-webhook")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Handle incoming Paymob payment callbacks/webhooks" })
+  @ApiResponse({ status: 200, description: "Paymob webhook received and processed." })
+  @ApiResponse({ status: 400, description: "Invalid webhook payload or signature." })
+  async handlePaymobWebhook(
+    @Req() req: Request,
+    @Query("hmac") queryHmac?: string,
+  ) {
+    const rawOrBody = req.body;
+    return this.paymobService.handleWebhook(rawOrBody, queryHmac);
+  }
+
+  @SkipThrottle()
   @Post("webhook")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Handle raw payment provider webhook events" })
+  @ApiOperation({ summary: "Handle payment provider webhook events (Paymob)" })
   @ApiResponse({ status: 200, description: "Webhook received and processed." })
   @ApiResponse({ status: 400, description: "Invalid webhook payload." })
-  async handleWebhook(@Req() req: Request) {
-    const signature = req.headers["stripe-signature"] as string | undefined;
-    // req.body is a Buffer (not parsed JSON) only because this route is registered with
-    // express.raw() ahead of the global body parser — see app.config.ts's raw-body
-    // middleware registration, which is scoped specifically to this webhook path so Stripe's
-    // signature verification can run against the exact bytes received. If that middleware
-    // registration ever changes, this cast would silently start receiving a parsed object here.
-    const rawBody = req.body as Buffer;
-    return this.paymentService.handleWebhook(rawBody, signature);
+  async handleWebhook(
+    @Req() req: Request,
+    @Query("hmac") queryHmac?: string,
+  ) {
+    const rawOrBody = req.body;
+    const stripeSig = req.headers["stripe-signature"] as string | undefined;
+    return this.paymobService.handleWebhook(
+      rawOrBody,
+      queryHmac || stripeSig,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN")
+  @ApiBearerAuth()
+  @Post("refund")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Process a payment refund via Paymob (Admin only)" })
+  @ApiResponse({ status: 200, description: "Refund executed successfully." })
+  @ApiResponse({ status: 400, description: "Order not eligible for refund." })
+  @ApiResponse({ status: 403, description: "Forbidden - Admin access required." })
+  async refundPayment(@Body() dto: RefundPaymentDto) {
+    return this.paymobService.refundTransaction(dto.orderId, dto.amount);
   }
 }
