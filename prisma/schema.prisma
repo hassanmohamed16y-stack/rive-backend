@@ -154,6 +154,8 @@ model Order {
   notes                String?
   reservationExpiresAt DateTime?
   paymentSessionId     String?     @unique
+  paymobIntentionId    String?     @unique
+  paymobTransactionId  String?     @unique
   updatedById          String?
   updatedBy            User?       @relation("OrderUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt            DateTime    @default(now())
@@ -187,6 +189,18 @@ model ProcessedStripeEvent {
   orderId       String?
   createdAt     DateTime @default(now())
   processedAt   DateTime @default(now())
+
+  @@index([orderId])
+  @@index([eventType, processedAt])
+}
+
+model ProcessedPaymobEvent {
+  id                  String   @id @default(cuid())
+  paymobTransactionId String   @unique
+  eventType           String
+  orderId             String?
+  createdAt           DateTime @default(now())
+  processedAt         DateTime @default(now())
 
   @@index([orderId])
   @@index([eventType, processedAt])

@@ -361,6 +361,9 @@
           },
           "403": {
             "description": "Forbidden. ADMIN role required."
+          },
+          "409": {
+            "description": "A category with this name or slug already exists."
           }
         },
         "security": [
@@ -403,6 +406,9 @@
           },
           "404": {
             "description": "Category not found."
+          },
+          "409": {
+            "description": "A category with this name or slug already exists."
           }
         },
         "security": [
@@ -581,6 +587,12 @@
           },
           "403": {
             "description": "Forbidden. ADMIN role required."
+          },
+          "404": {
+            "description": "Category not found."
+          },
+          "409": {
+            "description": "A product with this slug or a variant with this SKU already exists."
           }
         },
         "security": [
@@ -647,6 +659,12 @@
         "responses": {
           "200": {
             "description": "Product updated successfully."
+          },
+          "404": {
+            "description": "Product not found."
+          },
+          "409": {
+            "description": "A product with this slug already exists."
           }
         },
         "security": [
@@ -674,6 +692,9 @@
         "responses": {
           "200": {
             "description": "Product archived successfully."
+          },
+          "404": {
+            "description": "Product not found."
           }
         },
         "security": [
@@ -1045,11 +1066,8 @@
           "200": {
             "description": "Order details retrieved successfully"
           },
-          "403": {
-            "description": "Access denied: not order owner or admin"
-          },
           "404": {
-            "description": "Order not found"
+            "description": "Order not found, or the requester is not its owner/admin/guest-token holder"
           }
         },
         "security": [
@@ -1089,11 +1107,8 @@
           "200": {
             "description": "Order cancelled successfully"
           },
-          "403": {
-            "description": "Access denied: not order owner or admin"
-          },
           "404": {
-            "description": "Order not found"
+            "description": "Order not found, or the requester is not its owner/admin/guest-token holder"
           },
           "409": {
             "description": "Only pending orders can be cancelled"
@@ -1365,7 +1380,34 @@
             "bearer": []
           }
         ],
-        "summary": "Create or reuse Checkout for an authenticated order owner, admin, or guest access-token holder",
+        "summary": "Create or reuse Paymob Intention for an authenticated order owner, admin, or guest access-token holder",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments/paymob-webhook": {
+      "post": {
+        "operationId": "PaymentController_handlePaymobWebhook",
+        "parameters": [
+          {
+            "name": "hmac",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paymob webhook received and processed."
+          },
+          "400": {
+            "description": "Invalid webhook payload or signature."
+          }
+        },
+        "summary": "Handle incoming Paymob payment callbacks/webhooks",
         "tags": [
           "payments"
         ]
@@ -1374,7 +1416,16 @@
     "/api/v1/payments/webhook": {
       "post": {
         "operationId": "PaymentController_handleWebhook",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "hmac",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Webhook received and processed."
@@ -1383,7 +1434,43 @@
             "description": "Invalid webhook payload."
           }
         },
-        "summary": "Handle raw payment provider webhook events",
+        "summary": "Handle payment provider webhook events (Paymob)",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments/refund": {
+      "post": {
+        "operationId": "PaymentController_refundPayment",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundPaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Refund executed successfully."
+          },
+          "400": {
+            "description": "Order not eligible for refund."
+          },
+          "403": {
+            "description": "Forbidden - Admin access required."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Process a payment refund via Paymob (Admin only)",
         "tags": [
           "payments"
         ]
@@ -1963,6 +2050,26 @@
         },
         "required": [
           "status"
+        ]
+      },
+      "RefundPaymentDto": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "example": "cm123abc456def",
+            "description": "The unique order ID to refund",
+            "minLength": 10,
+            "maxLength": 128
+          },
+          "amount": {
+            "type": "number",
+            "example": 120,
+            "description": "Optional partial amount to refund. If omitted, full order amount is refunded."
+          }
+        },
+        "required": [
+          "orderId"
         ]
       }
     }

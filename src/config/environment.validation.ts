@@ -4,8 +4,9 @@ const productionRequiredVariables = [
   "DATABASE_URL",
   "JWT_SECRET",
   "JWT_EXPIRATION",
-  "STRIPE_SECRET_KEY",
-  "STRIPE_WEBHOOK_SECRET",
+  "PAYMOB_API_KEY",
+  "PAYMOB_HMAC_SECRET",
+  "PAYMOB_INTEGRATION_ID_CARD",
   "FRONTEND_URL",
   "ADMIN_FRONTEND_URL",
   "CLOUDINARY_CLOUD_NAME",
@@ -80,9 +81,13 @@ export function validateEnvironment(environment = process.env) {
     }
   }
 
+  if (!/^\d+$/.test(environment.PAYMOB_INTEGRATION_ID_CARD ?? "")) {
+    throw new Error("PAYMOB_INTEGRATION_ID_CARD must be a numeric ID");
+  }
+
   if (
-    !environment.STRIPE_SECRET_KEY?.startsWith("sk_") ||
-    !environment.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_")
+    environment.STRIPE_SECRET_KEY &&
+    !environment.STRIPE_SECRET_KEY.startsWith("sk_")
   ) {
     throw new Error("Stripe credentials have an invalid format");
   }
