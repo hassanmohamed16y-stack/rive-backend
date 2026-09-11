@@ -14,7 +14,7 @@
     "save": "bash scripts/auto-save.sh",
     "export:openapi": "ts-node scripts/export-openapi.ts",
     "lint": "eslint . --ext .ts",
-    "test": "jest --runInBand",
+    "test": "node --max-old-space-size=4096 ./node_modules/jest/bin/jest.js --runInBand",
     "test:watch": "jest --watch",
     "typecheck": "tsc --noEmit"
   },
