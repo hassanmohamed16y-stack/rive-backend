@@ -34,7 +34,8 @@ describe("Admin management controllers", () => {
         .fn()
         .mockResolvedValue({ id: "order-1", status: OrderStatus.SHIPPED }),
     };
-    const controller = new AdminOrdersController(ordersService as any);
+    const paymobService = { refundTransaction: jest.fn() };
+    const controller = new AdminOrdersController(ordersService as any, paymobService as any);
 
     await expect(controller.findOne("order-1")).resolves.toMatchObject({
       status: OrderStatus.PENDING,

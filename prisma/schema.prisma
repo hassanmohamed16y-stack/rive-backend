@@ -232,3 +232,11 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
 }
+
+model SystemSettings {
+  id                 String   @id @default("default")
+  maintenanceMode    Boolean  @default(false)
+  enforce2FAGlobally Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}

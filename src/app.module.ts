@@ -6,10 +6,14 @@ import { AuthModule } from "./auth/auth.module";
 import { CategoriesModule } from "./categories/categories.module";
 import { EmailModule } from "./email/email.module";
 import { HealthModule } from "./health/health.module";
+import { IntegrationsModule } from "./integrations/integrations.module";
+import { NotificationsModule } from "./notifications/notifications.module";
 import { OrdersModule } from "./orders/orders.module";
 import { PaymentModule } from "./payment/payment.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ProductsModule } from "./products/products.module";
+import { MaintenanceGuard } from "./settings/maintenance.guard";
+import { SettingsModule } from "./settings/settings.module";
 import { UploadModule } from "./upload/upload.module";
 
 @Module({
@@ -27,14 +31,21 @@ import { UploadModule } from "./upload/upload.module";
     CategoriesModule,
     HealthModule,
     ProductsModule,
+    PaymentModule,
     OrdersModule,
     UploadModule,
-    PaymentModule,
+    SettingsModule,
+    NotificationsModule,
+    IntegrationsModule,
   ],
   providers: [
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: MaintenanceGuard,
     },
   ],
 })

@@ -2,10 +2,12 @@ import {
   BadRequestException,
   ForbiddenException,
   HttpException,
+  Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
   NotFoundException,
+  forwardRef,
 } from "@nestjs/common";
 import { OrderStatus } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -22,6 +24,7 @@ export class PaymobService {
 
   constructor(
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => OrdersService))
     private readonly ordersService: OrdersService,
   ) {}
 
