@@ -6,6 +6,7 @@ import { RegisterDto } from "../auth/dto/register.dto";
 import { RolesGuard } from "../auth/roles.guard";
 import { OrdersController } from "../orders/orders.controller";
 import { PaymentService } from "../payment/payment.service";
+import { PaymobService } from "../payment/paymob.service";
 import { CreateOrderDto } from "../orders/dto/create-order.dto";
 import { CreateProductDto } from "../products/dto/create-product.dto";
 import { CreateCheckoutSessionDto } from "../payment/dto/create-checkout-session.dto";
@@ -345,7 +346,7 @@ describe("Backend security regression tests", () => {
         },
       };
 
-      const service = new PaymentService(
+      const service = new PaymobService(
         prisma as any,
         { expireOrder: jest.fn() } as any,
       );
@@ -383,7 +384,7 @@ describe("Backend security regression tests", () => {
         },
       };
 
-      const service = new PaymentService(
+      const service = new PaymobService(
         prisma as any,
         { expireOrder: jest.fn() } as any,
       );
@@ -429,7 +430,7 @@ describe("Backend security regression tests", () => {
         },
       };
 
-      const service = new PaymentService(
+      const service = new PaymobService(
         prisma as any,
         { expireOrder: jest.fn() } as any,
       );
@@ -463,7 +464,7 @@ describe("Backend security regression tests", () => {
         },
       };
 
-      const service = new PaymentService(
+      const service = new PaymobService(
         prisma as any,
         { expireOrder: jest.fn() } as any,
       );
