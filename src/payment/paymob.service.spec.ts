@@ -320,7 +320,7 @@ describe("PaymobService", () => {
   });
 
   describe("refundTransaction", () => {
-    it("executes refund successfully via Paymob Refund API", async () => {
+    it("executes refund successfully via Paymob Refund API and updates order status to REFUNDED", async () => {
       const { service, prisma } = createService();
       prisma.order.findUnique.mockResolvedValueOnce(paidOrder as any);
 
@@ -347,6 +347,27 @@ describe("PaymobService", () => {
           }),
         }),
       );
+
+      expect(prisma.order.update).toHaveBeenCalledWith({
+        where: { id: "order-1" },
+        data: {
+          status: OrderStatus.REFUNDED,
+          paymentStatus: "REFUNDED",
+        },
+      });
+    });
+
+    it("rejects duplicate refund when order is already refunded", async () => {
+      const { service, prisma } = createService();
+      const refundedOrder = {
+        ...paidOrder,
+        status: OrderStatus.REFUNDED,
+      };
+      prisma.order.findUnique.mockResolvedValueOnce(refundedOrder as any);
+
+      await expect(
+        service.refundTransaction("order-1", 120.0),
+      ).rejects.toThrow("Order has already been refunded");
     });
 
     it("throws BadRequestException if order is not paid", async () => {

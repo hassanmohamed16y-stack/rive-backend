@@ -9,7 +9,7 @@ import {
   NotFoundException,
   forwardRef,
 } from "@nestjs/common";
-import { OrderStatus } from "@prisma/client";
+import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { createHmac } from "crypto";
 import { isOrderOwnedByActor } from "../common/utils/order-ownership";
@@ -466,6 +466,13 @@ export class PaymobService {
       throw new NotFoundException("Order not found");
     }
 
+    if (
+      order.status === OrderStatus.REFUNDED ||
+      order.paymentStatus === PaymentStatus.REFUNDED
+    ) {
+      throw new BadRequestException("Order has already been refunded");
+    }
+
     if (order.status !== OrderStatus.PAID) {
       throw new BadRequestException("Only paid orders can be refunded");
     }
@@ -505,6 +512,15 @@ export class PaymobService {
       }
 
       const resData = await response.json();
+
+      await this.prisma.order.update({
+        where: { id: order.id },
+        data: {
+          status: OrderStatus.REFUNDED,
+          paymentStatus: PaymentStatus.REFUNDED,
+        },
+      });
+
       return {
         success: true,
         orderId: order.id,
