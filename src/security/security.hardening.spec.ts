@@ -5,7 +5,6 @@ import { JwtStrategy } from "../auth/jwt.strategy";
 import { RegisterDto } from "../auth/dto/register.dto";
 import { RolesGuard } from "../auth/roles.guard";
 import { OrdersController } from "../orders/orders.controller";
-import { PaymentService } from "../payment/payment.service";
 import { PaymobService } from "../payment/paymob.service";
 import { CreateOrderDto } from "../orders/dto/create-order.dto";
 import { CreateProductDto } from "../products/dto/create-product.dto";
