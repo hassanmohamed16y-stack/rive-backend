@@ -4,6 +4,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUrl,
   MaxLength,
 } from "class-validator";
 
@@ -26,6 +27,10 @@ export class CreateCollectionDto {
   description?: string;
 
   @ApiProperty({ example: "https://example.com/collection.jpg", required: false })
+  @IsUrl(
+    { require_protocol: true, protocols: ["http", "https"] },
+    { message: "imageUrl must be a valid HTTP or HTTPS URL" },
+  )
   @IsString()
   @IsOptional()
   imageUrl?: string;

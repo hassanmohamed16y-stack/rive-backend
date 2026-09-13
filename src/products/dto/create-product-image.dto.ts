@@ -4,6 +4,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUrl,
   MaxLength,
 } from "class-validator";
 
@@ -12,6 +13,10 @@ export class CreateProductImageDto {
     example: "https://images.example.com/product-1.png",
     maxLength: 2048,
   })
+  @IsUrl(
+    { require_protocol: true, protocols: ["http", "https"] },
+    { message: "url must be a valid HTTP or HTTPS URL" },
+  )
   @IsString()
   @IsNotEmpty()
   @MaxLength(2048, { message: "Image URL must be 2048 characters or less" })
