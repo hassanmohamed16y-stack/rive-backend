@@ -1,6 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { Size } from "@prisma/client";
+import { validate } from "class-validator";
+import { plainToInstance } from "class-transformer";
 import { CreateProductDto } from "./dto/create-product.dto";
+import { CreateProductImageDto } from "./dto/create-product-image.dto";
 import { ListProductsQueryDto } from "./dto/list-products-query.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { ProductsController } from "./products.controller";
@@ -71,6 +74,27 @@ describe("ProductsController", () => {
 
       expect(productsService.findOneBySlug).toHaveBeenCalledWith("silk-scarf");
       expect(res).toBe(mockProduct);
+    });
+  });
+
+  describe("DTO validation for image URLs", () => {
+    it("rejects invalid or unsafe protocols like javascript: in CreateProductImageDto", async () => {
+      const dto = plainToInstance(CreateProductImageDto, {
+        url: "javascript:alert(1)",
+        altText: "Malicious payload",
+      });
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0].property).toBe("url");
+    });
+
+    it("accepts valid http and https image URLs in CreateProductImageDto", async () => {
+      const dto = plainToInstance(CreateProductImageDto, {
+        url: "https://images.example.com/item.png",
+        altText: "Valid image",
+      });
+      const errors = await validate(dto);
+      expect(errors.length).toBe(0);
     });
   });
 

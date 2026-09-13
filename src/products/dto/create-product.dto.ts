@@ -11,6 +11,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUrl,
   Length,
   Matches,
   MaxLength,
@@ -23,6 +24,10 @@ class ProductImageDto {
     example: "https://images.example.com/product-1.png",
     maxLength: 2048,
   })
+  @IsUrl(
+    { require_protocol: true, protocols: ["http", "https"] },
+    { message: "url must be a valid HTTP or HTTPS URL" },
+  )
   @IsString()
   @IsNotEmpty()
   @MaxLength(2048, { message: "Image URL must be 2048 characters or less" })
