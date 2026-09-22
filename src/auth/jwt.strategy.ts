@@ -34,15 +34,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // cannot continue accessing protected routes before token expiry.
     const user = await this.authService.validateUser(userId);
     if (!user) {
-      this.logger.warn(`Rejected JWT: user ${userId} no longer exists`);
-      throw new UnauthorizedException("User no longer exists");
+      this.logger.warn(`Rejected JWT: user ${userId} no longer exists or is inactive`);
+      throw new UnauthorizedException("User no longer exists or is inactive");
     }
 
-    return {
-      id: user.id,
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    };
+    return user;
   }
 }

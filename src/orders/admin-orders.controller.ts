@@ -24,6 +24,8 @@ import { OrderStatus } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
+import { PermissionsGuard } from "../auth/permissions.guard";
+import { RequirePermission } from "../auth/permissions.decorator";
 import { PaginationDto } from "../common/dto/pagination.dto";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { PaymobService } from "../payment/paymob.service";
@@ -33,7 +35,7 @@ import { OrdersService } from "./orders.service";
 
 @ApiTags("admin orders")
 @Controller(["api/admin/orders", "api/v1/admin/orders"])
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")
 @ApiBearerAuth()
 export class AdminOrdersController {
@@ -44,6 +46,7 @@ export class AdminOrdersController {
   ) {}
 
   @Get()
+  @RequirePermission("orders.view")
   @ApiOperation({
     summary: "List all orders with status filtering and pagination (Admin)",
   })
@@ -66,6 +69,7 @@ export class AdminOrdersController {
   }
 
   @Get(":id")
+  @RequirePermission("orders.view")
   @ApiOperation({ summary: "Get an order by id with full detail (Admin)" })
   @ApiResponse({ status: 200, description: "Order returned successfully." })
   @ApiResponse({ status: 404, description: "Order not found." })
@@ -74,6 +78,7 @@ export class AdminOrdersController {
   }
 
   @Patch(":id/status")
+  @RequirePermission("orders.update_status")
   @ApiOperation({ summary: "Transition an order to a valid status (Admin)" })
   @ApiResponse({ status: 200, description: "Order status updated." })
   @ApiResponse({ status: 409, description: "Invalid order status transition." })
@@ -86,6 +91,7 @@ export class AdminOrdersController {
   }
 
   @Post(":id/refund")
+  @RequirePermission("orders.refund")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Process a payment refund for an order via Paymob Refund API (Admin)",

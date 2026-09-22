@@ -510,14 +510,14 @@ describe("Backend security regression tests", () => {
       } as any;
       const strategy = new JwtStrategy(authService);
 
-      const result = await strategy.validate({
+      const result: any = await strategy.validate({
         userId: "user-1",
         email: "aisha@example.com",
         role: "CUSTOMER",
       });
 
       expect(result).toMatchObject({
-        userId: "user-1",
+        id: "user-1",
         email: "aisha@example.com",
         role: "CUSTOMER",
       });
@@ -533,13 +533,13 @@ describe("Backend security regression tests", () => {
       } as any;
       const strategy = new JwtStrategy(authService);
 
-      const result = await strategy.validate({
+      const result: any = await strategy.validate({
         sub: "user-1",
         email: "aisha@example.com",
         role: "CUSTOMER",
       });
 
-      expect(result.userId).toBe("user-1");
+      expect(result.id).toBe("user-1");
     });
   });
 });
