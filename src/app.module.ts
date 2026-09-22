@@ -16,6 +16,7 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { ProductsModule } from "./products/products.module";
 import { MaintenanceGuard } from "./settings/maintenance.guard";
 import { SettingsModule } from "./settings/settings.module";
+import { AutomationModule } from "./automation/automation.module";
 import { SystemListsModule } from "./system-lists/system-lists.module";
 import { UploadModule } from "./upload/upload.module";
 
@@ -31,6 +32,7 @@ import { UploadModule } from "./upload/upload.module";
     AuditLogModule,
     EmailModule,
     AuthModule,
+    AutomationModule,
     CategoriesModule,
     DashboardModule,
     CollectionsModule,

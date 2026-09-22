@@ -49,6 +49,24 @@ enum Size {
   XL
 }
 
+enum WorkflowTrustLevel {
+  suggestion_only
+  requires_approval
+  auto_execute
+}
+
+enum AutomationRunStatus {
+  success
+  failed
+  running
+}
+
+enum PendingApprovalStatus {
+  pending
+  approved
+  rejected
+}
+
 model User {
   id                         String             @id @default(cuid())
   fullName                   String
@@ -77,6 +95,7 @@ model User {
   refreshTokens              RefreshToken[]
   auditLogs                  AuditLog[]
   metaConversations          MetaConversation[]
+  resolvedPendingApprovals   PendingApproval[]  @relation("PendingApprovalResolvedBy")
 
   @@index([roleId])
 }
@@ -388,4 +407,47 @@ model ListItem {
   @@unique([listTypeId, key])
   @@index([listTypeId])
   @@index([isActive])
+}
+
+model Workflow {
+  id               String              @id @default(cuid())
+  name             String
+  description      String?
+  n8nWorkflowId    String?
+  isActive         Boolean             @default(true)
+  trustLevel       WorkflowTrustLevel  @default(requires_approval)
+  lastRunAt        DateTime?
+  lastRunStatus    AutomationRunStatus?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  runs             AutomationRun[]
+  pendingApprovals PendingApproval[]
+}
+
+model AutomationRun {
+  id         String              @id @default(cuid())
+  workflowId String
+  workflow   Workflow            @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  status     AutomationRunStatus
+  startedAt  DateTime            @default(now())
+  finishedAt DateTime?
+  details    String?
+  createdAt  DateTime            @default(now())
+
+  @@index([workflowId])
+}
+
+model PendingApproval {
+  id                String                @id @default(cuid())
+  workflowId        String
+  workflow          Workflow              @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  actionDescription String
+  status            PendingApprovalStatus @default(pending)
+  createdAt         DateTime              @default(now())
+  resolvedAt        DateTime?
+  resolvedByUserId  String?
+  resolvedByUser    User?                 @relation("PendingApprovalResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([workflowId])
+  @@index([status])
 }
