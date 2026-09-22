@@ -16,6 +16,7 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { ProductsModule } from "./products/products.module";
 import { MaintenanceGuard } from "./settings/maintenance.guard";
 import { SettingsModule } from "./settings/settings.module";
+import { SystemListsModule } from "./system-lists/system-lists.module";
 import { UploadModule } from "./upload/upload.module";
 
 @Module({
@@ -41,6 +42,7 @@ import { UploadModule } from "./upload/upload.module";
     SettingsModule,
     NotificationsModule,
     IntegrationsModule,
+    SystemListsModule,
   ],
   providers: [
     {

@@ -364,3 +364,28 @@ model SystemSettings {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
+
+model ListType {
+  id        String     @id @default(cuid())
+  key       String     @unique
+  label     String
+  createdAt DateTime   @default(now())
+  items     ListItem[]
+}
+
+model ListItem {
+  id         String   @id @default(cuid())
+  listTypeId String
+  listType   ListType @relation(fields: [listTypeId], references: [id], onDelete: Cascade)
+  key        String
+  labelAr    String
+  labelEn    String?
+  sortOrder  Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([listTypeId, key])
+  @@index([listTypeId])
+  @@index([isActive])
+}

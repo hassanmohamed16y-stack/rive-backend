@@ -13,6 +13,7 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
     { key: "products.edit", label: "تعديل المنتجات" },
     { key: "settings.manage", label: "إدارة الإعدادات" },
     { key: "users.manage", label: "إدارة المستخدمين" },
+    { key: "lists.manage", label: "إدارة القوائم" },
   ];
 
   const permissionMap = new Map<string, string>();
@@ -131,6 +132,66 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
         role: UserRole.CUSTOMER,
       },
     });
+  }
+
+  // Seed System Lists (ListType and ListItems)
+  const listTypesData = [
+    {
+      key: "product_category",
+      label: "أقسام المنتجات",
+      items: [
+        { key: "lingerie", labelAr: "ملابس داخلية", labelEn: "Lingerie", sortOrder: 1 },
+        { key: "homewear", labelAr: "ملابس منزلية", labelEn: "Homewear", sortOrder: 2 },
+        { key: "collections", labelAr: "تشكيلات", labelEn: "Collections", sortOrder: 3 },
+        { key: "new_arrivals", labelAr: "وصل حديثاً", labelEn: "New Arrivals", sortOrder: 4 },
+        { key: "special_offers", labelAr: "العروض الخاصة", labelEn: "Special Offers", sortOrder: 5 },
+        { key: "under_egp_200", labelAr: "تحت 200 ج.م", labelEn: "Under EGP 200", sortOrder: 6 },
+        { key: "clothing", labelAr: "ملابس", labelEn: "Clothing", sortOrder: 7 },
+        { key: "shoes", labelAr: "أحذية", labelEn: "Shoes", sortOrder: 8 },
+        { key: "accessories", labelAr: "إكسسوارات", labelEn: "Accessories", sortOrder: 9 },
+      ],
+    },
+    {
+      key: "product_tag",
+      label: "وسوم المنتجات",
+      items: [
+        { key: "featured", labelAr: "المميزة", labelEn: "Featured", sortOrder: 1 },
+        { key: "new_arrivals", labelAr: "وصل حديثاً", labelEn: "New Arrivals", sortOrder: 2 },
+        { key: "lingerie", labelAr: "لانجري", labelEn: "Lingerie", sortOrder: 3 },
+        { key: "offers", labelAr: "العروض", labelEn: "Offers", sortOrder: 4 },
+      ],
+    },
+  ];
+
+  for (const listTypeDef of listTypesData) {
+    const listType = await prisma.listType.upsert({
+      where: { key: listTypeDef.key },
+      update: { label: listTypeDef.label },
+      create: { key: listTypeDef.key, label: listTypeDef.label },
+    });
+
+    for (const itemDef of listTypeDef.items) {
+      await prisma.listItem.upsert({
+        where: {
+          listTypeId_key: {
+            listTypeId: listType.id,
+            key: itemDef.key,
+          },
+        },
+        update: {
+          labelAr: itemDef.labelAr,
+          labelEn: itemDef.labelEn,
+          sortOrder: itemDef.sortOrder,
+        },
+        create: {
+          listTypeId: listType.id,
+          key: itemDef.key,
+          labelAr: itemDef.labelAr,
+          labelEn: itemDef.labelEn,
+          sortOrder: itemDef.sortOrder,
+        },
+      });
+    }
   }
 
   const categories = [
@@ -616,5 +677,32 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
     }
 
     console.log(`Seeded product: ${upsertedProduct.name}`);
+  }
+
+  // Sync Category table records to ListItem entries under product_category so no category data is lost
+  const existingCategoryRows = await prisma.category.findMany();
+  const productCategoryType = await prisma.listType.findUnique({
+    where: { key: "product_category" },
+  });
+  if (productCategoryType) {
+    for (const cat of existingCategoryRows) {
+      const itemKey = cat.slug.replace(/-/g, "_");
+      await prisma.listItem.upsert({
+        where: {
+          listTypeId_key: {
+            listTypeId: productCategoryType.id,
+            key: itemKey,
+          },
+        },
+        update: {},
+        create: {
+          listTypeId: productCategoryType.id,
+          key: itemKey,
+          labelAr: cat.name,
+          labelEn: cat.name,
+          sortOrder: 0,
+        },
+      });
+    }
   }
 }
