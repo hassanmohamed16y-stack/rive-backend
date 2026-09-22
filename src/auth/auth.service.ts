@@ -80,13 +80,15 @@ export class AuthService {
     return safeUser;
   }
 
-  private signAccessToken(user: User) {
+  private signAccessToken(user: User & { roleRecord?: { name: string } | null }) {
     return this.jwtService.sign({
       sub: user.id,
       userId: user.id,
       id: user.id,
       email: user.email,
       role: user.role,
+      roleId: user.roleId,
+      roleName: user.roleRecord?.name,
     });
   }
 
@@ -563,13 +565,32 @@ export class AuthService {
   async validateUser(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      include: {
+        roleRecord: {
+          include: {
+            permissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        },
+      },
     });
 
-    if (!user) {
+    if (!user || !user.isActive) {
       return null;
     }
 
-    return this.sanitizeUser(user);
+    const permissions =
+      user.roleRecord?.permissions.map((rp) => rp.permission.key) ?? [];
+
+    const safe = this.sanitizeUser(user);
+    return {
+      ...safe,
+      roleName: user.roleRecord?.name,
+      permissions,
+    };
   }
 
   async me(userId: string) {

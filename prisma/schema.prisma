@@ -55,6 +55,10 @@ model User {
   email                      String             @unique
   passwordHash               String
   role                       UserRole           @default(CUSTOMER)
+  roleId                     String?
+  roleRecord                 Role?              @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  isActive                   Boolean            @default(true)
+  lastLoginAt                DateTime?
   emailVerifiedAt            DateTime?
   emailVerificationToken     String?            @unique
   emailVerificationExpiresAt DateTime?
@@ -73,6 +77,34 @@ model User {
   refreshTokens              RefreshToken[]
   auditLogs                  AuditLog[]
   metaConversations          MetaConversation[]
+
+  @@index([roleId])
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  label       String
+  createdAt   DateTime         @default(now())
+  users       User[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  label       String
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
 }
 
 model Category {

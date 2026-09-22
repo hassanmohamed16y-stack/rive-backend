@@ -23,6 +23,8 @@ import { ProductStatus } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
+import { PermissionsGuard } from "../auth/permissions.guard";
+import { RequirePermission } from "../auth/permissions.decorator";
 import { PaginationDto } from "../common/dto/pagination.dto";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { CreateProductImageDto } from "./dto/create-product-image.dto";
@@ -32,13 +34,14 @@ import { ProductsService } from "./products.service";
 
 @ApiTags("admin products")
 @Controller("api/v1/admin/products")
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")
 @ApiBearerAuth()
 export class AdminProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get()
+  @RequirePermission("products.view")
   @ApiOperation({ summary: "List products in every status (Admin)" })
   @ApiQuery({ name: "status", required: false, enum: ProductStatus })
   @ApiResponse({
@@ -63,6 +66,7 @@ export class AdminProductsController {
   }
 
   @Get(":id")
+  @RequirePermission("products.view")
   @ApiOperation({ summary: "Get a product in any status by id (Admin)" })
   @ApiResponse({ status: 200, description: "Product returned successfully." })
   @ApiResponse({ status: 404, description: "Product not found." })
@@ -71,6 +75,7 @@ export class AdminProductsController {
   }
 
   @Post(":productId/variants")
+  @RequirePermission("products.edit")
   @ApiOperation({ summary: "Add a variant to a product (Admin)" })
   @ApiResponse({ status: 201, description: "Variant created successfully." })
   @ApiResponse({ status: 404, description: "Product not found." })
@@ -87,6 +92,7 @@ export class AdminProductsController {
   }
 
   @Patch(":productId/variants/:variantId")
+  @RequirePermission("products.edit")
   @ApiOperation({
     summary:
       "Partially update a product variant (stock/price/availability/color/size) (Admin)",
@@ -112,6 +118,7 @@ export class AdminProductsController {
   }
 
   @Delete(":productId/variants/:variantId")
+  @RequirePermission("products.edit")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Delete a product variant that has no order history (Admin)",
@@ -135,6 +142,7 @@ export class AdminProductsController {
   }
 
   @Post(":productId/images")
+  @RequirePermission("products.edit")
   @ApiOperation({ summary: "Add an image to a product (Admin)" })
   @ApiResponse({ status: 201, description: "Image created successfully." })
   @ApiResponse({ status: 404, description: "Product not found." })
@@ -147,6 +155,7 @@ export class AdminProductsController {
   }
 
   @Delete(":productId/images/:imageId")
+  @RequirePermission("products.edit")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Delete a product image (Admin)" })
   @ApiResponse({ status: 200, description: "Image deleted successfully." })

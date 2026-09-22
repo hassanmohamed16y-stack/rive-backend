@@ -2,14 +2,88 @@ import { PrismaClient, ProductStatus, Size, UserRole } from "@prisma/client";
 import * as bcrypt from "bcrypt";
 
 export async function seedDatabase(prisma: PrismaClient): Promise<void> {
-  // ADMIN_INITIAL_PASSWORD presence outside local development/test is enforced
-  // at module-load time in environment.validation.ts (the single source of
-  // truth for this check), so no duplicate check is needed here.
-  //
-  // The admin user is only *created* here, never updated: seeding must be
-  // safe to re-run on every deploy without resetting an existing admin's
-  // passwordHash or role (see incident where automatic reseeding wiped out
-  // admin password changes made in production).
+  // Seed permissions
+  const permissionsData = [
+    { key: "orders.view", label: "عرض الطلبات" },
+    { key: "orders.update_status", label: "تحديث حالة الطلب" },
+    { key: "orders.refund", label: "استرداد الأموال" },
+    { key: "customers.view", label: "عرض العملاء" },
+    { key: "customers.update", label: "تحديث بيانات العملاء" },
+    { key: "products.view", label: "عرض المنتجات" },
+    { key: "products.edit", label: "تعديل المنتجات" },
+    { key: "settings.manage", label: "إدارة الإعدادات" },
+    { key: "users.manage", label: "إدارة المستخدمين" },
+  ];
+
+  const permissionMap = new Map<string, string>();
+  for (const perm of permissionsData) {
+    const createdPerm = await prisma.permission.upsert({
+      where: { key: perm.key },
+      update: { label: perm.label },
+      create: perm,
+    });
+    permissionMap.set(perm.key, createdPerm.id);
+  }
+
+  // Seed roles
+  const rolesData = [
+    {
+      name: "full_admin",
+      label: "مدير عام",
+      permissionKeys: permissionsData.map((p) => p.key),
+    },
+    {
+      name: "sales",
+      label: "مبيعات",
+      permissionKeys: [
+        "orders.view",
+        "orders.update_status",
+        "customers.view",
+        "products.view",
+      ],
+    },
+    {
+      name: "support",
+      label: "دعم فني",
+      permissionKeys: ["orders.view", "customers.view", "customers.update"],
+    },
+  ];
+
+  const roleMap = new Map<string, string>();
+  for (const roleDef of rolesData) {
+    const role = await prisma.role.upsert({
+      where: { name: roleDef.name },
+      update: { label: roleDef.label },
+      create: {
+        name: roleDef.name,
+        label: roleDef.label,
+      },
+    });
+    roleMap.set(roleDef.name, role.id);
+
+    // Sync role permissions
+    const permIds = roleDef.permissionKeys
+      .map((k) => permissionMap.get(k))
+      .filter((id): id is string => Boolean(id));
+
+    await prisma.rolePermission.deleteMany({
+      where: { roleId: role.id },
+    });
+
+    if (permIds.length > 0) {
+      await prisma.rolePermission.createMany({
+        data: permIds.map((permissionId) => ({
+          roleId: role.id,
+          permissionId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+  }
+
+  const fullAdminRoleId = roleMap.get("full_admin");
+
+  // The admin user is only created or migrated here, never resetting passwordHash
   const existingAdmin = await prisma.user.findUnique({
     where: { email: "admin@rive.com" },
   });
@@ -25,6 +99,17 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
         email: "admin@rive.com",
         passwordHash: hashedPassword,
         role: UserRole.ADMIN,
+        roleId: fullAdminRoleId,
+        isActive: true,
+      },
+    });
+  } else if (!existingAdmin.roleId && fullAdminRoleId) {
+    await prisma.user.update({
+      where: { id: existingAdmin.id },
+      data: {
+        roleId: fullAdminRoleId,
+        role: UserRole.ADMIN,
+        isActive: true,
       },
     });
   }
