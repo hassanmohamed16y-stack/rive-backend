@@ -1,4 +1,11 @@
-import { PrismaClient, ProductStatus, Size, UserRole } from "@prisma/client";
+import {
+  AutomationRunStatus,
+  PrismaClient,
+  ProductStatus,
+  Size,
+  UserRole,
+  WorkflowTrustLevel,
+} from "@prisma/client";
 import * as bcrypt from "bcrypt";
 
 export async function seedDatabase(prisma: PrismaClient): Promise<void> {
@@ -14,6 +21,7 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
     { key: "settings.manage", label: "إدارة الإعدادات" },
     { key: "users.manage", label: "إدارة المستخدمين" },
     { key: "lists.manage", label: "إدارة القوائم" },
+    { key: "automation.manage", label: "إدارة الأتمتة" },
   ];
 
   const permissionMap = new Map<string, string>();
@@ -703,6 +711,89 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
           sortOrder: 0,
         },
       });
+    }
+  }
+
+  // Seed Automation Workflows
+  const workflowsData = [
+    {
+      name: "رد تلقائي على استفسارات واتساب",
+      description: "الرد التلقائي السريع على استفسارات العملاء الشائعة عبر واتساب",
+      isActive: true,
+      trustLevel: WorkflowTrustLevel.auto_execute,
+      lastRunStatus: AutomationRunStatus.success,
+      lastRunAt: new Date(Date.now() - 1000 * 60 * 30), // 30 mins ago
+    },
+    {
+      name: "تنبيه مخزون منخفض",
+      description: "إرسال إشعار للمدير عند انخفاض كمية أي منتج عن الحد الأدنى",
+      isActive: true,
+      trustLevel: WorkflowTrustLevel.suggestion_only,
+      lastRunStatus: AutomationRunStatus.success,
+      lastRunAt: new Date(Date.now() - 1000 * 60 * 120), // 2 hours ago
+    },
+    {
+      name: "متابعة السلات المتروكة",
+      description: "إرسال تذكير للعميل الذي ترك منتجات في سلة التسوق دون إتمام الطلب",
+      isActive: true,
+      trustLevel: WorkflowTrustLevel.requires_approval,
+      lastRunStatus: AutomationRunStatus.running,
+      lastRunAt: new Date(Date.now() - 1000 * 60 * 5), // 5 mins ago
+    },
+    {
+      name: "معالجة طلبات الاسترجاع",
+      description: "فحص طلبات الاسترجاع المقدمة وإنشاء أمر استرجاع بعد التقييم",
+      isActive: false,
+      trustLevel: WorkflowTrustLevel.requires_approval,
+      lastRunStatus: null,
+      lastRunAt: null,
+    },
+  ];
+
+  for (const wfData of workflowsData) {
+    const existing = await prisma.workflow.findFirst({
+      where: { name: wfData.name },
+    });
+
+    let workflow = existing;
+    if (!existing) {
+      workflow = await prisma.workflow.create({
+        data: wfData,
+      });
+    }
+
+    if (workflow) {
+      // Seed an example PendingApproval for workflows requiring approval
+      if (workflow.trustLevel === WorkflowTrustLevel.requires_approval && workflow.isActive) {
+        const existingApproval = await prisma.pendingApproval.findFirst({
+          where: { workflowId: workflow.id },
+        });
+        if (!existingApproval) {
+          await prisma.pendingApproval.create({
+            data: {
+              workflowId: workflow.id,
+              actionDescription: "استرجاع مبلغ لطلب #1010 بقيمة 300 ج.م",
+              status: "pending",
+            },
+          });
+        }
+      }
+
+      // Seed an example AutomationRun
+      const existingRun = await prisma.automationRun.findFirst({
+        where: { workflowId: workflow.id },
+      });
+      if (!existingRun) {
+        await prisma.automationRun.create({
+          data: {
+            workflowId: workflow.id,
+            status: wfData.lastRunStatus ?? AutomationRunStatus.success,
+            details: `تشغيل تلقائي لسير العمل: ${workflow.name}`,
+            startedAt: wfData.lastRunAt ?? new Date(),
+            finishedAt: wfData.lastRunStatus === AutomationRunStatus.running ? null : new Date(),
+          },
+        });
+      }
     }
   }
 }
