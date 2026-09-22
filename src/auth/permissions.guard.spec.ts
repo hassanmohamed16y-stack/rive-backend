@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import { PermissionsGuard } from "./permissions.guard";
 import { UsersService } from "./users.service";
 
