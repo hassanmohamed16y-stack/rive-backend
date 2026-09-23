@@ -905,4 +905,48 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
       create: tpl,
     });
   }
+
+  // Seed Static Pages
+  const staticPagesData = [
+    {
+      slug: "about-us",
+      titleAr: "من نحن",
+      titleEn: "About Us",
+      contentAr: "يرجى تعديل هذا المحتوى",
+      contentEn: "Please update this content",
+      isPublished: true,
+    },
+    {
+      slug: "return-policy",
+      titleAr: "سياسة الاسترجاع",
+      titleEn: "Return Policy",
+      contentAr: "يرجى تعديل هذا المحتوى",
+      contentEn: "Please update this content",
+      isPublished: true,
+    },
+    {
+      slug: "faq",
+      titleAr: "الأسئلة الشائعة",
+      titleEn: "FAQ",
+      contentAr: "يرجى تعديل هذا المحتوى",
+      contentEn: "Please update this content",
+      isPublished: true,
+    },
+    {
+      slug: "terms",
+      titleAr: "الشروط والأحكام",
+      titleEn: "Terms & Conditions",
+      contentAr: "يرجى تعديل هذا المحتوى",
+      contentEn: "Please update this content",
+      isPublished: true,
+    },
+  ];
+
+  for (const page of staticPagesData) {
+    await prisma.staticPage.upsert({
+      where: { slug: page.slug },
+      update: {},
+      create: page,
+    });
+  }
 }

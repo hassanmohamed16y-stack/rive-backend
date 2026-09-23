@@ -21,10 +21,12 @@ import { ShippingZonesModule } from "./shipping-zones/shipping-zones.module";
 import { SystemListsModule } from "./system-lists/system-lists.module";
 import { UploadModule } from "./upload/upload.module";
 import { MessageTemplatesModule } from "./message-templates/message-templates.module";
+import { StaticPagesModule } from "./static-pages/static-pages.module";
 
 @Module({
   imports: [
     MessageTemplatesModule,
+    StaticPagesModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // 1 minute in milliseconds
