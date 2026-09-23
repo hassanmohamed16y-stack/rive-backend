@@ -20,9 +20,11 @@ import { AutomationModule } from "./automation/automation.module";
 import { ShippingZonesModule } from "./shipping-zones/shipping-zones.module";
 import { SystemListsModule } from "./system-lists/system-lists.module";
 import { UploadModule } from "./upload/upload.module";
+import { MessageTemplatesModule } from "./message-templates/message-templates.module";
 
 @Module({
   imports: [
+    MessageTemplatesModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // 1 minute in milliseconds

@@ -847,4 +847,62 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
       },
     });
   }
+
+  // Seed Message Templates
+  const messageTemplatesData = [
+    {
+      key: "order_confirmed",
+      channel: "whatsapp" as const,
+      subject: null,
+      bodyAr: "شكراً لتسوقكم من RIVÉ! تم استلام طلبكم رقم #{{orderNumber}} بقيمة إجمالية {{totalAmount}} ج.م وجاري معالجته.",
+      bodyEn: "Thank you for shopping at RIVÉ! Your order #{{orderNumber}} for total {{totalAmount}} EGP has been received and is being processed.",
+      isActive: true,
+    },
+    {
+      key: "order_shipped",
+      channel: "whatsapp" as const,
+      subject: null,
+      bodyAr: "خبر سار! تم شحن طلبكم رقم #{{orderNumber}} من RIVÉ. {{trackingLink}}",
+      bodyEn: "Great news! Your RIVÉ order #{{orderNumber}} has been shipped. {{trackingLink}}",
+      isActive: true,
+    },
+    {
+      key: "order_delivered",
+      channel: "whatsapp" as const,
+      subject: null,
+      bodyAr: "تم توصيل طلبكم رقم #{{orderNumber}} من RIVÉ بنجاح. نتمنى أن تنال إعجابكم منتجاتنا الفاخرة!",
+      bodyEn: "Your RIVÉ order #{{orderNumber}} has been delivered successfully. Enjoy your luxury items!",
+      isActive: true,
+    },
+    {
+      key: "order_cancelled",
+      channel: "whatsapp" as const,
+      subject: null,
+      bodyAr: "تحديث الطلب: تم إلغاء طلبكم رقم #{{orderNumber}} من RIVÉ. إذا كان لديكم أي استفسار يسعدنا تواصلكم معنا.",
+      bodyEn: "Order Update: Your RIVÉ order #{{orderNumber}} has been cancelled.",
+      isActive: true,
+    },
+    {
+      key: "low_stock_alert",
+      channel: "whatsapp" as const,
+      subject: null,
+      bodyAr: "تنبيه مخزون منخفض: المنتج {{variantSku}} متبقي منه {{stock}} قطع فقط في المخزن.",
+      bodyEn: "Low Stock Alert: Product variant {{variantSku}} has only {{stock}} units left in stock.",
+      isActive: true,
+    },
+  ];
+
+  for (const tpl of messageTemplatesData) {
+    await prisma.messageTemplate.upsert({
+      where: { key: tpl.key },
+      update: {
+        channel: tpl.channel,
+        subject: tpl.subject,
+        bodyAr: tpl.bodyAr,
+        bodyEn: tpl.bodyEn,
+        isActive: tpl.isActive,
+      },
+      create: tpl,
+    });
+  }
 }
