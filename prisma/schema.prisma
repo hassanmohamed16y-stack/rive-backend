@@ -485,3 +485,18 @@ model MessageTemplate {
   @@index([key])
   @@index([channel])
 }
+
+model StaticPage {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  titleAr     String
+  titleEn     String?
+  contentAr   String   @db.Text
+  contentEn   String?  @db.Text
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([isPublished])
+}
