@@ -67,6 +67,11 @@ enum PendingApprovalStatus {
   rejected
 }
 
+enum MessageTemplateChannel {
+  email
+  whatsapp
+}
+
 model User {
   id                         String             @id @default(cuid())
   fullName                   String
@@ -464,4 +469,19 @@ model PendingApproval {
 
   @@index([workflowId])
   @@index([status])
+}
+
+model MessageTemplate {
+  id        String                 @id @default(cuid())
+  key       String                 @unique
+  channel   MessageTemplateChannel
+  subject   String?
+  bodyAr    String                 @db.Text
+  bodyEn    String?                @db.Text
+  isActive  Boolean                @default(true)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  @@index([key])
+  @@index([channel])
 }
