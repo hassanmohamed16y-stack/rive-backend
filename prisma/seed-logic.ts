@@ -796,4 +796,55 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
       }
     }
   }
+
+  // Seed / Migrate Shipping Zones
+  // 1. Migrate distinct city values from existing orders so no historical data is lost or orphaned.
+  const existingOrdersWithCity = await prisma.order.findMany({
+    where: {
+      shippingCity: {
+        not: null,
+      },
+    },
+    select: { shippingCity: true },
+    distinct: ["shippingCity"],
+  });
+
+  for (const order of existingOrdersWithCity) {
+    const city = order.shippingCity?.trim();
+    if (city && city.length > 0) {
+      await prisma.shippingZone.upsert({
+        where: { cityLabel: city },
+        update: {},
+        create: {
+          cityLabel: city,
+          price: 0,
+          estimatedDays: null,
+          isActive: true,
+          sortOrder: 0,
+        },
+      });
+    }
+  }
+
+  // 2. Seed standard default shipping zones if they don't already exist.
+  const defaultShippingZones = [
+    { cityLabel: "القاهرة", price: 50, estimatedDays: 2, sortOrder: 1 },
+    { cityLabel: "الجيزة", price: 50, estimatedDays: 2, sortOrder: 2 },
+    { cityLabel: "الإسكندرية", price: 70, estimatedDays: 3, sortOrder: 3 },
+    { cityLabel: "غير محدد", price: 0, estimatedDays: null, sortOrder: 99 },
+  ];
+
+  for (const zoneDef of defaultShippingZones) {
+    await prisma.shippingZone.upsert({
+      where: { cityLabel: zoneDef.cityLabel },
+      update: {},
+      create: {
+        cityLabel: zoneDef.cityLabel,
+        price: zoneDef.price,
+        estimatedDays: zoneDef.estimatedDays,
+        isActive: true,
+        sortOrder: zoneDef.sortOrder,
+      },
+    });
+  }
 }
