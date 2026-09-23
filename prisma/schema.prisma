@@ -409,6 +409,20 @@ model ListItem {
   @@index([isActive])
 }
 
+model ShippingZone {
+  id            String   @id @default(cuid())
+  cityLabel     String   @unique
+  price         Decimal  @db.Decimal(10, 2)
+  estimatedDays Int?
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
 model Workflow {
   id               String              @id @default(cuid())
   name             String

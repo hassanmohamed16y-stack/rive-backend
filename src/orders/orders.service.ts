@@ -183,6 +183,11 @@ export class OrdersService implements OnModuleInit {
         new Decimal(0),
       );
       const discount = new Decimal(dto.discount ?? 0);
+      // NOTE FOR FUTURE ORDER-CREATION LOGIC:
+      // When calculating shipping cost during order creation, the price MUST be read
+      // server-side directly from the ShippingZone record at order time (e.g. by matching
+      // shippingCity against active ShippingZone records).
+      // NEVER trust or accept a shipping fee or price value sent directly from any client.
       const shippingFee = new Decimal(dto.shippingFee ?? 0);
       const totalAmount = Decimal.max(
         subtotal.minus(discount).plus(shippingFee),

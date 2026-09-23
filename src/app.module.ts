@@ -17,6 +17,7 @@ import { ProductsModule } from "./products/products.module";
 import { MaintenanceGuard } from "./settings/maintenance.guard";
 import { SettingsModule } from "./settings/settings.module";
 import { AutomationModule } from "./automation/automation.module";
+import { ShippingZonesModule } from "./shipping-zones/shipping-zones.module";
 import { SystemListsModule } from "./system-lists/system-lists.module";
 import { UploadModule } from "./upload/upload.module";
 
@@ -45,6 +46,7 @@ import { UploadModule } from "./upload/upload.module";
     NotificationsModule,
     IntegrationsModule,
     SystemListsModule,
+    ShippingZonesModule,
   ],
   providers: [
     {
