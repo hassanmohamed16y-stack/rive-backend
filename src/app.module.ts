@@ -20,11 +20,13 @@ import { AutomationModule } from "./automation/automation.module";
 import { ShippingZonesModule } from "./shipping-zones/shipping-zones.module";
 import { SystemListsModule } from "./system-lists/system-lists.module";
 import { UploadModule } from "./upload/upload.module";
+import { BannersModule } from "./banners/banners.module";
 import { MessageTemplatesModule } from "./message-templates/message-templates.module";
 import { StaticPagesModule } from "./static-pages/static-pages.module";
 
 @Module({
   imports: [
+    BannersModule,
     MessageTemplatesModule,
     StaticPagesModule,
     ThrottlerModule.forRoot([
