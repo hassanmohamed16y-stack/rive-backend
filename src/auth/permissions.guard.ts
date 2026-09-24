@@ -28,6 +28,10 @@ export class PermissionsGuard implements CanActivate {
       throw new ForbiddenException("Access denied");
     }
 
+    if (user.roleName === "full_admin") {
+      return true;
+    }
+
     // Check permissions array or role permissions attached to user context
     const userPermissions: string[] = user.permissions ?? [];
 

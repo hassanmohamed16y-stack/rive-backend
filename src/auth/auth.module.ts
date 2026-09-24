@@ -4,11 +4,15 @@ import { PassportModule } from "@nestjs/passport";
 import { PrismaModule } from "../prisma/prisma.module";
 import { AdminUsersController } from "./admin-users.controller";
 import { AuthController } from "./auth.controller";
+import { PermissionsController } from "./permissions.controller";
 import { RolesController } from "./roles.controller";
 import { UsersController } from "./users.controller";
 import { AuthService } from "./auth.service";
+import { PermissionsService } from "./permissions.service";
+import { RolesService } from "./roles.service";
 import { UsersService } from "./users.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
+import { FullAdminGuard } from "./full-admin.guard";
 import { JWT_ALGORITHM, resolveJwtSecret } from "./jwt-secret.util";
 import { RolesGuard } from "./roles.guard";
 import { PermissionsGuard } from "./permissions.guard";
@@ -36,15 +40,28 @@ const jwtSecret = resolveJwtSecret();
     AdminUsersController,
     UsersController,
     RolesController,
+    PermissionsController,
   ],
   providers: [
     AuthService,
     UsersService,
+    RolesService,
+    PermissionsService,
     JwtStrategy,
     JwtAuthGuard,
+    FullAdminGuard,
     RolesGuard,
     PermissionsGuard,
   ],
-  exports: [AuthService, UsersService, JwtAuthGuard, RolesGuard, PermissionsGuard],
+  exports: [
+    AuthService,
+    UsersService,
+    RolesService,
+    PermissionsService,
+    JwtAuthGuard,
+    FullAdminGuard,
+    RolesGuard,
+    PermissionsGuard,
+  ],
 })
 export class AuthModule {}
