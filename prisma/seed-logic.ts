@@ -816,17 +816,21 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
   for (const order of existingOrdersWithCity) {
     const city = order.shippingCity?.trim();
     if (city && city.length > 0) {
-      await prisma.shippingZone.upsert({
-        where: { cityLabel: city },
-        update: {},
-        create: {
-          cityLabel: city,
-          price: 0,
-          estimatedDays: null,
-          isActive: true,
-          sortOrder: 0,
-        },
-      });
+      try {
+        await prisma.shippingZone.upsert({
+          where: { cityLabel: city },
+          update: {},
+          create: {
+            cityLabel: city,
+            price: 0,
+            estimatedDays: null,
+            isActive: true,
+            sortOrder: 0,
+          },
+        });
+      } catch (error) {
+        console.error(`Failed to migrate order shipping city zone "${city}":`, error);
+      }
     }
   }
 
@@ -839,17 +843,26 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
   ];
 
   for (const zoneDef of defaultShippingZones) {
-    await prisma.shippingZone.upsert({
-      where: { cityLabel: zoneDef.cityLabel },
-      update: {},
-      create: {
-        cityLabel: zoneDef.cityLabel,
-        price: zoneDef.price,
-        estimatedDays: zoneDef.estimatedDays,
-        isActive: true,
-        sortOrder: zoneDef.sortOrder,
-      },
-    });
+    try {
+      await prisma.shippingZone.upsert({
+        where: { cityLabel: zoneDef.cityLabel },
+        update: {
+          price: zoneDef.price,
+          estimatedDays: zoneDef.estimatedDays,
+          sortOrder: zoneDef.sortOrder,
+          isActive: true,
+        },
+        create: {
+          cityLabel: zoneDef.cityLabel,
+          price: zoneDef.price,
+          estimatedDays: zoneDef.estimatedDays,
+          isActive: true,
+          sortOrder: zoneDef.sortOrder,
+        },
+      });
+    } catch (error) {
+      console.error(`Failed to upsert default shipping zone "${zoneDef.cityLabel}":`, error);
+    }
   }
 
   // Seed Message Templates
