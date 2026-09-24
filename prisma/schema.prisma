@@ -118,6 +118,7 @@ model Permission {
   id          String           @id @default(cuid())
   key         String           @unique
   label       String
+  createdAt   DateTime         @default(now())
   roles       RolePermission[]
 }
 
