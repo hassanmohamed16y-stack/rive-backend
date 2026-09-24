@@ -112,6 +112,7 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
         isActive: true,
       },
     });
+    console.log("[Seed] Created initial admin user admin@rive.com.");
   } else if (!existingAdmin.roleId && fullAdminRoleId) {
     await prisma.user.update({
       where: { id: existingAdmin.id },
@@ -121,6 +122,9 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
         isActive: true,
       },
     });
+    console.log("[Seed] Updated role/roleId for existing admin user admin@rive.com.");
+  } else {
+    console.log("[Seed] Admin user admin@rive.com already exists. Password hash was preserved (untouched).");
   }
 
   const existingUser = await prisma.user.findUnique({
