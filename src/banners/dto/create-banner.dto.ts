@@ -60,6 +60,24 @@ export class CreateBannerDto {
   endsAt!: Date;
 
   @ApiPropertyOptional({
+    description: "Scheduled publish date and time for content scheduling",
+    example: "2025-06-01T00:00:00.000Z",
+  })
+  @Type(() => Date)
+  @IsDate()
+  @IsOptional()
+  publishAt?: Date;
+
+  @ApiPropertyOptional({
+    description: "Scheduled unpublish date and time for content scheduling",
+    example: "2025-06-30T23:59:59.000Z",
+  })
+  @Type(() => Date)
+  @IsDate()
+  @IsOptional()
+  unpublishAt?: Date;
+
+  @ApiPropertyOptional({
     description: "Display sort order index (ascending)",
     example: 0,
     default: 0,

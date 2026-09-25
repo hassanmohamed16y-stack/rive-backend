@@ -28,6 +28,14 @@ export class BannersService {
         isActive: true,
         startsAt: { lte: now },
         endsAt: { gte: now },
+        AND: [
+          {
+            OR: [{ publishAt: null }, { publishAt: { lte: now } }],
+          },
+          {
+            OR: [{ unpublishAt: null }, { unpublishAt: { gte: now } }],
+          },
+        ],
       },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
     });
@@ -73,6 +81,8 @@ export class BannersService {
         linkUrl: dto.linkUrl,
         startsAt: dto.startsAt,
         endsAt: dto.endsAt,
+        publishAt: dto.publishAt,
+        unpublishAt: dto.unpublishAt,
         sortOrder: dto.sortOrder ?? 0,
         isActive: dto.isActive ?? true,
       },
@@ -131,6 +141,8 @@ export class BannersService {
         ...(dto.linkUrl !== undefined ? { linkUrl: dto.linkUrl } : {}),
         startsAt,
         endsAt,
+        ...(dto.publishAt !== undefined ? { publishAt: dto.publishAt } : {}),
+        ...(dto.unpublishAt !== undefined ? { unpublishAt: dto.unpublishAt } : {}),
         ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
       },

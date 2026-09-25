@@ -196,6 +196,22 @@ export class OrdersService implements OnModuleInit {
         (sum, item) => sum.plus(new Decimal(item.totalPrice)),
         new Decimal(0),
       );
+
+      const siteSettings = await tx.siteSettings?.findUnique({
+        where: { id: "default" },
+      });
+      if (
+        siteSettings?.minimumOrderAmount &&
+        new Decimal(siteSettings.minimumOrderAmount).greaterThan(0)
+      ) {
+        const minAmount = new Decimal(siteSettings.minimumOrderAmount);
+        if (subtotal.lessThan(minAmount)) {
+          throw new BadRequestException(
+            `Minimum order amount is ${minAmount.toString()}`,
+          );
+        }
+      }
+
       const discount = new Decimal(dto.discount ?? 0);
       // NOTE FOR FUTURE ORDER-CREATION LOGIC:
       // When calculating shipping cost during order creation, the price MUST be read

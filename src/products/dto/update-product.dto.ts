@@ -33,6 +33,21 @@ export class UpdateProductDto {
   @IsString()
   @MaxLength(500)
   shortDescription?: string;
+  @ApiPropertyOptional({ maxLength: 256 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  seoTitle?: string;
+  @ApiPropertyOptional({ maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  seoDescription?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  displayOrder?: number;
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)

@@ -50,7 +50,9 @@ export class ProductsService {
   ) {
     const where: Prisma.ProductWhereInput = includeAllStatuses
       ? { ...(filters?.status ? { status: filters.status } : {}) }
-      : { status: ProductStatus.ACTIVE };
+      : filters?.status
+      ? { status: filters.status }
+      : { status: { in: [ProductStatus.ACTIVE, ProductStatus.PUBLISHED] } };
 
     if (filters?.category) {
       where.category = {
@@ -116,7 +118,7 @@ export class ProductsService {
             orderBy: { createdAt: "asc" },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ displayOrder: "asc" }, { createdAt: "desc" }],
         skip,
         take,
       }),
@@ -130,7 +132,7 @@ export class ProductsService {
     const product = await this.prisma.product.findFirst({
       where: includeAllStatuses
         ? { slug }
-        : { slug, status: ProductStatus.ACTIVE },
+        : { slug, status: { in: [ProductStatus.ACTIVE, ProductStatus.PUBLISHED] } },
       include: productInclude,
     });
 
@@ -173,10 +175,13 @@ export class ProductsService {
           slug: dto.slug,
           description: dto.description,
           shortDescription: dto.shortDescription,
+          seoTitle: dto.seoTitle,
+          seoDescription: dto.seoDescription,
           price: dto.price,
           compareAtPrice: dto.compareAtPrice,
           isFeatured: dto.isFeatured ?? false,
           status: dto.status ?? "ACTIVE",
+          displayOrder: dto.displayOrder ?? 0,
           category: {
             connect: { id: category.id },
           },
@@ -262,6 +267,27 @@ export class ProductsService {
     });
 
     return product;
+  }
+
+  async reorder(productIds: string[], actorUserId?: string) {
+    await this.prisma.$transaction(
+      productIds.map((id, index) =>
+        this.prisma.product.update({
+          where: { id },
+          data: { displayOrder: index },
+        }),
+      ),
+    );
+
+    await this.auditLogService.record({
+      userId: actorUserId,
+      action: "product.reorder",
+      entityType: "Product",
+      entityId: "bulk",
+      changes: { productIds },
+    });
+
+    return { success: true };
   }
 
   async archive(id: string, actorUserId?: string) {

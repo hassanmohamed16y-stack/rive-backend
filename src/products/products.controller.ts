@@ -23,6 +23,7 @@ import { RolesGuard } from "../auth/roles.guard";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { ListProductsQueryDto } from "./dto/list-products-query.dto";
+import { ReorderProductsDto } from "./dto/reorder-products.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { ProductsService } from "./products.service";
 
@@ -88,6 +89,19 @@ export class ProductsController {
   @ApiResponse({ status: 404, description: "Product not found." })
   async findOne(@Param("slug") slug: string) {
     return this.productsService.findOneBySlug(slug);
+  }
+
+  @Patch("reorder")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Reorder products manually (Admin)" })
+  @ApiResponse({ status: 200, description: "Products reordered successfully." })
+  async reorder(
+    @Body() dto: ReorderProductsDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.productsService.reorder(dto.productIds, req.user!.id);
   }
 
   @Post()

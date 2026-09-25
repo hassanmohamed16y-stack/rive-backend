@@ -55,6 +55,7 @@ describe("BannersService", () => {
           isActive: true,
           startsAt: { lte: expect.any(Date) },
           endsAt: { gte: expect.any(Date) },
+          AND: expect.any(Array),
         },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       });
