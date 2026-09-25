@@ -14,7 +14,20 @@ if (process.env.SENTRY_DSN?.trim()) {
 }
 
 export async function createApp(): Promise<INestApplication> {
-  validateEnvironment();
+  try {
+    validateEnvironment();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    // eslint-disable-next-line no-console
+    console.error("==========================================================================");
+    // eslint-disable-next-line no-console
+    console.error("❌ CRITICAL ENVIRONMENT CONFIGURATION ERROR / خطأ حرجي في تهيئة البيئة:");
+    // eslint-disable-next-line no-console
+    console.error(message);
+    // eslint-disable-next-line no-console
+    console.error("==========================================================================");
+    process.exit(1);
+  }
   const app = await NestFactory.create(AppModule, { bodyParser: false });
   // Required behind reverse proxies (Nginx/ALB/Cloudflare) so req.ip reflects the real client.
   // Without this, Nest/Express sees only the proxy IP, which breaks ThrottlerGuard and IP-based logging.
