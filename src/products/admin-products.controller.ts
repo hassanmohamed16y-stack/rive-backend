@@ -29,6 +29,7 @@ import { PaginationDto } from "../common/dto/pagination.dto";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { CreateProductImageDto } from "./dto/create-product-image.dto";
 import { CreateProductVariantDto } from "./dto/create-product-variant.dto";
+import { ReorderProductsDto } from "./dto/reorder-products.dto";
 import { UpdateProductVariantDto } from "./dto/update-product-variant.dto";
 import { ProductsService } from "./products.service";
 
@@ -39,6 +40,17 @@ import { ProductsService } from "./products.service";
 @ApiBearerAuth()
 export class AdminProductsController {
   constructor(private readonly productsService: ProductsService) {}
+
+  @Patch("reorder")
+  @RequirePermission("products.edit")
+  @ApiOperation({ summary: "Reorder products manually (Admin)" })
+  @ApiResponse({ status: 200, description: "Products reordered successfully." })
+  async reorder(
+    @Body() dto: ReorderProductsDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.productsService.reorder(dto.productIds, req.user!.id);
+  }
 
   @Get()
   @RequirePermission("products.view")

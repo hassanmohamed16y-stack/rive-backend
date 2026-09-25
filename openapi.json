@@ -1,6 +1,1325 @@
 {
   "openapi": "3.0.0",
   "paths": {
+    "/api/admin/orders/export": {
+      "get": {
+        "operationId": "OrdersExportController_exportOrders[0]",
+        "parameters": [
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "csv",
+              "type": "string",
+              "enum": [
+                "csv",
+                "pdf"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "CONFIRMED",
+                "PROCESSING",
+                "PAID",
+                "SHIPPED",
+                "DELIVERED",
+                "CANCELLED",
+                "REFUNDED",
+                "EXPIRED"
+              ]
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Start date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Alias for startDate",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "End date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Alias for endDate",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Export file generated successfully."
+          },
+          "400": {
+            "description": "Invalid format or date parameters."
+          },
+          "403": {
+            "description": "Insufficient permissions."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export orders in CSV or PDF format (Admin)",
+        "tags": [
+          "admin export"
+        ]
+      }
+    },
+    "/api/v1/admin/orders/export": {
+      "get": {
+        "operationId": "OrdersExportController_exportOrders[1]",
+        "parameters": [
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "csv",
+              "type": "string",
+              "enum": [
+                "csv",
+                "pdf"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "CONFIRMED",
+                "PROCESSING",
+                "PAID",
+                "SHIPPED",
+                "DELIVERED",
+                "CANCELLED",
+                "REFUNDED",
+                "EXPIRED"
+              ]
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Start date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Alias for startDate",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "End date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Alias for endDate",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Export file generated successfully."
+          },
+          "400": {
+            "description": "Invalid format or date parameters."
+          },
+          "403": {
+            "description": "Insufficient permissions."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export orders in CSV or PDF format (Admin)",
+        "tags": [
+          "admin export"
+        ]
+      }
+    },
+    "/orders/export": {
+      "get": {
+        "operationId": "OrdersExportController_exportOrders[2]",
+        "parameters": [
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "csv",
+              "type": "string",
+              "enum": [
+                "csv",
+                "pdf"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "CONFIRMED",
+                "PROCESSING",
+                "PAID",
+                "SHIPPED",
+                "DELIVERED",
+                "CANCELLED",
+                "REFUNDED",
+                "EXPIRED"
+              ]
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Start date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Alias for startDate",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "End date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Alias for endDate",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Export file generated successfully."
+          },
+          "400": {
+            "description": "Invalid format or date parameters."
+          },
+          "403": {
+            "description": "Insufficient permissions."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export orders in CSV or PDF format (Admin)",
+        "tags": [
+          "admin export"
+        ]
+      }
+    },
+    "/api/v1/orders/export": {
+      "get": {
+        "operationId": "OrdersExportController_exportOrders[3]",
+        "parameters": [
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "csv",
+              "type": "string",
+              "enum": [
+                "csv",
+                "pdf"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "CONFIRMED",
+                "PROCESSING",
+                "PAID",
+                "SHIPPED",
+                "DELIVERED",
+                "CANCELLED",
+                "REFUNDED",
+                "EXPIRED"
+              ]
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Start date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Alias for startDate",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "End date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Alias for endDate",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Export file generated successfully."
+          },
+          "400": {
+            "description": "Invalid format or date parameters."
+          },
+          "403": {
+            "description": "Insufficient permissions."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export orders in CSV or PDF format (Admin)",
+        "tags": [
+          "admin export"
+        ]
+      }
+    },
+    "/api/admin/customers/export": {
+      "get": {
+        "operationId": "CustomersExportController_exportCustomers[0]",
+        "parameters": [
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "csv",
+              "type": "string",
+              "enum": [
+                "csv"
+              ]
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Start date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Alias for startDate",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "End date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Alias for endDate",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Export file generated successfully."
+          },
+          "400": {
+            "description": "Invalid format or date parameters."
+          },
+          "403": {
+            "description": "Insufficient permissions."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export customers in CSV format (Admin)",
+        "tags": [
+          "admin export"
+        ]
+      }
+    },
+    "/api/v1/admin/customers/export": {
+      "get": {
+        "operationId": "CustomersExportController_exportCustomers[1]",
+        "parameters": [
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "csv",
+              "type": "string",
+              "enum": [
+                "csv"
+              ]
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Start date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Alias for startDate",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "End date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Alias for endDate",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Export file generated successfully."
+          },
+          "400": {
+            "description": "Invalid format or date parameters."
+          },
+          "403": {
+            "description": "Insufficient permissions."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export customers in CSV format (Admin)",
+        "tags": [
+          "admin export"
+        ]
+      }
+    },
+    "/customers/export": {
+      "get": {
+        "operationId": "CustomersExportController_exportCustomers[2]",
+        "parameters": [
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "csv",
+              "type": "string",
+              "enum": [
+                "csv"
+              ]
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Start date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Alias for startDate",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "End date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Alias for endDate",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Export file generated successfully."
+          },
+          "400": {
+            "description": "Invalid format or date parameters."
+          },
+          "403": {
+            "description": "Insufficient permissions."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export customers in CSV format (Admin)",
+        "tags": [
+          "admin export"
+        ]
+      }
+    },
+    "/api/v1/customers/export": {
+      "get": {
+        "operationId": "CustomersExportController_exportCustomers[3]",
+        "parameters": [
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "csv",
+              "type": "string",
+              "enum": [
+                "csv"
+              ]
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Start date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Alias for startDate",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "End date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Alias for endDate",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Export file generated successfully."
+          },
+          "400": {
+            "description": "Invalid format or date parameters."
+          },
+          "403": {
+            "description": "Insufficient permissions."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export customers in CSV format (Admin)",
+        "tags": [
+          "admin export"
+        ]
+      }
+    },
+    "/api/admin/payments/export": {
+      "get": {
+        "operationId": "PaymentsExportController_exportPayments[0]",
+        "parameters": [
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "csv",
+              "type": "string",
+              "enum": [
+                "csv",
+                "pdf"
+              ]
+            }
+          },
+          {
+            "name": "paymentStatus",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "PAID",
+                "FAILED",
+                "REFUNDED"
+              ]
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Start date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Alias for startDate",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "End date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Alias for endDate",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Export file generated successfully."
+          },
+          "400": {
+            "description": "Invalid format or date parameters."
+          },
+          "403": {
+            "description": "Insufficient permissions."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export payments in CSV or PDF format (Admin)",
+        "tags": [
+          "admin export"
+        ]
+      }
+    },
+    "/api/v1/admin/payments/export": {
+      "get": {
+        "operationId": "PaymentsExportController_exportPayments[1]",
+        "parameters": [
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "csv",
+              "type": "string",
+              "enum": [
+                "csv",
+                "pdf"
+              ]
+            }
+          },
+          {
+            "name": "paymentStatus",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "PAID",
+                "FAILED",
+                "REFUNDED"
+              ]
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Start date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Alias for startDate",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "End date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Alias for endDate",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Export file generated successfully."
+          },
+          "400": {
+            "description": "Invalid format or date parameters."
+          },
+          "403": {
+            "description": "Insufficient permissions."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export payments in CSV or PDF format (Admin)",
+        "tags": [
+          "admin export"
+        ]
+      }
+    },
+    "/payments/export": {
+      "get": {
+        "operationId": "PaymentsExportController_exportPayments[2]",
+        "parameters": [
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "csv",
+              "type": "string",
+              "enum": [
+                "csv",
+                "pdf"
+              ]
+            }
+          },
+          {
+            "name": "paymentStatus",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "PAID",
+                "FAILED",
+                "REFUNDED"
+              ]
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Start date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Alias for startDate",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "End date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Alias for endDate",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Export file generated successfully."
+          },
+          "400": {
+            "description": "Invalid format or date parameters."
+          },
+          "403": {
+            "description": "Insufficient permissions."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export payments in CSV or PDF format (Admin)",
+        "tags": [
+          "admin export"
+        ]
+      }
+    },
+    "/api/v1/payments/export": {
+      "get": {
+        "operationId": "PaymentsExportController_exportPayments[3]",
+        "parameters": [
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "csv",
+              "type": "string",
+              "enum": [
+                "csv",
+                "pdf"
+              ]
+            }
+          },
+          {
+            "name": "paymentStatus",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "PAID",
+                "FAILED",
+                "REFUNDED"
+              ]
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Start date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Alias for startDate",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "End date (ISO or YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Alias for endDate",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Export file generated successfully."
+          },
+          "400": {
+            "description": "Invalid format or date parameters."
+          },
+          "403": {
+            "description": "Insufficient permissions."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export payments in CSV or PDF format (Admin)",
+        "tags": [
+          "admin export"
+        ]
+      }
+    },
+    "/api/v1/admin/audit-logs": {
+      "get": {
+        "operationId": "AuditLogController_findAll[0]",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by User ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "description": "Filter by action keyword (e.g. order.create, user.update)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityType",
+            "required": false,
+            "in": "query",
+            "description": "Filter by entity type (e.g. Order, Product, User)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by specific entity ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Filter logs created on or after ISO date",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "Filter logs created on or before ISO date",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number (default 1)",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Limit items per page (default 20)",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of activity audit logs returned successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get activity audit logs with filtering by user, action, entity, and date range (Admin)",
+        "tags": [
+          "admin audit logs"
+        ]
+      }
+    },
+    "/api/admin/audit-logs": {
+      "get": {
+        "operationId": "AuditLogController_findAll[1]",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by User ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "description": "Filter by action keyword (e.g. order.create, user.update)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityType",
+            "required": false,
+            "in": "query",
+            "description": "Filter by entity type (e.g. Order, Product, User)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by specific entity ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Filter logs created on or after ISO date",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "Filter logs created on or before ISO date",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number (default 1)",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Limit items per page (default 20)",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of activity audit logs returned successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get activity audit logs with filtering by user, action, entity, and date range (Admin)",
+        "tags": [
+          "admin audit logs"
+        ]
+      }
+    },
+    "/api/v1/audit-logs": {
+      "get": {
+        "operationId": "AuditLogController_findAll[2]",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by User ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "description": "Filter by action keyword (e.g. order.create, user.update)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityType",
+            "required": false,
+            "in": "query",
+            "description": "Filter by entity type (e.g. Order, Product, User)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by specific entity ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Filter logs created on or after ISO date",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "Filter logs created on or before ISO date",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number (default 1)",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Limit items per page (default 20)",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of activity audit logs returned successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get activity audit logs with filtering by user, action, entity, and date range (Admin)",
+        "tags": [
+          "admin audit logs"
+        ]
+      }
+    },
     "/api/v1/auth/register": {
       "post": {
         "operationId": "AuthController_register",
@@ -361,6 +1680,2452 @@
         "summary": "Get user details by ID (Admin)",
         "tags": [
           "admin users"
+        ]
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "operationId": "UsersController_findAll[0]",
+        "parameters": [
+          {
+            "name": "search",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of users returned."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all users with their role and status",
+        "tags": [
+          "users"
+        ]
+      },
+      "post": {
+        "operationId": "UsersController_create[0]",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully."
+          },
+          "409": {
+            "description": "User already exists."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new user",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users": {
+      "get": {
+        "operationId": "UsersController_findAll[1]",
+        "parameters": [
+          {
+            "name": "search",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of users returned."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all users with their role and status",
+        "tags": [
+          "users"
+        ]
+      },
+      "post": {
+        "operationId": "UsersController_create[1]",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully."
+          },
+          "409": {
+            "description": "User already exists."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new user",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}": {
+      "patch": {
+        "operationId": "UsersController_update[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully."
+          },
+          "403": {
+            "description": "Cannot change own role."
+          },
+          "404": {
+            "description": "User not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update user details, role, or active status",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/{id}": {
+      "patch": {
+        "operationId": "UsersController_update[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully."
+          },
+          "403": {
+            "description": "Cannot change own role."
+          },
+          "404": {
+            "description": "User not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update user details, role, or active status",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/disable": {
+      "patch": {
+        "operationId": "UsersController_disable[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User soft-disabled successfully."
+          },
+          "400": {
+            "description": "Cannot disable last remaining Full Admin."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Soft-disable a user (isActive = false)",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/{id}/disable": {
+      "patch": {
+        "operationId": "UsersController_disable[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User soft-disabled successfully."
+          },
+          "400": {
+            "description": "Cannot disable last remaining Full Admin."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Soft-disable a user (isActive = false)",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/roles": {
+      "get": {
+        "operationId": "RolesController_findAll[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List of roles returned."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all roles with their permissions (full_admin only)",
+        "tags": [
+          "roles"
+        ]
+      },
+      "post": {
+        "operationId": "RolesController_create[0]",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Role created successfully."
+          },
+          "409": {
+            "description": "Role name already exists."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new role (full_admin only)",
+        "tags": [
+          "roles"
+        ]
+      }
+    },
+    "/roles": {
+      "get": {
+        "operationId": "RolesController_findAll[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List of roles returned."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all roles with their permissions (full_admin only)",
+        "tags": [
+          "roles"
+        ]
+      },
+      "post": {
+        "operationId": "RolesController_create[1]",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Role created successfully."
+          },
+          "409": {
+            "description": "Role name already exists."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new role (full_admin only)",
+        "tags": [
+          "roles"
+        ]
+      }
+    },
+    "/api/v1/roles/{id}": {
+      "patch": {
+        "operationId": "RolesController_update[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role updated successfully."
+          },
+          "404": {
+            "description": "Role not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update role name/label (full_admin only)",
+        "tags": [
+          "roles"
+        ]
+      },
+      "delete": {
+        "operationId": "RolesController_delete[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Role deleted successfully."
+          },
+          "400": {
+            "description": "Role has assigned users or is full_admin."
+          },
+          "404": {
+            "description": "Role not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a role (full_admin only)",
+        "tags": [
+          "roles"
+        ]
+      }
+    },
+    "/roles/{id}": {
+      "patch": {
+        "operationId": "RolesController_update[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role updated successfully."
+          },
+          "404": {
+            "description": "Role not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update role name/label (full_admin only)",
+        "tags": [
+          "roles"
+        ]
+      },
+      "delete": {
+        "operationId": "RolesController_delete[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Role deleted successfully."
+          },
+          "400": {
+            "description": "Role has assigned users or is full_admin."
+          },
+          "404": {
+            "description": "Role not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a role (full_admin only)",
+        "tags": [
+          "roles"
+        ]
+      }
+    },
+    "/api/v1/roles/{id}/permissions": {
+      "put": {
+        "operationId": "RolesController_setPermissions[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetRolePermissionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role permissions updated successfully."
+          },
+          "404": {
+            "description": "Role not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Set permissions for a role (replace existing) (full_admin only)",
+        "tags": [
+          "roles"
+        ]
+      }
+    },
+    "/roles/{id}/permissions": {
+      "put": {
+        "operationId": "RolesController_setPermissions[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetRolePermissionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role permissions updated successfully."
+          },
+          "404": {
+            "description": "Role not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Set permissions for a role (replace existing) (full_admin only)",
+        "tags": [
+          "roles"
+        ]
+      }
+    },
+    "/api/v1/permissions": {
+      "get": {
+        "operationId": "PermissionsController_findAllGrouped[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Grouped permissions returned."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all permissions grouped by department (full_admin only)",
+        "tags": [
+          "permissions"
+        ]
+      },
+      "post": {
+        "operationId": "PermissionsController_create[0]",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePermissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Permission created successfully."
+          },
+          "409": {
+            "description": "Permission key already exists."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new permission (full_admin only)",
+        "tags": [
+          "permissions"
+        ]
+      }
+    },
+    "/permissions": {
+      "get": {
+        "operationId": "PermissionsController_findAllGrouped[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Grouped permissions returned."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all permissions grouped by department (full_admin only)",
+        "tags": [
+          "permissions"
+        ]
+      },
+      "post": {
+        "operationId": "PermissionsController_create[1]",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePermissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Permission created successfully."
+          },
+          "409": {
+            "description": "Permission key already exists."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new permission (full_admin only)",
+        "tags": [
+          "permissions"
+        ]
+      }
+    },
+    "/banners": {
+      "get": {
+        "operationId": "BannersController_findActive[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Active banners returned successfully."
+          }
+        },
+        "summary": "Get active promotional banners for storefront (Public)",
+        "tags": [
+          "banners"
+        ]
+      },
+      "post": {
+        "operationId": "BannersController_create[0]",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBannerDto"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBannerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Banner created successfully."
+          },
+          "400": {
+            "description": "Bad request / Validation error."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new banner (Admin)",
+        "tags": [
+          "banners"
+        ]
+      }
+    },
+    "/api/v1/banners": {
+      "get": {
+        "operationId": "BannersController_findActive[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Active banners returned successfully."
+          }
+        },
+        "summary": "Get active promotional banners for storefront (Public)",
+        "tags": [
+          "banners"
+        ]
+      },
+      "post": {
+        "operationId": "BannersController_create[1]",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBannerDto"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBannerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Banner created successfully."
+          },
+          "400": {
+            "description": "Bad request / Validation error."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new banner (Admin)",
+        "tags": [
+          "banners"
+        ]
+      }
+    },
+    "/banners/admin": {
+      "get": {
+        "operationId": "BannersController_findAllAdmin[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "All banners returned successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all banners for dashboard management (Admin)",
+        "tags": [
+          "banners"
+        ]
+      }
+    },
+    "/api/v1/banners/admin": {
+      "get": {
+        "operationId": "BannersController_findAllAdmin[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "All banners returned successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all banners for dashboard management (Admin)",
+        "tags": [
+          "banners"
+        ]
+      }
+    },
+    "/banners/{id}": {
+      "patch": {
+        "operationId": "BannersController_update[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBannerDto"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBannerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Banner updated successfully."
+          },
+          "400": {
+            "description": "Bad request / Validation error."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "Banner not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update an existing banner (Admin)",
+        "tags": [
+          "banners"
+        ]
+      },
+      "delete": {
+        "operationId": "BannersController_delete[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Banner deleted successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "Banner not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Hard-delete a banner (Admin)",
+        "tags": [
+          "banners"
+        ]
+      }
+    },
+    "/api/v1/banners/{id}": {
+      "patch": {
+        "operationId": "BannersController_update[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBannerDto"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBannerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Banner updated successfully."
+          },
+          "400": {
+            "description": "Bad request / Validation error."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "Banner not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update an existing banner (Admin)",
+        "tags": [
+          "banners"
+        ]
+      },
+      "delete": {
+        "operationId": "BannersController_delete[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Banner deleted successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "Banner not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Hard-delete a banner (Admin)",
+        "tags": [
+          "banners"
+        ]
+      }
+    },
+    "/api/v1/upload/image": {
+      "post": {
+        "operationId": "UploadController_uploadImage",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Image uploaded successfully."
+          },
+          "400": {
+            "description": "Invalid file type or file too large."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden. ADMIN role required."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Upload an image to Cloudinary (ADMIN only)",
+        "tags": [
+          "upload"
+        ]
+      }
+    },
+    "/message-templates": {
+      "get": {
+        "operationId": "MessageTemplatesController_findAll[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Message templates retrieved successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all notification message templates",
+        "tags": [
+          "message-templates"
+        ]
+      }
+    },
+    "/api/v1/message-templates": {
+      "get": {
+        "operationId": "MessageTemplatesController_findAll[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Message templates retrieved successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all notification message templates",
+        "tags": [
+          "message-templates"
+        ]
+      }
+    },
+    "/api/v1/admin/message-templates": {
+      "get": {
+        "operationId": "MessageTemplatesController_findAll[2]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Message templates retrieved successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all notification message templates",
+        "tags": [
+          "message-templates"
+        ]
+      }
+    },
+    "/message-templates/{id}": {
+      "patch": {
+        "operationId": "MessageTemplatesController_update[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMessageTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Message template updated successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a notification message template",
+        "tags": [
+          "message-templates"
+        ]
+      }
+    },
+    "/api/v1/message-templates/{id}": {
+      "patch": {
+        "operationId": "MessageTemplatesController_update[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMessageTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Message template updated successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a notification message template",
+        "tags": [
+          "message-templates"
+        ]
+      }
+    },
+    "/api/v1/admin/message-templates/{id}": {
+      "patch": {
+        "operationId": "MessageTemplatesController_update[2]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMessageTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Message template updated successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a notification message template",
+        "tags": [
+          "message-templates"
+        ]
+      }
+    },
+    "/static-pages/{slug}": {
+      "get": {
+        "operationId": "StaticPagesController_findBySlug[0]",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Static page returned."
+          },
+          "404": {
+            "description": "Static page not found or not published."
+          }
+        },
+        "summary": "Get static page by slug (Public)",
+        "tags": [
+          "static-pages"
+        ]
+      }
+    },
+    "/api/v1/static-pages/{slug}": {
+      "get": {
+        "operationId": "StaticPagesController_findBySlug[1]",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Static page returned."
+          },
+          "404": {
+            "description": "Static page not found or not published."
+          }
+        },
+        "summary": "Get static page by slug (Public)",
+        "tags": [
+          "static-pages"
+        ]
+      }
+    },
+    "/static-pages": {
+      "get": {
+        "operationId": "StaticPagesController_findAllAdmin[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "All static pages returned."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all static pages (Admin)",
+        "tags": [
+          "static-pages"
+        ]
+      }
+    },
+    "/api/v1/static-pages": {
+      "get": {
+        "operationId": "StaticPagesController_findAllAdmin[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "All static pages returned."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all static pages (Admin)",
+        "tags": [
+          "static-pages"
+        ]
+      }
+    },
+    "/static-pages/{id}": {
+      "patch": {
+        "operationId": "StaticPagesController_update[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStaticPageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Static page updated successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "Static page not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update static page title/content/isPublished (Admin)",
+        "tags": [
+          "static-pages"
+        ]
+      }
+    },
+    "/api/v1/static-pages/{id}": {
+      "patch": {
+        "operationId": "StaticPagesController_update[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStaticPageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Static page updated successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "Static page not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update static page title/content/isPublished (Admin)",
+        "tags": [
+          "static-pages"
+        ]
+      }
+    },
+    "/api/v1/admin/internal-notes": {
+      "post": {
+        "operationId": "InternalNotesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInternalNoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Internal note created successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create an internal note for an order or customer (Admin)",
+        "tags": [
+          "admin internal notes"
+        ]
+      },
+      "get": {
+        "operationId": "InternalNotesController_findAll",
+        "parameters": [
+          {
+            "name": "entityType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Internal notes returned."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List internal notes by entityType and/or entityId (Admin)",
+        "tags": [
+          "admin internal notes"
+        ]
+      }
+    },
+    "/api/v1/admin/internal-notes/{id}": {
+      "get": {
+        "operationId": "InternalNotesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Internal note returned."
+          },
+          "404": {
+            "description": "Internal note not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get an internal note by ID (Admin)",
+        "tags": [
+          "admin internal notes"
+        ]
+      },
+      "patch": {
+        "operationId": "InternalNotesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateInternalNoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Internal note updated."
+          },
+          "404": {
+            "description": "Internal note not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update an internal note (Admin)",
+        "tags": [
+          "admin internal notes"
+        ]
+      },
+      "delete": {
+        "operationId": "InternalNotesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Internal note deleted."
+          },
+          "404": {
+            "description": "Internal note not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete an internal note (Admin)",
+        "tags": [
+          "admin internal notes"
+        ]
+      }
+    },
+    "/automation/workflows": {
+      "get": {
+        "operationId": "AutomationController_getWorkflows[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Workflows retrieved successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all automation workflows with their status",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/automation/workflows": {
+      "get": {
+        "operationId": "AutomationController_getWorkflows[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Workflows retrieved successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all automation workflows with their status",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/admin/automation/workflows": {
+      "get": {
+        "operationId": "AutomationController_getWorkflows[2]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Workflows retrieved successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all automation workflows with their status",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/automation/workflows/{id}/toggle": {
+      "patch": {
+        "operationId": "AutomationController_toggleWorkflow[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleWorkflowDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Workflow active state updated."
+          },
+          "404": {
+            "description": "Workflow not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Toggle workflow active state",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/automation/workflows/{id}/toggle": {
+      "patch": {
+        "operationId": "AutomationController_toggleWorkflow[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleWorkflowDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Workflow active state updated."
+          },
+          "404": {
+            "description": "Workflow not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Toggle workflow active state",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/admin/automation/workflows/{id}/toggle": {
+      "patch": {
+        "operationId": "AutomationController_toggleWorkflow[2]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleWorkflowDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Workflow active state updated."
+          },
+          "404": {
+            "description": "Workflow not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Toggle workflow active state",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/automation/workflows/{id}/trust-level": {
+      "patch": {
+        "operationId": "AutomationController_updateTrustLevel[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTrustLevelDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Workflow trust level updated."
+          },
+          "404": {
+            "description": "Workflow not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Change workflow trust level",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/automation/workflows/{id}/trust-level": {
+      "patch": {
+        "operationId": "AutomationController_updateTrustLevel[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTrustLevelDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Workflow trust level updated."
+          },
+          "404": {
+            "description": "Workflow not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Change workflow trust level",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/admin/automation/workflows/{id}/trust-level": {
+      "patch": {
+        "operationId": "AutomationController_updateTrustLevel[2]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTrustLevelDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Workflow trust level updated."
+          },
+          "404": {
+            "description": "Workflow not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Change workflow trust level",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/automation/runs": {
+      "get": {
+        "operationId": "AutomationController_getRuns[0]",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "workflowId",
+            "required": false,
+            "in": "query",
+            "description": "Filter run logs by workflow ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run logs retrieved successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get recent run logs (paginated, optionally filtered by workflowId)",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/automation/runs": {
+      "get": {
+        "operationId": "AutomationController_getRuns[1]",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "workflowId",
+            "required": false,
+            "in": "query",
+            "description": "Filter run logs by workflow ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run logs retrieved successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get recent run logs (paginated, optionally filtered by workflowId)",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/admin/automation/runs": {
+      "get": {
+        "operationId": "AutomationController_getRuns[2]",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "workflowId",
+            "required": false,
+            "in": "query",
+            "description": "Filter run logs by workflow ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run logs retrieved successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get recent run logs (paginated, optionally filtered by workflowId)",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/automation/pending-approvals": {
+      "get": {
+        "operationId": "AutomationController_getPendingApprovals[0]",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter pending approvals by status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending approvals retrieved successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List pending approvals",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/automation/pending-approvals": {
+      "get": {
+        "operationId": "AutomationController_getPendingApprovals[1]",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter pending approvals by status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending approvals retrieved successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List pending approvals",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/admin/automation/pending-approvals": {
+      "get": {
+        "operationId": "AutomationController_getPendingApprovals[2]",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter pending approvals by status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending approvals retrieved successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List pending approvals",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/automation/pending-approvals/{id}/approve": {
+      "post": {
+        "operationId": "AutomationController_approvePendingApproval[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending approval approved."
+          },
+          "400": {
+            "description": "Pending approval already resolved."
+          },
+          "404": {
+            "description": "Pending approval not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Approve a pending approval",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/automation/pending-approvals/{id}/approve": {
+      "post": {
+        "operationId": "AutomationController_approvePendingApproval[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending approval approved."
+          },
+          "400": {
+            "description": "Pending approval already resolved."
+          },
+          "404": {
+            "description": "Pending approval not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Approve a pending approval",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/admin/automation/pending-approvals/{id}/approve": {
+      "post": {
+        "operationId": "AutomationController_approvePendingApproval[2]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending approval approved."
+          },
+          "400": {
+            "description": "Pending approval already resolved."
+          },
+          "404": {
+            "description": "Pending approval not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Approve a pending approval",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/automation/pending-approvals/{id}/reject": {
+      "post": {
+        "operationId": "AutomationController_rejectPendingApproval[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending approval rejected."
+          },
+          "400": {
+            "description": "Pending approval already resolved."
+          },
+          "404": {
+            "description": "Pending approval not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reject a pending approval",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/automation/pending-approvals/{id}/reject": {
+      "post": {
+        "operationId": "AutomationController_rejectPendingApproval[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending approval rejected."
+          },
+          "400": {
+            "description": "Pending approval already resolved."
+          },
+          "404": {
+            "description": "Pending approval not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reject a pending approval",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/api/v1/admin/automation/pending-approvals/{id}/reject": {
+      "post": {
+        "operationId": "AutomationController_rejectPendingApproval[2]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending approval rejected."
+          },
+          "400": {
+            "description": "Pending approval already resolved."
+          },
+          "404": {
+            "description": "Pending approval not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reject a pending approval",
+        "tags": [
+          "automation"
         ]
       }
     },
@@ -1043,13 +4808,21 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Application and database are reachable."
+            "description": "Returns health status of database, Cloudinary, and Paymob integrations."
           },
-          "503": {
-            "description": "Database is unavailable."
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Requires full_admin role"
           }
         },
-        "summary": "Check application and database readiness",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Check health status of application and external integrations (full_admin only)",
         "tags": [
           "health"
         ]
@@ -1255,6 +5028,36 @@
         ]
       }
     },
+    "/api/v1/products/reorder": {
+      "patch": {
+        "operationId": "ProductsController_reorder",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderProductsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Products reordered successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reorder products manually (Admin)",
+        "tags": [
+          "products"
+        ]
+      }
+    },
     "/api/v1/products/{id}": {
       "patch": {
         "operationId": "ProductsController_update",
@@ -1330,6 +5133,36 @@
         ]
       }
     },
+    "/api/v1/admin/products/reorder": {
+      "patch": {
+        "operationId": "AdminProductsController_reorder",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderProductsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Products reordered successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reorder products manually (Admin)",
+        "tags": [
+          "admin products"
+        ]
+      }
+    },
     "/api/v1/admin/products": {
       "get": {
         "operationId": "AdminProductsController_findAll",
@@ -1342,6 +5175,7 @@
               "enum": [
                 "DRAFT",
                 "ACTIVE",
+                "PUBLISHED",
                 "ARCHIVED"
               ],
               "type": "string"
@@ -1786,6 +5620,35 @@
           }
         ],
         "summary": "Process a payment refund via Paymob (Admin only)",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments/reconcile": {
+      "post": {
+        "operationId": "PaymentController_reconcilePayments",
+        "parameters": [
+          {
+            "name": "days",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reconciliation completed."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reconcile database payment records with Paymob API (Admin only)",
         "tags": [
           "payments"
         ]
@@ -2280,48 +6143,33 @@
         ]
       }
     },
-    "/api/v1/upload/image": {
+    "/api/v1/internal/reconcile-paymob": {
       "post": {
-        "operationId": "UploadController_uploadImage",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "file": {
-                    "type": "string",
-                    "format": "binary"
-                  }
-                }
-              }
+        "operationId": "InternalOrdersController_reconcilePaymob",
+        "parameters": [
+          {
+            "name": "x-internal-cron-secret",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
             }
           }
-        },
+        ],
         "responses": {
-          "201": {
-            "description": "Image uploaded successfully."
-          },
-          "400": {
-            "description": "Invalid file type or file too large."
+          "200": {
+            "description": "Reconciliation completed."
           },
           "401": {
-            "description": "Unauthorized."
+            "description": "Missing or invalid internal cron secret."
           },
           "403": {
-            "description": "Forbidden. ADMIN role required."
+            "description": "INTERNAL_CRON_SECRET is not configured on this server."
           }
         },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Upload an image to Cloudinary (ADMIN only)",
+        "summary": "Reconcile database payment records with Paymob API (internal cron only)",
         "tags": [
-          "upload"
+          "internal"
         ]
       }
     },
@@ -2514,6 +6362,69 @@
         "summary": "Update global 2FA enforcement status (Admin)",
         "tags": [
           "admin settings"
+        ]
+      }
+    },
+    "/api/v1/settings/site/public": {
+      "get": {
+        "operationId": "SiteSettingsController_getPublicSiteSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Public site settings returned."
+          }
+        },
+        "summary": "Get public site settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/site": {
+      "get": {
+        "operationId": "SiteSettingsController_getSiteSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Site settings returned."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get site settings (Admin)",
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "operationId": "SiteSettingsController_updateSiteSettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSiteSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Site settings updated."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update site settings (Admin)",
+        "tags": [
+          "settings"
         ]
       }
     },
@@ -3128,6 +7039,752 @@
           "admin excel"
         ]
       }
+    },
+    "/system-lists/types": {
+      "get": {
+        "operationId": "SystemListsController_findAllTypes[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List of all ListTypes returned successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all defined ListTypes (Admin)",
+        "tags": [
+          "system-lists"
+        ]
+      }
+    },
+    "/api/v1/system-lists/types": {
+      "get": {
+        "operationId": "SystemListsController_findAllTypes[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List of all ListTypes returned successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all defined ListTypes (Admin)",
+        "tags": [
+          "system-lists"
+        ]
+      }
+    },
+    "/system-lists/{listTypeKey}/items": {
+      "get": {
+        "operationId": "SystemListsController_findItems[0]",
+        "parameters": [
+          {
+            "name": "listTypeKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeInactive",
+            "required": false,
+            "in": "query",
+            "description": "Whether to include inactive items. Defaults to false (returns active items only).",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListItems returned successfully."
+          },
+          "404": {
+            "description": "ListType not found."
+          }
+        },
+        "summary": "Get all active ListItems for a given list type (Public). Use includeInactive=true for admin views.",
+        "tags": [
+          "system-lists"
+        ]
+      },
+      "post": {
+        "operationId": "SystemListsController_createItem[0]",
+        "parameters": [
+          {
+            "name": "listTypeKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateListItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "ListItem created successfully."
+          },
+          "400": {
+            "description": "Bad request / Validation error."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "ListType not found."
+          },
+          "409": {
+            "description": "ListItem with this key already exists in this list type."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add a new ListItem to a list type (Admin)",
+        "tags": [
+          "system-lists"
+        ]
+      }
+    },
+    "/api/v1/system-lists/{listTypeKey}/items": {
+      "get": {
+        "operationId": "SystemListsController_findItems[1]",
+        "parameters": [
+          {
+            "name": "listTypeKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeInactive",
+            "required": false,
+            "in": "query",
+            "description": "Whether to include inactive items. Defaults to false (returns active items only).",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListItems returned successfully."
+          },
+          "404": {
+            "description": "ListType not found."
+          }
+        },
+        "summary": "Get all active ListItems for a given list type (Public). Use includeInactive=true for admin views.",
+        "tags": [
+          "system-lists"
+        ]
+      },
+      "post": {
+        "operationId": "SystemListsController_createItem[1]",
+        "parameters": [
+          {
+            "name": "listTypeKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateListItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "ListItem created successfully."
+          },
+          "400": {
+            "description": "Bad request / Validation error."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "ListType not found."
+          },
+          "409": {
+            "description": "ListItem with this key already exists in this list type."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add a new ListItem to a list type (Admin)",
+        "tags": [
+          "system-lists"
+        ]
+      }
+    },
+    "/system-lists/items/{id}": {
+      "patch": {
+        "operationId": "SystemListsController_updateItem[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateListItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ListItem updated successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "ListItem not found."
+          },
+          "409": {
+            "description": "ListItem key conflict within the list type."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update an existing ListItem (Admin)",
+        "tags": [
+          "system-lists"
+        ]
+      }
+    },
+    "/api/v1/system-lists/items/{id}": {
+      "patch": {
+        "operationId": "SystemListsController_updateItem[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateListItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ListItem updated successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "ListItem not found."
+          },
+          "409": {
+            "description": "ListItem key conflict within the list type."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update an existing ListItem (Admin)",
+        "tags": [
+          "system-lists"
+        ]
+      }
+    },
+    "/system-lists/items/{id}/deactivate": {
+      "patch": {
+        "operationId": "SystemListsController_deactivateItem[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListItem soft-deactivated."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "ListItem not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Soft-deactivate a ListItem (isActive = false) (Admin)",
+        "tags": [
+          "system-lists"
+        ]
+      }
+    },
+    "/api/v1/system-lists/items/{id}/deactivate": {
+      "patch": {
+        "operationId": "SystemListsController_deactivateItem[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListItem soft-deactivated."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "ListItem not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Soft-deactivate a ListItem (isActive = false) (Admin)",
+        "tags": [
+          "system-lists"
+        ]
+      }
+    },
+    "/shipping-zones": {
+      "get": {
+        "operationId": "ShippingZonesController_findActive[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Active shipping zones returned successfully."
+          }
+        },
+        "summary": "Get all active shipping zones for storefront checkout (Public)",
+        "tags": [
+          "shipping-zones"
+        ]
+      },
+      "post": {
+        "operationId": "ShippingZonesController_create[0]",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateShippingZoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Shipping zone created successfully."
+          },
+          "400": {
+            "description": "Bad request / Validation error."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "409": {
+            "description": "Shipping zone for this city already exists."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new shipping zone (Admin)",
+        "tags": [
+          "shipping-zones"
+        ]
+      }
+    },
+    "/api/v1/shipping-zones": {
+      "get": {
+        "operationId": "ShippingZonesController_findActive[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Active shipping zones returned successfully."
+          }
+        },
+        "summary": "Get all active shipping zones for storefront checkout (Public)",
+        "tags": [
+          "shipping-zones"
+        ]
+      },
+      "post": {
+        "operationId": "ShippingZonesController_create[1]",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateShippingZoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Shipping zone created successfully."
+          },
+          "400": {
+            "description": "Bad request / Validation error."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "409": {
+            "description": "Shipping zone for this city already exists."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new shipping zone (Admin)",
+        "tags": [
+          "shipping-zones"
+        ]
+      }
+    },
+    "/shipping-zones/admin": {
+      "get": {
+        "operationId": "ShippingZonesController_findAllAdmin[0]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "All shipping zones returned successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all shipping zones including inactive ones for management (Admin)",
+        "tags": [
+          "shipping-zones"
+        ]
+      }
+    },
+    "/api/v1/shipping-zones/admin": {
+      "get": {
+        "operationId": "ShippingZonesController_findAllAdmin[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "All shipping zones returned successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all shipping zones including inactive ones for management (Admin)",
+        "tags": [
+          "shipping-zones"
+        ]
+      }
+    },
+    "/shipping-zones/{id}": {
+      "patch": {
+        "operationId": "ShippingZonesController_update[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateShippingZoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Shipping zone updated successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "Shipping zone not found."
+          },
+          "409": {
+            "description": "City label conflict with an existing zone."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update an existing shipping zone (Admin)",
+        "tags": [
+          "shipping-zones"
+        ]
+      }
+    },
+    "/api/v1/shipping-zones/{id}": {
+      "patch": {
+        "operationId": "ShippingZonesController_update[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateShippingZoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Shipping zone updated successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "Shipping zone not found."
+          },
+          "409": {
+            "description": "City label conflict with an existing zone."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update an existing shipping zone (Admin)",
+        "tags": [
+          "shipping-zones"
+        ]
+      }
+    },
+    "/shipping-zones/{id}/deactivate": {
+      "patch": {
+        "operationId": "ShippingZonesController_deactivate[0]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shipping zone soft-deactivated successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "Shipping zone not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Soft-deactivate a shipping zone (isActive = false) (Admin)",
+        "tags": [
+          "shipping-zones"
+        ]
+      }
+    },
+    "/api/v1/shipping-zones/{id}/deactivate": {
+      "patch": {
+        "operationId": "ShippingZonesController_deactivate[1]",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shipping zone soft-deactivated successfully."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Forbidden."
+          },
+          "404": {
+            "description": "Shipping zone not found."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Soft-deactivate a shipping zone (isActive = false) (Admin)",
+        "tags": [
+          "shipping-zones"
+        ]
+      }
     }
   },
   "info": {
@@ -3326,6 +7983,398 @@
           "password"
         ]
       },
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "John Doe"
+          },
+          "email": {
+            "type": "string",
+            "example": "user@rive.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "SecurePass123!"
+          },
+          "roleId": {
+            "type": "string",
+            "example": "role_id_123"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "password"
+        ]
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "John Doe"
+          },
+          "roleId": {
+            "type": "string",
+            "example": "role_id_123"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "CreateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Technical unique role name",
+            "example": "inventory_manager"
+          },
+          "label": {
+            "type": "string",
+            "description": "Arabic display label for role",
+            "example": "مدير المخزون"
+          },
+          "permissionKeys": {
+            "description": "Optional list of permission keys",
+            "example": [
+              "products.view",
+              "products.edit"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "permissionIds": {
+            "description": "Optional list of permission IDs",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "label"
+        ]
+      },
+      "UpdateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Updated technical role name",
+            "example": "inventory_manager_v2"
+          },
+          "label": {
+            "type": "string",
+            "description": "Updated Arabic display label",
+            "example": "مدير المخزون الرئيسي"
+          }
+        }
+      },
+      "SetRolePermissionsDto": {
+        "type": "object",
+        "properties": {
+          "permissions": {
+            "description": "List of permission keys or IDs to replace existing role permissions",
+            "example": [
+              "orders.view",
+              "orders.refund"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "permissionKeys": {
+            "description": "List of permission keys",
+            "example": [
+              "orders.view",
+              "orders.refund"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "permissionIds": {
+            "description": "List of permission IDs",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreatePermissionDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Unique technical permission key",
+            "example": "orders.delete"
+          },
+          "name": {
+            "type": "string",
+            "description": "Arabic display name/label for permission",
+            "example": "حذف الطلبات"
+          },
+          "label": {
+            "type": "string",
+            "description": "Arabic display name/label for permission",
+            "example": "حذف الطلبات"
+          }
+        },
+        "required": [
+          "key"
+        ]
+      },
+      "CreateBannerDto": {
+        "type": "object",
+        "properties": {
+          "titleAr": {
+            "type": "string",
+            "description": "Banner title in Arabic",
+            "example": "تخفيضات الصيف الكبرى"
+          },
+          "subtitleAr": {
+            "type": "string",
+            "description": "Banner subtitle in Arabic",
+            "example": "خصم يصل إلى 50% على تشكيلة الصيف"
+          },
+          "imageUrl": {
+            "type": "string",
+            "description": "Image Cloudinary URL (optional if image file is uploaded)",
+            "example": "https://res.cloudinary.com/demo/image/upload/v12345/banner.jpg"
+          },
+          "linkUrl": {
+            "type": "string",
+            "description": "Redirect link URL (e.g. link to a category or promo)",
+            "example": "/categories/summer-collection"
+          },
+          "startsAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Start date and time for promotional banner",
+            "example": "2025-06-01T00:00:00.000Z"
+          },
+          "endsAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "End date and time for promotional banner",
+            "example": "2025-06-30T23:59:59.000Z"
+          },
+          "publishAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Scheduled publish date and time for content scheduling",
+            "example": "2025-06-01T00:00:00.000Z"
+          },
+          "unpublishAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Scheduled unpublish date and time for content scheduling",
+            "example": "2025-06-30T23:59:59.000Z"
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "Display sort order index (ascending)",
+            "example": 0,
+            "default": 0
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether the banner is active",
+            "example": true,
+            "default": true
+          }
+        },
+        "required": [
+          "titleAr",
+          "startsAt",
+          "endsAt"
+        ]
+      },
+      "UpdateBannerDto": {
+        "type": "object",
+        "properties": {
+          "titleAr": {
+            "type": "string",
+            "description": "Banner title in Arabic",
+            "example": "تخفيضات الصيف الكبرى"
+          },
+          "subtitleAr": {
+            "type": "string",
+            "description": "Banner subtitle in Arabic",
+            "example": "خصم يصل إلى 50% على تشكيلة الصيف"
+          },
+          "imageUrl": {
+            "type": "string",
+            "description": "Image Cloudinary URL",
+            "example": "https://res.cloudinary.com/demo/image/upload/v12345/banner.jpg"
+          },
+          "linkUrl": {
+            "type": "string",
+            "description": "Redirect link URL (e.g. link to a category or promo)",
+            "example": "/categories/summer-collection"
+          },
+          "startsAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Start date and time for promotional banner",
+            "example": "2025-06-01T00:00:00.000Z"
+          },
+          "endsAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "End date and time for promotional banner",
+            "example": "2025-06-30T23:59:59.000Z"
+          },
+          "publishAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Scheduled publish date and time for content scheduling",
+            "example": "2025-06-01T00:00:00.000Z"
+          },
+          "unpublishAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Scheduled unpublish date and time for content scheduling",
+            "example": "2025-06-30T23:59:59.000Z"
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "Display sort order index (ascending)",
+            "example": 0
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether the banner is active",
+            "example": true
+          }
+        }
+      },
+      "UpdateMessageTemplateDto": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "description": "Subject line (primarily for email templates)"
+          },
+          "bodyAr": {
+            "type": "string",
+            "description": "Arabic body template with placeholders"
+          },
+          "bodyEn": {
+            "type": "string",
+            "description": "English body template with placeholders"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether the message template is active"
+          }
+        }
+      },
+      "UpdateStaticPageDto": {
+        "type": "object",
+        "properties": {
+          "titleAr": {
+            "type": "string",
+            "description": "Page title in Arabic"
+          },
+          "titleEn": {
+            "type": "string",
+            "description": "Page title in English"
+          },
+          "contentAr": {
+            "type": "string",
+            "description": "Page content in Arabic"
+          },
+          "contentEn": {
+            "type": "string",
+            "description": "Page content in English"
+          },
+          "seoTitle": {
+            "type": "string",
+            "description": "SEO Title"
+          },
+          "seoDescription": {
+            "type": "string",
+            "description": "SEO Description"
+          },
+          "isPublished": {
+            "type": "boolean",
+            "description": "Whether the static page is published"
+          }
+        }
+      },
+      "CreateInternalNoteDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "example": "Customer requested expedited shipping.",
+            "description": "Internal note content"
+          },
+          "entityType": {
+            "type": "string",
+            "example": "Order",
+            "description": "Entity type e.g. Order or User"
+          },
+          "entityId": {
+            "type": "string",
+            "example": "ord_12345",
+            "description": "Entity ID"
+          }
+        },
+        "required": [
+          "content",
+          "entityType",
+          "entityId"
+        ]
+      },
+      "UpdateInternalNoteDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "example": "Updated internal note content."
+          }
+        }
+      },
+      "ToggleWorkflowDto": {
+        "type": "object",
+        "properties": {
+          "isActive": {
+            "type": "boolean",
+            "description": "Optional explicit active status. If omitted, current status will be toggled."
+          }
+        }
+      },
+      "UpdateTrustLevelDto": {
+        "type": "object",
+        "properties": {
+          "trustLevel": {
+            "type": "string",
+            "enum": [
+              "suggestion_only",
+              "requires_approval",
+              "auto_execute"
+            ],
+            "description": "Trust level for workflow execution",
+            "example": "requires_approval"
+          }
+        },
+        "required": [
+          "trustLevel"
+        ]
+      },
       "CreateCategoryDto": {
         "type": "object",
         "properties": {
@@ -3429,6 +8478,26 @@
           }
         }
       },
+      "ReorderProductsDto": {
+        "type": "object",
+        "properties": {
+          "productIds": {
+            "example": [
+              "prod_1",
+              "prod_2",
+              "prod_3"
+            ],
+            "description": "Ordered array of product IDs",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "productIds"
+        ]
+      },
       "ProductImageDto": {
         "type": "object",
         "properties": {
@@ -3520,6 +8589,20 @@
             "example": "Soft-touch, lightweight luxury.",
             "maxLength": 500
           },
+          "seoTitle": {
+            "type": "string",
+            "example": "Luna Silk Set | RIVÉ",
+            "maxLength": 256
+          },
+          "seoDescription": {
+            "type": "string",
+            "example": "Buy Luna Silk Set from RIVÉ.",
+            "maxLength": 500
+          },
+          "displayOrder": {
+            "type": "number",
+            "example": 0
+          },
           "price": {
             "type": "number",
             "example": 280
@@ -3538,6 +8621,7 @@
             "enum": [
               "DRAFT",
               "ACTIVE",
+              "PUBLISHED",
               "ARCHIVED"
             ],
             "example": "ACTIVE"
@@ -3590,6 +8674,17 @@
             "type": "string",
             "maxLength": 500
           },
+          "seoTitle": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "seoDescription": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "displayOrder": {
+            "type": "number"
+          },
           "price": {
             "type": "number"
           },
@@ -3604,6 +8699,7 @@
             "enum": [
               "DRAFT",
               "ACTIVE",
+              "PUBLISHED",
               "ARCHIVED"
             ]
           }
@@ -3816,6 +8912,11 @@
             "example": "Gift wrap requested",
             "maxLength": 500
           },
+          "idempotencyKey": {
+            "type": "string",
+            "example": "idemp_1234567890",
+            "maxLength": 255
+          },
           "items": {
             "maxItems": 50,
             "type": "array",
@@ -3886,6 +8987,64 @@
           "enforce2FAGlobally"
         ]
       },
+      "UpdateSiteSettingsDto": {
+        "type": "object",
+        "properties": {
+          "storeName": {
+            "type": "string",
+            "example": "RIVÉ Store"
+          },
+          "logoUrl": {
+            "type": "string",
+            "example": "https://example.com/logo.png"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+201000000000"
+          },
+          "email": {
+            "type": "string",
+            "example": "contact@rive.com"
+          },
+          "address": {
+            "type": "string",
+            "example": "Cairo, Egypt"
+          },
+          "facebookUrl": {
+            "type": "string",
+            "example": "https://facebook.com/rive"
+          },
+          "instagramUrl": {
+            "type": "string",
+            "example": "https://instagram.com/rive"
+          },
+          "whatsappNumber": {
+            "type": "string",
+            "example": "+201000000000"
+          },
+          "tiktokUrl": {
+            "type": "string",
+            "example": "https://tiktok.com/@rive"
+          },
+          "isMaintenanceMode": {
+            "type": "boolean",
+            "example": false
+          },
+          "minimumOrderAmount": {
+            "type": "number",
+            "example": 100
+          },
+          "businessHours": {
+            "type": "object",
+            "example": {
+              "sunday": {
+                "open": "09:00",
+                "close": "22:00"
+              }
+            }
+          }
+        }
+      },
       "TestWhatsAppDto": {
         "type": "object",
         "properties": {
@@ -3918,6 +9077,132 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "CreateListItemDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Unique key within the ListType",
+            "example": "winter_clothing"
+          },
+          "labelAr": {
+            "type": "string",
+            "description": "Arabic label for the list item",
+            "example": "ملابس شتوية"
+          },
+          "labelEn": {
+            "type": "string",
+            "description": "English label for the list item",
+            "example": "Winter Clothing"
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "Sort order index",
+            "example": 0,
+            "default": 0
+          }
+        },
+        "required": [
+          "key",
+          "labelAr"
+        ]
+      },
+      "UpdateListItemDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Unique key within the ListType",
+            "example": "winter_clothing"
+          },
+          "labelAr": {
+            "type": "string",
+            "description": "Arabic label for the list item",
+            "example": "ملابس شتوية"
+          },
+          "labelEn": {
+            "type": "string",
+            "description": "English label for the list item",
+            "example": "Winter Clothing"
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "Sort order index",
+            "example": 0
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Active status flag",
+            "example": true
+          }
+        }
+      },
+      "CreateShippingZoneDto": {
+        "type": "object",
+        "properties": {
+          "cityLabel": {
+            "type": "string",
+            "description": "City label for the shipping zone (e.g. القاهرة, الإسكندرية, غير محدد)",
+            "example": "القاهرة"
+          },
+          "price": {
+            "type": "number",
+            "description": "Shipping fee price in EGP",
+            "example": 50
+          },
+          "estimatedDays": {
+            "type": "number",
+            "description": "Estimated delivery time in days",
+            "example": 2
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether the shipping zone is active for selection",
+            "example": true,
+            "default": true
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "Sort order index",
+            "example": 0,
+            "default": 0
+          }
+        },
+        "required": [
+          "cityLabel",
+          "price"
+        ]
+      },
+      "UpdateShippingZoneDto": {
+        "type": "object",
+        "properties": {
+          "cityLabel": {
+            "type": "string",
+            "description": "City label for the shipping zone",
+            "example": "القاهرة الكبرى"
+          },
+          "price": {
+            "type": "number",
+            "description": "Shipping fee price in EGP",
+            "example": 60
+          },
+          "estimatedDays": {
+            "type": "number",
+            "description": "Estimated delivery time in days",
+            "example": 3
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether the shipping zone is active for selection",
+            "example": true
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "Sort order index",
+            "example": 1
           }
         }
       }

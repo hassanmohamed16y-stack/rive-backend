@@ -22,6 +22,16 @@ export class UpdateStaticPageDto {
   @IsString()
   contentEn?: string;
 
+  @ApiPropertyOptional({ description: "SEO Title" })
+  @IsOptional()
+  @IsString()
+  seoTitle?: string;
+
+  @ApiPropertyOptional({ description: "SEO Description" })
+  @IsOptional()
+  @IsString()
+  seoDescription?: string;
+
   @ApiPropertyOptional({ description: "Whether the static page is published" })
   @IsOptional()
   @IsBoolean()

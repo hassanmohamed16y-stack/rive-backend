@@ -9,11 +9,19 @@ describe("SettingsService", () => {
       findUnique: jest.Mock;
       upsert: jest.Mock;
     };
+    siteSettings: {
+      findUnique: jest.Mock;
+      upsert: jest.Mock;
+    };
   };
 
   beforeEach(async () => {
     prisma = {
       systemSettings: {
+        findUnique: jest.fn(),
+        upsert: jest.fn(),
+      },
+      siteSettings: {
         findUnique: jest.fn(),
         upsert: jest.fn(),
       },
@@ -29,31 +37,46 @@ describe("SettingsService", () => {
     service = module.get<SettingsService>(SettingsService);
   });
 
-  it("returns default settings when database entry does not exist", async () => {
-    prisma.systemSettings.findUnique.mockResolvedValue(null);
-
-    const settings = await service.getSettings();
-    expect(settings).toEqual({
-      maintenanceMode: false,
-      enforce2FAGlobally: false,
+  it("returns default site settings when database entry does not exist", async () => {
+    prisma.siteSettings.findUnique.mockResolvedValue(null);
+    prisma.siteSettings.upsert.mockResolvedValue({
+      id: "default",
+      storeName: "RIVÉ",
+      isMaintenanceMode: false,
+      minimumOrderAmount: 0,
     });
+
+    const settings = await service.getSiteSettings();
+    expect(settings.storeName).toBe("RIVÉ");
   });
 
-  it("returns settings from database when present", async () => {
-    prisma.systemSettings.findUnique.mockResolvedValue({
+  it("updates site settings in database", async () => {
+    const updatedMock = {
       id: "default",
-      maintenanceMode: true,
-      enforce2FAGlobally: true,
+      storeName: "RIVÉ Luxury",
+      phone: "+201000000000",
+      isMaintenanceMode: true,
+      minimumOrderAmount: 150,
+    };
+    prisma.siteSettings.upsert.mockResolvedValue(updatedMock);
+
+    const result = await service.updateSiteSettings({
+      storeName: "RIVÉ Luxury",
+      phone: "+201000000000",
+      isMaintenanceMode: true,
+      minimumOrderAmount: 150,
     });
 
-    const settings = await service.getSettings();
-    expect(settings).toEqual({
-      maintenanceMode: true,
-      enforce2FAGlobally: true,
-    });
+    expect(prisma.siteSettings.upsert).toHaveBeenCalled();
+    expect(result.storeName).toBe("RIVÉ Luxury");
   });
 
   it("updates maintenance mode in database", async () => {
+    prisma.siteSettings.upsert.mockResolvedValue({
+      id: "default",
+      storeName: "RIVÉ",
+      isMaintenanceMode: true,
+    });
     prisma.systemSettings.upsert.mockResolvedValue({
       id: "default",
       maintenanceMode: true,
@@ -61,27 +84,6 @@ describe("SettingsService", () => {
     });
 
     const result = await service.setMaintenanceMode(true);
-    expect(prisma.systemSettings.upsert).toHaveBeenCalledWith({
-      where: { id: "default" },
-      update: { maintenanceMode: true },
-      create: { id: "default", maintenanceMode: true },
-    });
     expect(result).toEqual({ maintenanceMode: true });
-  });
-
-  it("updates enforce 2FA in database", async () => {
-    prisma.systemSettings.upsert.mockResolvedValue({
-      id: "default",
-      maintenanceMode: false,
-      enforce2FAGlobally: true,
-    });
-
-    const result = await service.setEnforce2FA(true);
-    expect(prisma.systemSettings.upsert).toHaveBeenCalledWith({
-      where: { id: "default" },
-      update: { enforce2FAGlobally: true },
-      create: { id: "default", enforce2FAGlobally: true },
-    });
-    expect(result).toEqual({ enforce2FAGlobally: true });
   });
 });

@@ -24,6 +24,7 @@ import { BannersModule } from "./banners/banners.module";
 import { MessageTemplatesModule } from "./message-templates/message-templates.module";
 import { ExportModule } from "./export/export.module";
 import { StaticPagesModule } from "./static-pages/static-pages.module";
+import { InternalNotesModule } from "./internal-notes/internal-notes.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 
 @Module({
@@ -32,6 +33,7 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
     BannersModule,
     MessageTemplatesModule,
     StaticPagesModule,
+    InternalNotesModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // 1 minute in milliseconds

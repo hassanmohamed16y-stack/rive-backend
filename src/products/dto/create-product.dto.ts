@@ -115,6 +115,24 @@ export class CreateProductDto {
   })
   shortDescription?: string;
 
+  @ApiPropertyOptional({ example: "Luna Silk Set | RIVÉ", maxLength: 256 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  seoTitle?: string;
+
+  @ApiPropertyOptional({ example: "Buy Luna Silk Set from RIVÉ.", maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  seoDescription?: string;
+
+  @ApiPropertyOptional({ example: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  displayOrder?: number;
+
   @ApiProperty({ example: 280 })
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })

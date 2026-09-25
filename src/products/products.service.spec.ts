@@ -35,13 +35,13 @@ describe("ProductsService public visibility and pagination", () => {
     });
     expect(prisma.product.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { status: ProductStatus.ACTIVE },
+        where: { status: { in: [ProductStatus.ACTIVE, ProductStatus.PUBLISHED] } },
         skip: 10,
         take: 10,
       }),
     );
     expect(prisma.product.count).toHaveBeenCalledWith({
-      where: { status: ProductStatus.ACTIVE },
+      where: { status: { in: [ProductStatus.ACTIVE, ProductStatus.PUBLISHED] } },
     });
   });
 
@@ -54,7 +54,7 @@ describe("ProductsService public visibility and pagination", () => {
     );
     expect(prisma.product.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { slug: "draft-product", status: ProductStatus.ACTIVE },
+        where: { slug: "draft-product", status: { in: [ProductStatus.ACTIVE, ProductStatus.PUBLISHED] } },
       }),
     );
   });

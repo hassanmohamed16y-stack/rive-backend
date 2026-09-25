@@ -14,6 +14,7 @@ datasource db {
 enum ProductStatus {
   DRAFT
   ACTIVE
+  PUBLISHED
   ARCHIVED
 }
 
@@ -102,6 +103,7 @@ model User {
   auditLogs                  AuditLog[]
   metaConversations          MetaConversation[]
   resolvedPendingApprovals   PendingApproval[]  @relation("PendingApprovalResolvedBy")
+  internalNotes              InternalNote[]     @relation("InternalNoteCreatedBy")
 
   @@index([roleId])
   @@index([deletedAt])
@@ -181,10 +183,13 @@ model Product {
   slug             String              @unique
   description      String?
   shortDescription String?
+  seoTitle         String?
+  seoDescription   String?
   price            Decimal             @db.Decimal(10, 2)
   compareAtPrice   Decimal?            @db.Decimal(10, 2)
   isFeatured       Boolean             @default(false)
   status           ProductStatus       @default(ACTIVE)
+  displayOrder     Int                 @default(0)
   categoryId       String
   category         Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   createdById      String?
@@ -202,6 +207,7 @@ model Product {
   @@index([deletedAt])
   @@index([status])
   @@index([isFeatured])
+  @@index([displayOrder])
   @@index([status, isFeatured])
   @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
   @@index([description(ops: raw("gin_trgm_ops"))], type: Gin)
@@ -397,6 +403,24 @@ model SystemSettings {
   updatedAt          DateTime @updatedAt
 }
 
+model SiteSettings {
+  id                 String   @id @default("default")
+  storeName          String   @default("RIVÉ")
+  logoUrl            String?
+  phone              String?
+  email              String?
+  address            String?
+  facebookUrl        String?
+  instagramUrl       String?
+  whatsappNumber     String?
+  tiktokUrl          String?
+  isMaintenanceMode  Boolean  @default(false)
+  minimumOrderAmount Decimal  @default(0) @db.Decimal(10, 2)
+  businessHours      Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
 model ListType {
   id        String     @id @default(cuid())
   key       String     @unique
@@ -495,34 +519,52 @@ model MessageTemplate {
 }
 
 model StaticPage {
-  id          String   @id @default(cuid())
-  slug        String   @unique
-  titleAr     String
-  titleEn     String?
-  contentAr   String   @db.Text
-  contentEn   String?  @db.Text
-  isPublished Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  titleAr        String
+  titleEn        String?
+  contentAr      String   @db.Text
+  contentEn      String?  @db.Text
+  seoTitle       String?
+  seoDescription String?
+  isPublished    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([slug])
   @@index([isPublished])
 }
 
 model Banner {
-  id         String   @id @default(cuid())
-  titleAr    String
-  subtitleAr String?
-  imageUrl   String
-  linkUrl    String?
-  startsAt   DateTime
-  endsAt     DateTime
-  sortOrder  Int      @default(0)
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String    @id @default(cuid())
+  titleAr     String
+  subtitleAr  String?
+  imageUrl    String
+  linkUrl     String?
+  startsAt    DateTime
+  endsAt      DateTime
+  publishAt   DateTime?
+  unpublishAt DateTime?
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([isActive])
   @@index([startsAt, endsAt])
   @@index([sortOrder])
+}
+
+model InternalNote {
+  id          String   @id @default(cuid())
+  content     String   @db.Text
+  entityType  String
+  entityId    String
+  createdById String?
+  createdBy   User?    @relation("InternalNoteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([entityType, entityId])
+  @@index([createdById])
 }
