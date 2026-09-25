@@ -93,7 +93,10 @@ export class PaymentController {
     @Query("hmac") queryHmac?: string,
   ) {
     const rawOrBody = req.body;
-    return this.paymobService.handleWebhook(rawOrBody, queryHmac);
+    const headerHmac =
+      (req.headers["x-paymob-hmac"] as string | undefined) ||
+      (req.headers["hmac"] as string | undefined);
+    return this.paymobService.handleWebhook(rawOrBody, queryHmac || headerHmac);
   }
 
   @SkipThrottle()
@@ -135,5 +138,16 @@ export class PaymentController {
   @ApiResponse({ status: 403, description: "Forbidden - Admin access required." })
   async refundPayment(@Body() dto: RefundPaymentDto) {
     return this.paymobService.refundTransaction(dto.orderId, dto.amount);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN")
+  @ApiBearerAuth()
+  @Post("reconcile")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Reconcile database payment records with Paymob API (Admin only)" })
+  @ApiResponse({ status: 200, description: "Reconciliation completed." })
+  async reconcilePayments(@Query("days") days?: number) {
+    return this.paymobService.reconcilePayments(days ? Number(days) : 30);
   }
 }

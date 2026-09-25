@@ -4,6 +4,7 @@ import { InternalOrdersController } from "./internal-orders.controller";
 describe("InternalOrdersController", () => {
   const ORIGINAL_ENV = { ...process.env };
   const ordersService = { expirePendingReservations: jest.fn() };
+  const paymobService = { reconcilePayments: jest.fn() };
 
   afterEach(() => {
     process.env = { ...ORIGINAL_ENV };
@@ -11,7 +12,7 @@ describe("InternalOrdersController", () => {
   });
 
   function createController() {
-    return new InternalOrdersController(ordersService as any);
+    return new InternalOrdersController(ordersService as any, paymobService as any);
   }
 
   it("rejects when INTERNAL_CRON_SECRET is not configured", async () => {
@@ -50,5 +51,23 @@ describe("InternalOrdersController", () => {
 
     expect(result).toEqual({ expiredCount: 3 });
     expect(ordersService.expirePendingReservations).toHaveBeenCalledTimes(1);
+  });
+
+  it("triggers paymob reconciliation when secret matches", async () => {
+    process.env.INTERNAL_CRON_SECRET =
+      "a-secure-internal-cron-secret-32-chars-min";
+    paymobService.reconcilePayments.mockResolvedValue({
+      checkedCount: 5,
+      mismatchesCount: 0,
+      mismatches: [],
+    });
+    const controller = createController();
+
+    const result = await controller.reconcilePaymob(
+      "a-secure-internal-cron-secret-32-chars-min",
+    );
+
+    expect(result).toEqual({ checkedCount: 5, mismatchesCount: 0, mismatches: [] });
+    expect(paymobService.reconcilePayments).toHaveBeenCalledWith(30);
   });
 });

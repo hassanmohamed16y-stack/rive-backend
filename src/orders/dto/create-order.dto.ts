@@ -95,6 +95,12 @@ export class CreateOrderDto {
   @Length(0, 500)
   notes?: string;
 
+  @ApiPropertyOptional({ example: "idemp_1234567890", maxLength: 255 })
+  @IsOptional()
+  @IsString()
+  @Length(1, 255)
+  idempotencyKey?: string;
+
   @ApiProperty({ type: [OrderItemDto], maxItems: 50 })
   @IsArray()
   @ArrayMinSize(1)
