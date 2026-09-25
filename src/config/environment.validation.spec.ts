@@ -70,7 +70,7 @@ describe("production environment validation", () => {
           NODE_ENV: nodeEnv,
           JWT_SECRET: "",
         }),
-      ).toThrow("Missing required production environment variables");
+      ).toThrow("Missing required environment variable");
       expect(() =>
         validateEnvironment({ ...productionEnvironment, NODE_ENV: nodeEnv }),
       ).not.toThrow();

@@ -43,7 +43,9 @@ export function validateEnvironment(environment = process.env) {
   );
   if (missingVariables.length) {
     throw new Error(
-      `Missing required production environment variables: ${missingVariables.join(", ")}`,
+      `[CRITICAL SERVER STARTUP ERROR / خطأ حرجي عند تشغيل السيرفر] ` +
+      `Missing required environment variable(s) / المتغيرات البيئية التالية مفقودة أو فارغة: ` +
+      `${missingVariables.join(", ")}`,
     );
   }
 

@@ -89,6 +89,7 @@ model User {
   passwordResetExpiresAt     DateTime?
   failedLoginAttempts        Int                @default(0)
   lockedUntil                DateTime?
+  deletedAt                  DateTime?
   createdAt                  DateTime           @default(now())
   updatedAt                  DateTime           @updatedAt
   orders                     Order[]
@@ -103,6 +104,7 @@ model User {
   resolvedPendingApprovals   PendingApproval[]  @relation("PendingApprovalResolvedBy")
 
   @@index([roleId])
+  @@index([deletedAt])
 }
 
 model Role {
@@ -192,10 +194,12 @@ model Product {
   images           ProductImage[]
   variants         ProductVariant[]
   collections      ProductCollection[]
+  deletedAt        DateTime?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
   @@index([categoryId])
+  @@index([deletedAt])
   @@index([status])
   @@index([isFeatured])
   @@index([status, isFeatured])
@@ -260,11 +264,13 @@ model Order {
   paymobTransactionId  String?       @unique
   updatedById          String?
   updatedBy            User?         @relation("OrderUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  deletedAt            DateTime?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
   items                OrderItem[]
 
   @@index([userId])
+  @@index([deletedAt])
   @@index([status, reservationExpiresAt])
 }
 

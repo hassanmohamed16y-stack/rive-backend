@@ -216,7 +216,7 @@ export class UsersService {
 
     const updatedUser = await this.prisma.user.update({
       where: { id: targetUserId },
-      data: { isActive: false },
+      data: { isActive: false, deletedAt: new Date() },
       include: {
         roleRecord: {
           select: {
@@ -233,10 +233,42 @@ export class UsersService {
       action: "user.disabled",
       entityType: "User",
       entityId: updatedUser.id,
-      changes: { isActive: false },
+      changes: { isActive: false, deletedAt: updatedUser.deletedAt },
     });
 
     return this.sanitizeUser(updatedUser);
+  }
+
+  async deleteUser(
+    targetUserId: string,
+    performingUser: { id: string; permissions?: string[] },
+  ) {
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      include: { roleRecord: true },
+    });
+
+    if (!targetUser) {
+      throw new NotFoundException(`User with ID ${targetUserId} not found`);
+    }
+
+    if (targetUser.roleRecord?.name === "full_admin" && targetUser.isActive) {
+      await this.ensureNotLastFullAdmin(targetUserId);
+    }
+
+    await this.prisma.user.delete({
+      where: { id: targetUserId },
+    });
+
+    await this.auditLogService.record({
+      userId: performingUser.id,
+      action: "user.delete",
+      entityType: "User",
+      entityId: targetUserId,
+      changes: { deleted: true },
+    });
+
+    return { message: "User deleted successfully" };
   }
 
   async findAllRoles() {
