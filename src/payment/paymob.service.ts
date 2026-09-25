@@ -7,11 +7,13 @@ import {
   InternalServerErrorException,
   Logger,
   NotFoundException,
+  Optional,
   forwardRef,
 } from "@nestjs/common";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { createHmac } from "crypto";
+import { AuditLogService } from "../audit-log/audit-log.service";
 import { isOrderOwnedByActor } from "../common/utils/order-ownership";
 import { isPrismaErrorCode } from "../common/utils/prisma-error";
 import { timingSafeStringEqual } from "../common/utils/timing-safe-compare";
@@ -26,6 +28,7 @@ export class PaymobService {
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => OrdersService))
     private readonly ordersService: OrdersService,
+    @Optional() private readonly auditLogService?: AuditLogService,
   ) {}
 
   private getApiKey(): string {
@@ -537,5 +540,121 @@ export class PaymobService {
       );
       throw new BadRequestException("Failed to execute Paymob refund");
     }
+  }
+
+  async reconcilePayments(daysBack = 30) {
+    const sinceDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+    const orders = await this.prisma.order.findMany({
+      where: {
+        createdAt: { gte: sinceDate },
+        OR: [
+          { paymobTransactionId: { not: null } },
+          { paymobIntentionId: { not: null } },
+        ],
+      },
+      select: {
+        id: true,
+        orderNumber: true,
+        status: true,
+        paymentStatus: true,
+        paymobTransactionId: true,
+        paymobIntentionId: true,
+        totalAmount: true,
+      },
+    });
+
+    const mismatches: Array<{
+      orderId: string;
+      orderNumber: string;
+      dbStatus: OrderStatus;
+      dbPaymentStatus: PaymentStatus;
+      paymobStatus: PaymentStatus;
+      paymobTransactionId: string;
+      details: string;
+    }> = [];
+    let checkedCount = 0;
+
+    for (const order of orders) {
+      const txId = order.paymobTransactionId;
+      if (!txId) continue;
+      checkedCount++;
+
+      try {
+        const response = await fetch(
+          `https://accept.paymob.com/api/acceptance/transactions/${txId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${this.getApiKey()}`,
+            },
+          },
+        );
+
+        if (!response.ok) {
+          this.logger.warn(`Failed to fetch Paymob transaction ${txId}: HTTP ${response.status}`);
+          continue;
+        }
+
+        const txData = (await response.json()) as {
+          success?: boolean;
+          pending?: boolean;
+          is_refunded?: boolean;
+          is_voided?: boolean;
+        };
+
+        const isSuccess = txData.success === true && txData.pending === false;
+        const isRefunded = txData.is_refunded === true;
+
+        let expectedPaymentStatus: PaymentStatus = PaymentStatus.PENDING;
+
+        if (isRefunded) {
+          expectedPaymentStatus = PaymentStatus.REFUNDED;
+        } else if (isSuccess) {
+          expectedPaymentStatus = PaymentStatus.PAID;
+        } else if (txData.success === false && txData.pending === false) {
+          expectedPaymentStatus = PaymentStatus.FAILED;
+        }
+
+        const hasMismatch =
+          order.paymentStatus !== expectedPaymentStatus ||
+          (expectedPaymentStatus === PaymentStatus.PAID && order.status !== OrderStatus.PAID);
+
+        if (hasMismatch) {
+          mismatches.push({
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            dbStatus: order.status,
+            dbPaymentStatus: order.paymentStatus,
+            paymobStatus: expectedPaymentStatus,
+            paymobTransactionId: txId,
+            details: `Order ${order.orderNumber} is ${order.status}/${order.paymentStatus} in DB but Paymob transaction ${txId} indicates ${expectedPaymentStatus}`,
+          });
+
+          if (this.auditLogService) {
+            await this.auditLogService.record({
+              action: "payment.reconciliation_mismatch",
+              entityType: "Order",
+              entityId: order.id,
+              changes: {
+                dbStatus: order.status,
+                dbPaymentStatus: order.paymentStatus,
+                paymobStatus: expectedPaymentStatus,
+                paymobTransactionId: txId,
+              },
+            });
+          }
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to reconcile transaction ${txId} for order ${order.id}`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+    }
+
+    return {
+      checkedCount,
+      mismatchesCount: mismatches.length,
+      mismatches,
+    };
   }
 }

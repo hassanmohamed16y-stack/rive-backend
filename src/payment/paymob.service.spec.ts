@@ -43,6 +43,7 @@ function createService(overrides: Record<string, unknown> = {}) {
   const prisma = {
     order: {
       findUnique: jest.fn().mockResolvedValue(pendingOrder),
+      findMany: jest.fn().mockResolvedValue([]),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       update: jest.fn().mockResolvedValue({ id: "order-1", status: OrderStatus.PAID }),
     },
@@ -377,6 +378,41 @@ describe("PaymobService", () => {
       await expect(
         service.refundTransaction("order-1", 120.0),
       ).rejects.toThrow("Only paid orders can be refunded");
+    });
+  });
+
+  describe("reconcilePayments", () => {
+    it("fetches orders and identifies payment status mismatches", async () => {
+      const { service, prisma } = createService();
+      const mockOrders = [
+        {
+          id: "order-1",
+          orderNumber: "RIV-1000-ABC",
+          status: OrderStatus.PENDING,
+          paymentStatus: "PENDING",
+          paymobTransactionId: "1234567",
+        },
+      ];
+      prisma.order.findMany = jest.fn().mockResolvedValue(mockOrders);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          success: true,
+          pending: false,
+          is_refunded: false,
+        }),
+      } as any);
+
+      const result = await service.reconcilePayments(30);
+
+      expect(result.checkedCount).toBe(1);
+      expect(result.mismatchesCount).toBe(1);
+      expect(result.mismatches[0]).toMatchObject({
+        orderId: "order-1",
+        dbStatus: OrderStatus.PENDING,
+        paymobStatus: "PAID",
+      });
     });
   });
 });

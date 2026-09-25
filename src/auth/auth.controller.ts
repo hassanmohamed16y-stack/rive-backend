@@ -40,7 +40,7 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Throttle({ default: { limit: 5, ttl: 900000 } })
   @Post("login")
   @ApiOperation({ summary: "Log in and receive a JWT access token" })
   @ApiResponse({ status: 201, description: "Login successful." })
@@ -132,7 +132,7 @@ export class AuthController {
     return this.authService.changePassword(req.user.id, dto);
   }
 
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Throttle({ default: { limit: 3, ttl: 3600000 } })
   @Post("forgot-password")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Request a password reset token via email" })
@@ -144,7 +144,7 @@ export class AuthController {
     return this.authService.forgotPassword(dto.email);
   }
 
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Throttle({ default: { limit: 3, ttl: 3600000 } })
   @Post("reset-password")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

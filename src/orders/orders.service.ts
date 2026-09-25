@@ -11,6 +11,7 @@ import { OrderStatus, PaymentStatus, Prisma, ProductStatus } from "@prisma/clien
 import { Decimal } from "@prisma/client/runtime/library";
 import { AuditLogService } from "../audit-log/audit-log.service";
 import { isOrderOwnedByActor } from "../common/utils/order-ownership";
+import { isPrismaErrorCode } from "../common/utils/prisma-error";
 import {
   buildPaginationMeta,
   PaginationInput,
@@ -111,6 +112,19 @@ export class OrdersService implements OnModuleInit {
   }
 
   async create(dto: CreateOrderDto, userId?: string) {
+    if (dto.idempotencyKey) {
+      const existing = await this.prisma.order.findUnique({
+        where: { idempotencyKey: dto.idempotencyKey },
+        include: orderInclude,
+      });
+      if (existing) {
+        return {
+          ...existing,
+          guestAccessToken: existing.guestAccessToken || undefined,
+        };
+      }
+    }
+
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException("Order must include at least one item");
     }
@@ -197,6 +211,7 @@ export class OrdersService implements OnModuleInit {
       return tx.order.create({
         data: {
           orderNumber: this.generateOrderNumber(),
+          idempotencyKey: dto.idempotencyKey || null,
           userId,
           guestAccessToken,
           status: OrderStatus.PENDING,
@@ -218,11 +233,22 @@ export class OrdersService implements OnModuleInit {
         },
         include: orderInclude,
       });
+    }).catch(async (error) => {
+      if (isPrismaErrorCode(error, "P2002") && dto.idempotencyKey) {
+        const existing = await this.prisma.order.findUnique({
+          where: { idempotencyKey: dto.idempotencyKey },
+          include: orderInclude,
+        });
+        if (existing) {
+          return existing;
+        }
+      }
+      throw error;
     });
 
     return {
       ...order,
-      guestAccessToken,
+      guestAccessToken: order.guestAccessToken || guestAccessToken,
     };
   }
 

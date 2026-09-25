@@ -9,8 +9,10 @@ import {
   Headers,
 } from "@nestjs/common";
 import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { Inject, forwardRef } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { timingSafeStringEqual } from "../common/utils/timing-safe-compare";
+import { PaymobService } from "../payment/paymob.service";
 import { OrdersService } from "./orders.service";
 
 /**
@@ -28,7 +30,11 @@ import { OrdersService } from "./orders.service";
 export class InternalOrdersController {
   private readonly logger = new Logger(InternalOrdersController.name);
 
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(
+    private readonly ordersService: OrdersService,
+    @Inject(forwardRef(() => PaymobService))
+    private readonly paymobService: PaymobService,
+  ) {}
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post("expire-reservations")
@@ -68,5 +74,47 @@ export class InternalOrdersController {
     const expiredCount = await this.ordersService.expirePendingReservations();
     this.logger.log(`Expired ${expiredCount} pending order reservation(s)`);
     return { expiredCount };
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post("reconcile-paymob")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Reconcile database payment records with Paymob API (internal cron only)",
+  })
+  @ApiHeader({ name: "x-internal-cron-secret", required: true })
+  @ApiResponse({ status: 200, description: "Reconciliation completed." })
+  @ApiResponse({
+    status: 401,
+    description: "Missing or invalid internal cron secret.",
+  })
+  @ApiResponse({
+    status: 403,
+    description: "INTERNAL_CRON_SECRET is not configured on this server.",
+  })
+  async reconcilePaymob(
+    @Headers("x-internal-cron-secret") providedSecret?: string,
+  ) {
+    const expectedSecret = process.env.INTERNAL_CRON_SECRET;
+
+    if (!expectedSecret) {
+      this.logger.error(
+        "Rejected reconcile-paymob call: INTERNAL_CRON_SECRET is not configured",
+      );
+      throw new ForbiddenException("INTERNAL_CRON_SECRET is not configured");
+    }
+
+    if (!timingSafeStringEqual(providedSecret, expectedSecret)) {
+      this.logger.warn(
+        "Rejected reconcile-paymob call: invalid internal cron secret",
+      );
+      throw new UnauthorizedException("Invalid internal cron secret");
+    }
+
+    const result = await this.paymobService.reconcilePayments(30);
+    this.logger.log(
+      `Reconciled Paymob payments: checked ${result.checkedCount}, found ${result.mismatchesCount} mismatch(es)`,
+    );
+    return result;
   }
 }

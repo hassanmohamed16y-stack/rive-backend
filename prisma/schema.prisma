@@ -241,6 +241,7 @@ model ProductVariant {
 model Order {
   id                   String        @id @default(cuid())
   orderNumber          String        @unique
+  idempotencyKey       String?       @unique
   guestAccessToken     String?       @unique
   userId               String?
   user                 User?         @relation(fields: [userId], references: [id], onDelete: SetNull)

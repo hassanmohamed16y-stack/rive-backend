@@ -125,6 +125,30 @@ describe("OrdersService inventory reservations", () => {
     expect(context.variant.stock).toBe(0);
   });
 
+  it("returns existing order when called with duplicate idempotencyKey", async () => {
+    const context = transactionPrisma(5);
+    context.order.idempotencyKey = "idemp-key-123";
+    context.prisma.order.findUnique = jest.fn().mockImplementation(async ({ where }: any) => {
+      if (where.idempotencyKey === "idemp-key-123") {
+        return context.order;
+      }
+      return null;
+    });
+
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    const result = await service.create({
+      ...dto,
+      idempotencyKey: "idemp-key-123",
+    });
+
+    expect(result).toMatchObject({ id: "order-1", idempotencyKey: "idemp-key-123" });
+    expect(context.tx.productVariant.findMany).not.toHaveBeenCalled();
+  });
+
   it("rolls back a reservation when stock is insufficient", async () => {
     const context = transactionPrisma(0);
     const service = new OrdersService(
