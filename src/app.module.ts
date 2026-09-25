@@ -4,6 +4,13 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { AuditLogModule } from "./audit-log/audit-log.module";
 import { AuthModule } from "./auth/auth.module";
 import { CategoriesModule } from "./categories/categories.module";
+import { CouponsModule } from "./coupons/coupons.module";
+import { ReferralsModule } from "./referrals/referrals.module";
+import { BundlesModule } from "./bundles/bundles.module";
+import { CartSessionsModule } from "./cart-sessions/cart-sessions.module";
+import { ReviewsModule } from "./reviews/reviews.module";
+import { WishlistModule } from "./wishlist/wishlist.module";
+import { AnalyticsModule } from "./analytics/analytics.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { CollectionsModule } from "./collections/collections.module";
 import { EmailModule } from "./email/email.module";
@@ -46,6 +53,13 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
     AuthModule,
     AutomationModule,
     CategoriesModule,
+    CouponsModule,
+    ReferralsModule,
+    BundlesModule,
+    CartSessionsModule,
+    ReviewsModule,
+    WishlistModule,
+    AnalyticsModule,
     DashboardModule,
     CollectionsModule,
     HealthModule,

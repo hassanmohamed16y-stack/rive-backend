@@ -139,8 +139,8 @@ export class GoogleSheetsService {
     const rows = variants.map((v) => [
       v.sku,
       v.product.name,
-      v.size,
-      v.colorHex,
+      v.size ?? "",
+      v.colorHex ?? "",
       v.stock.toString(),
       v.isAvailable ? "Yes" : "No",
     ]);

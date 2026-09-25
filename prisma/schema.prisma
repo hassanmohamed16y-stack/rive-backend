@@ -50,6 +50,11 @@ enum Size {
   XL
 }
 
+enum CouponType {
+  PERCENTAGE
+  FIXED
+}
+
 enum WorkflowTrustLevel {
   suggestion_only
   requires_approval
@@ -104,6 +109,10 @@ model User {
   metaConversations          MetaConversation[]
   resolvedPendingApprovals   PendingApproval[]  @relation("PendingApprovalResolvedBy")
   internalNotes              InternalNote[]     @relation("InternalNoteCreatedBy")
+  referralCodes              ReferralCode[]
+  cartSessions               CartSession[]
+  reviews                    Review[]
+  wishlistItems              WishlistItem[]
 
   @@index([roleId])
   @@index([deletedAt])
@@ -199,6 +208,9 @@ model Product {
   images           ProductImage[]
   variants         ProductVariant[]
   collections      ProductCollection[]
+  priceTiers       PriceTier[]
+  reviews          Review[]
+  wishlistItems    WishlistItem[]
   deletedAt        DateTime?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
@@ -231,8 +243,9 @@ model ProductVariant {
   productId   String
   product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   sku         String      @unique
-  colorHex    String      @default("#945958")
-  size        Size
+  colorHex    String?     @default("#945958")
+  size        Size?
+  attributes  Json?
   price       Decimal     @db.Decimal(10, 2)
   stock       Int         @default(0)
   isAvailable Boolean     @default(true)
@@ -242,6 +255,35 @@ model ProductVariant {
 
   @@index([productId])
   @@index([productId, colorHex])
+}
+
+model PriceTier {
+  id              String   @id @default(cuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  minQuantity     Int
+  discountPercent Decimal? @db.Decimal(5, 2)
+  fixedPrice      Decimal? @db.Decimal(10, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([productId])
+}
+
+model Coupon {
+  id               String     @id @default(cuid())
+  code             String     @unique
+  type             CouponType @default(PERCENTAGE)
+  value            Decimal    @db.Decimal(10, 2)
+  expiresAt        DateTime?
+  usageLimit       Int?
+  usageCount       Int        @default(0)
+  usagePerCustomer Int?
+  minOrderAmount   Decimal?   @db.Decimal(10, 2)
+  isActive         Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  orders           Order[]
 }
 
 model Order {
@@ -269,12 +311,16 @@ model Order {
   paymentSessionId     String?       @unique
   paymobIntentionId    String?       @unique
   paymobTransactionId  String?       @unique
+  couponId             String?
+  coupon               Coupon?       @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  couponCode           String?
   updatedById          String?
   updatedBy            User?         @relation("OrderUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   deletedAt            DateTime?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
   items                OrderItem[]
+  statusHistory        OrderStatusHistory[]
 
   @@index([userId])
   @@index([deletedAt])
@@ -404,21 +450,109 @@ model SystemSettings {
 }
 
 model SiteSettings {
-  id                 String   @id @default("default")
-  storeName          String   @default("RIVÉ")
-  logoUrl            String?
-  phone              String?
-  email              String?
-  address            String?
-  facebookUrl        String?
-  instagramUrl       String?
-  whatsappNumber     String?
-  tiktokUrl          String?
-  isMaintenanceMode  Boolean  @default(false)
-  minimumOrderAmount Decimal  @default(0) @db.Decimal(10, 2)
-  businessHours      Json?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                    String   @id @default("default")
+  storeName             String   @default("RIVÉ")
+  logoUrl               String?
+  phone                 String?
+  email                 String?
+  address               String?
+  facebookUrl           String?
+  instagramUrl          String?
+  whatsappNumber        String?
+  tiktokUrl             String?
+  isMaintenanceMode     Boolean  @default(false)
+  minimumOrderAmount    Decimal  @default(0) @db.Decimal(10, 2)
+  freeShippingThreshold Decimal? @db.Decimal(10, 2)
+  businessHours         Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model Bundle {
+  id          String   @id @default(cuid())
+  name        String
+  productIds  Json
+  bundlePrice Decimal  @db.Decimal(10, 2)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ReferralCode {
+  id          String           @id @default(cuid())
+  customerId  String?
+  customer    User?            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  code        String           @unique
+  usesCount   Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  rewards     ReferralReward[]
+
+  @@index([customerId])
+}
+
+model ReferralReward {
+  id             String       @id @default(cuid())
+  referralCodeId String
+  referralCode   ReferralCode @relation(fields: [referralCodeId], references: [id], onDelete: Cascade)
+  orderId        String?
+  discountAmount Decimal      @db.Decimal(10, 2)
+  createdAt      DateTime     @default(now())
+
+  @@index([referralCodeId])
+}
+
+model CartSession {
+  id             String   @id @default(cuid())
+  customerId     String?
+  customer       User?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items          Json
+  lastActivityAt DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([lastActivityAt])
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(cuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    OrderStatus
+  notes     String?
+  createdAt DateTime    @default(now())
+
+  @@index([orderId])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer   User?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  authorName String?
+  rating     Int
+  comment    String?  @db.Text
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([productId])
+  @@index([isApproved])
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([customerId, productId])
+  @@index([customerId])
 }
 
 model ListType {

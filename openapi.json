@@ -4317,6 +4317,710 @@
         ]
       }
     },
+    "/api/v1/coupons/validate": {
+      "post": {
+        "operationId": "CouponsController_validate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateCouponDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Coupon is valid."
+          },
+          "400": {
+            "description": "Coupon is invalid, expired, or limit reached."
+          }
+        },
+        "summary": "Validate and calculate discount for a coupon code",
+        "tags": [
+          "coupons"
+        ]
+      }
+    },
+    "/api/v1/admin/coupons": {
+      "post": {
+        "operationId": "AdminCouponsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCouponDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Coupon created successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a discount coupon (Admin)",
+        "tags": [
+          "admin coupons"
+        ]
+      },
+      "get": {
+        "operationId": "AdminCouponsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all discount coupons (Admin)",
+        "tags": [
+          "admin coupons"
+        ]
+      }
+    },
+    "/api/v1/admin/coupons/{id}": {
+      "get": {
+        "operationId": "AdminCouponsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a discount coupon by id (Admin)",
+        "tags": [
+          "admin coupons"
+        ]
+      },
+      "patch": {
+        "operationId": "AdminCouponsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCouponDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update or toggle a discount coupon (Admin)",
+        "tags": [
+          "admin coupons"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminCouponsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a discount coupon (Admin)",
+        "tags": [
+          "admin coupons"
+        ]
+      }
+    },
+    "/api/v1/referrals/my-code": {
+      "get": {
+        "operationId": "ReferralsController_getMyCode",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get or generate my referral code",
+        "tags": [
+          "referrals"
+        ]
+      }
+    },
+    "/api/v1/referrals/validate": {
+      "post": {
+        "operationId": "ReferralsController_validate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidateReferralDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Referral code is valid."
+          },
+          "400": {
+            "description": "Self-referral or invalid code."
+          }
+        },
+        "summary": "Validate a referral code",
+        "tags": [
+          "referrals"
+        ]
+      }
+    },
+    "/api/v1/bundles": {
+      "get": {
+        "operationId": "BundlesController_findAllPublic",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List active product bundles",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
+    "/api/v1/bundles/{id}": {
+      "get": {
+        "operationId": "BundlesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get product bundle details by id",
+        "tags": [
+          "bundles"
+        ]
+      }
+    },
+    "/api/v1/admin/bundles": {
+      "post": {
+        "operationId": "AdminBundlesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBundleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Bundle created successfully."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a product bundle (Admin)",
+        "tags": [
+          "admin bundles"
+        ]
+      },
+      "get": {
+        "operationId": "AdminBundlesController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all product bundles (Admin)",
+        "tags": [
+          "admin bundles"
+        ]
+      }
+    },
+    "/api/v1/admin/bundles/{id}": {
+      "get": {
+        "operationId": "AdminBundlesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get product bundle by id (Admin)",
+        "tags": [
+          "admin bundles"
+        ]
+      },
+      "patch": {
+        "operationId": "AdminBundlesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBundleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update product bundle (Admin)",
+        "tags": [
+          "admin bundles"
+        ]
+      },
+      "delete": {
+        "operationId": "AdminBundlesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete product bundle (Admin)",
+        "tags": [
+          "admin bundles"
+        ]
+      }
+    },
+    "/api/v1/cart/sync": {
+      "post": {
+        "operationId": "CartSessionsController_syncCart",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncCartDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Sync customer cart session",
+        "tags": [
+          "cart"
+        ]
+      }
+    },
+    "/api/v1/admin/carts/abandoned": {
+      "get": {
+        "operationId": "AdminCartSessionsController_getAbandoned",
+        "parameters": [
+          {
+            "name": "inactivityMinutes",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List abandoned carts (Admin)",
+        "tags": [
+          "admin cart sessions"
+        ]
+      }
+    },
+    "/api/v1/products/{productId}/reviews": {
+      "post": {
+        "operationId": "ReviewsController_createReview",
+        "parameters": [
+          {
+            "name": "productId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Review submitted successfully (pending admin approval)."
+          }
+        },
+        "summary": "Submit a product review",
+        "tags": [
+          "reviews"
+        ]
+      },
+      "get": {
+        "operationId": "ReviewsController_getApprovedReviews",
+        "parameters": [
+          {
+            "name": "productId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get approved reviews for a product",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/admin/reviews": {
+      "get": {
+        "operationId": "AdminReviewsController_findAll",
+        "parameters": [
+          {
+            "name": "isApproved",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List reviews for moderation (Admin)",
+        "tags": [
+          "admin reviews"
+        ]
+      }
+    },
+    "/api/v1/admin/reviews/{id}/approve": {
+      "patch": {
+        "operationId": "AdminReviewsController_setApproval",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveReviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Approve or reject a review (Admin)",
+        "tags": [
+          "admin reviews"
+        ]
+      }
+    },
+    "/api/v1/admin/reviews/{id}": {
+      "delete": {
+        "operationId": "AdminReviewsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a review (Admin)",
+        "tags": [
+          "admin reviews"
+        ]
+      }
+    },
+    "/api/v1/wishlist": {
+      "get": {
+        "operationId": "WishlistController_getWishlist",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get customer wishlist",
+        "tags": [
+          "wishlist"
+        ]
+      },
+      "post": {
+        "operationId": "WishlistController_addToWishlist",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddToWishlistDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product added to wishlist."
+          },
+          "409": {
+            "description": "Product is already in wishlist."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add product to wishlist",
+        "tags": [
+          "wishlist"
+        ]
+      }
+    },
+    "/api/v1/wishlist/{productId}": {
+      "delete": {
+        "operationId": "WishlistController_removeFromWishlist",
+        "parameters": [
+          {
+            "name": "productId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove product from wishlist",
+        "tags": [
+          "wishlist"
+        ]
+      }
+    },
+    "/api/v1/analytics/overview": {
+      "get": {
+        "operationId": "AnalyticsController_getOverview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Analytics overview data returned."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get sales & growth analytics overview (Admin)",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
     "/api/v1/admin/dashboard/overview": {
       "get": {
         "operationId": "AdminDashboardController_getOverview",
@@ -8423,6 +9127,253 @@
             "type": "boolean"
           }
         }
+      },
+      "ValidateCouponDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "SUMMER20"
+          },
+          "subtotal": {
+            "type": "number",
+            "example": 500
+          }
+        },
+        "required": [
+          "code",
+          "subtotal"
+        ]
+      },
+      "CreateCouponDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "SUMMER20"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "PERCENTAGE",
+              "FIXED"
+            ],
+            "default": "PERCENTAGE"
+          },
+          "value": {
+            "type": "number",
+            "example": 20,
+            "description": "Discount percentage or fixed EGP amount"
+          },
+          "expiresAt": {
+            "type": "string",
+            "example": "2026-12-31T23:59:59.000Z"
+          },
+          "usageLimit": {
+            "type": "number",
+            "example": 100
+          },
+          "usagePerCustomer": {
+            "type": "number",
+            "example": 1
+          },
+          "minOrderAmount": {
+            "type": "number",
+            "example": 500
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "default": true
+          }
+        },
+        "required": [
+          "code",
+          "value"
+        ]
+      },
+      "UpdateCouponDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "SUMMER20"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "PERCENTAGE",
+              "FIXED"
+            ]
+          },
+          "value": {
+            "type": "number",
+            "example": 20
+          },
+          "expiresAt": {
+            "type": "string",
+            "example": "2026-12-31T23:59:59.000Z"
+          },
+          "usageLimit": {
+            "type": "number",
+            "example": 100
+          },
+          "usagePerCustomer": {
+            "type": "number",
+            "example": 1
+          },
+          "minOrderAmount": {
+            "type": "number",
+            "example": 500
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": false
+          }
+        }
+      },
+      "ValidateReferralDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "REF-AISH12"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "CreateBundleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Luxury Lingerie Set Bundle"
+          },
+          "productIds": {
+            "example": [
+              "prod_1",
+              "prod_2"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bundlePrice": {
+            "type": "number",
+            "example": 450
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "default": true
+          }
+        },
+        "required": [
+          "name",
+          "productIds",
+          "bundlePrice"
+        ]
+      },
+      "UpdateBundleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Luxury Lingerie Set Bundle"
+          },
+          "productIds": {
+            "example": [
+              "prod_1",
+              "prod_2"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bundlePrice": {
+            "type": "number",
+            "example": 450
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": false
+          }
+        }
+      },
+      "SyncCartDto": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "example": "cm3r5xj4g0000s7d7f1q2n9v"
+          },
+          "items": {
+            "example": [
+              {
+                "variantId": "var_1",
+                "quantity": 2,
+                "price": 150
+              }
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "CreateReviewDto": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "number",
+            "example": 5,
+            "minimum": 1,
+            "maximum": 5
+          },
+          "comment": {
+            "type": "string",
+            "example": "Exquisite silk quality and perfect fit!"
+          },
+          "authorName": {
+            "type": "string",
+            "example": "Aisha R."
+          }
+        },
+        "required": [
+          "rating"
+        ]
+      },
+      "ApproveReviewDto": {
+        "type": "object",
+        "properties": {
+          "isApproved": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "isApproved"
+        ]
+      },
+      "AddToWishlistDto": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "example": "prod_12345"
+          }
+        },
+        "required": [
+          "productId"
+        ]
       },
       "CreateCollectionDto": {
         "type": "object",
