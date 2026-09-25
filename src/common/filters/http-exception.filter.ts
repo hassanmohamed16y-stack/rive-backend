@@ -4,10 +4,13 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  Injectable,
   Logger,
+  Optional,
 } from "@nestjs/common";
 import * as Sentry from "@sentry/nestjs";
 import { Request, Response } from "express";
+import { AlertService } from "../../health/alert.service";
 
 type RequestWithContext = Request & { requestId?: string };
 
@@ -22,8 +25,11 @@ function isHttpExceptionResponseBody(
 }
 
 @Catch()
+@Injectable()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
+
+  constructor(@Optional() private readonly alertService?: AlertService) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -71,6 +77,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
         this.logger.warn(
           `Failed to report exception to Sentry: ${sentryError instanceof Error ? sentryError.message : String(sentryError)}`,
         );
+      }
+
+      // Check for DB connection errors or unhandled application exceptions
+      const errString = exception instanceof Error ? `${exception.name}: ${exception.message}\n${exception.stack ?? ""}` : String(exception);
+      const isDbError = errString.toLowerCase().includes("prisma") || errString.toLowerCase().includes("database") || errString.toLowerCase().includes("connection");
+
+      const alertKey = isDbError ? "DATABASE_FAILURE" : "UNHANDLED_EXCEPTION";
+      const subject = isDbError ? "Database Connection Failure" : `Unhandled Exception on ${request.method} ${request.url}`;
+      const details = `Path: ${request.method} ${request.url}\nStatus Code: ${status}\nRequest ID: ${request.requestId ?? "N/A"}\nError Message: ${message}\n\nStack Trace:\n${errString}`;
+
+      if (this.alertService) {
+        void this.alertService.sendAlert(alertKey, subject, details);
       }
     }
 
