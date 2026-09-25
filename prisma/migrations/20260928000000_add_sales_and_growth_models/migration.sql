@@ -8,11 +8,11 @@ ALTER COLUMN "size" DROP NOT NULL,
 ADD COLUMN "attributes" JSONB;
 
 -- AlterTable Order
-ADD COLUMN "couponId" TEXT,
+ALTER TABLE "Order" ADD COLUMN "couponId" TEXT,
 ADD COLUMN "couponCode" TEXT;
 
 -- AlterTable SiteSettings
-ADD COLUMN "freeShippingThreshold" DECIMAL(10,2);
+ALTER TABLE "SiteSettings" ADD COLUMN "freeShippingThreshold" DECIMAL(10,2);
 
 -- CreateTable PriceTier
 CREATE TABLE "PriceTier" (
