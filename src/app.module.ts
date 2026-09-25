@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { AuditLogModule } from "./audit-log/audit-log.module";
 import { AuthModule } from "./auth/auth.module";
@@ -24,6 +24,7 @@ import { BannersModule } from "./banners/banners.module";
 import { MessageTemplatesModule } from "./message-templates/message-templates.module";
 import { ExportModule } from "./export/export.module";
 import { StaticPagesModule } from "./static-pages/static-pages.module";
+import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 
 @Module({
   imports: [
@@ -64,6 +65,10 @@ import { StaticPagesModule } from "./static-pages/static-pages.module";
     {
       provide: APP_GUARD,
       useClass: MaintenanceGuard,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
     },
   ],
 })
