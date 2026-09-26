@@ -381,4 +381,60 @@ describe("ProductsService update/archive/create error mapping", () => {
     } as any;
     await expect(service.create(dto)).rejects.toBeInstanceOf(ConflictException);
   });
+
+  it("successfully creates a product with minimal payload when category, images, and variants are omitted", async () => {
+    const { service, prisma } = createService();
+    prisma.category.findUnique.mockResolvedValue(null);
+    (prisma.category as any).create = jest
+      .fn()
+      .mockResolvedValue({ id: "uncategorized-id", slug: "uncategorized" });
+    prisma.product.create.mockResolvedValue({
+      id: "prod-minimal",
+      name: "Test Product English",
+      slug: "test-product-english",
+      price: 100,
+    });
+
+    const minimalDto = {
+      name: "Test Product English",
+      slug: "test-product-english",
+      price: 100,
+    } as any;
+
+    const result = await service.create(minimalDto, "admin-1");
+
+    expect(prisma.category.findUnique).toHaveBeenCalledWith({
+      where: { slug: "uncategorized" },
+    });
+    expect((prisma.category as any).create).toHaveBeenCalledWith({
+      data: {
+        name: "Uncategorized",
+        slug: "uncategorized",
+        description: "Default fallback category",
+      },
+    });
+    expect(prisma.product.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: "Test Product English",
+          slug: "test-product-english",
+          price: 100,
+          category: { connect: { id: "uncategorized-id" } },
+          variants: {
+            create: [
+              {
+                sku: "TEST-PRODUCT-ENGLISH-DEFAULT",
+                colorHex: "#945958",
+                size: "FREE_SIZE",
+                price: 100,
+                stock: 0,
+                isAvailable: true,
+              },
+            ],
+          },
+        }),
+      }),
+    );
+    expect(result).toMatchObject({ id: "prod-minimal" });
+  });
 });
