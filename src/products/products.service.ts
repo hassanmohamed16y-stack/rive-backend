@@ -157,15 +157,56 @@ export class ProductsService {
   }
 
   async create(dto: CreateProductDto, actorUserId?: string) {
-    const category = await this.prisma.category.findUnique({
-      where: { slug: dto.categorySlug },
+    const categorySlug = dto.categorySlug || "uncategorized";
+    let category = await this.prisma.category.findUnique({
+      where: { slug: categorySlug },
     });
 
     if (!category) {
-      throw new NotFoundException(
-        `Category "${dto.categorySlug}" was not found`,
-      );
+      if (!dto.categorySlug || dto.categorySlug === "uncategorized") {
+        category = await this.prisma.category.create({
+          data: {
+            name: "Uncategorized",
+            slug: "uncategorized",
+            description: "Default fallback category",
+          },
+        });
+      } else {
+        throw new NotFoundException(
+          `Category "${dto.categorySlug}" was not found`,
+        );
+      }
     }
+
+    const variantsData =
+      dto.variants && dto.variants.length > 0
+        ? dto.variants.map((variant) => ({
+            sku: variant.sku,
+            colorHex: variant.colorHex ?? "#945958",
+            size: variant.size,
+            price: variant.price,
+            stock: variant.stock ?? 0,
+            isAvailable: variant.isAvailable ?? true,
+          }))
+        : [
+            {
+              sku: `${dto.slug.toUpperCase()}-DEFAULT`,
+              colorHex: "#945958",
+              size: "FREE_SIZE" as any,
+              price: dto.price,
+              stock: 0,
+              isAvailable: true,
+            },
+          ];
+
+    const imagesData =
+      dto.images && dto.images.length > 0
+        ? dto.images.map((image) => ({
+            url: image.url,
+            altText: image.altText,
+            isPrimary: image.isPrimary ?? false,
+          }))
+        : [];
 
     let product;
     try {
@@ -191,22 +232,15 @@ export class ProductsService {
                 updatedBy: { connect: { id: actorUserId } },
               }
             : {}),
-          images: {
-            create: dto.images.map((image) => ({
-              url: image.url,
-              altText: image.altText,
-              isPrimary: image.isPrimary ?? false,
-            })),
-          },
+          ...(imagesData.length > 0
+            ? {
+                images: {
+                  create: imagesData,
+                },
+              }
+            : {}),
           variants: {
-            create: dto.variants.map((variant) => ({
-              sku: variant.sku,
-              colorHex: variant.colorHex ?? "#945958",
-              size: variant.size,
-              price: variant.price,
-              stock: variant.stock ?? 0,
-              isAvailable: variant.isAvailable ?? true,
-            })),
+            create: variantsData,
           },
         },
         include: productInclude,

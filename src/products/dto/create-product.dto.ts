@@ -156,25 +156,25 @@ export class CreateProductDto {
   @IsEnum(ProductStatus)
   status?: ProductStatus;
 
-  @ApiProperty({ example: "lingerie", maxLength: 256 })
+  @ApiPropertyOptional({ example: "lingerie", maxLength: 256, default: "uncategorized" })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(256, { message: "Category slug must be 256 characters or less" })
-  categorySlug!: string;
+  categorySlug?: string;
 
-  @ApiProperty({ type: [ProductImageDto], maxItems: 20 })
+  @ApiPropertyOptional({ type: [ProductImageDto], maxItems: 20 })
+  @IsOptional()
   @IsArray()
-  @ArrayMinSize(1, { message: "At least one product image is required" })
   @ArrayMaxSize(20, { message: "Maximum 20 product images allowed" })
   @ValidateNested({ each: true })
   @Type(() => ProductImageDto)
-  images!: ProductImageDto[];
+  images?: ProductImageDto[];
 
-  @ApiProperty({ type: [ProductVariantDto], maxItems: 100 })
+  @ApiPropertyOptional({ type: [ProductVariantDto], maxItems: 100 })
+  @IsOptional()
   @IsArray()
-  @ArrayMinSize(1, { message: "At least one product variant is required" })
   @ArrayMaxSize(100, { message: "Maximum 100 product variants allowed" })
   @ValidateNested({ each: true })
   @Type(() => ProductVariantDto)
-  variants!: ProductVariantDto[];
+  variants?: ProductVariantDto[];
 }
