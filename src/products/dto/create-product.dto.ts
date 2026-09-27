@@ -3,7 +3,6 @@ import { ProductStatus, Size } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
   ArrayMaxSize,
-  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEnum,
