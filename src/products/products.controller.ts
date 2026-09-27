@@ -149,11 +149,11 @@ export class ProductsController {
   @Roles("ADMIN")
   @ApiBearerAuth()
   @ApiOperation({
-    summary: "Archive a product without deleting order history (Admin)",
+    summary: "Soft delete a product by setting deletedAt without altering status (Admin)",
   })
-  @ApiResponse({ status: 200, description: "Product archived successfully." })
+  @ApiResponse({ status: 200, description: "Product soft deleted successfully." })
   @ApiResponse({ status: 404, description: "Product not found." })
-  async archive(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
-    return this.productsService.archive(id, req.user!.id);
+  async delete(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
+    return this.productsService.delete(id, req.user!.id);
   }
 }

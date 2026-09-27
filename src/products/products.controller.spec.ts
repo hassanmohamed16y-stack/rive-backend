@@ -19,7 +19,7 @@ describe("ProductsController", () => {
       findOneBySlug: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
-      archive: jest.fn(),
+      delete: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -140,19 +140,19 @@ describe("ProductsController", () => {
     });
   });
 
-  describe("archive", () => {
-    it("archives product passing id and authenticated user id", async () => {
+  describe("delete", () => {
+    it("deletes product passing id and authenticated user id", async () => {
       const req = { user: { id: "admin-123", role: "ADMIN" } } as any;
-      const archivedResult = { id: "prod-1", status: "ARCHIVED" };
-      productsService.archive.mockResolvedValue(archivedResult as any);
+      const deletedResult = { id: "prod-1", status: "ACTIVE" };
+      productsService.delete.mockResolvedValue(deletedResult as any);
 
-      const res = await controller.archive("prod-1", req);
+      const res = await controller.delete("prod-1", req);
 
-      expect(productsService.archive).toHaveBeenCalledWith(
+      expect(productsService.delete).toHaveBeenCalledWith(
         "prod-1",
         "admin-123",
       );
-      expect(res).toBe(archivedResult);
+      expect(res).toBe(deletedResult);
     });
   });
 });

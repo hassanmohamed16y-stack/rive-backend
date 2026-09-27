@@ -324,13 +324,24 @@ export class ProductsService {
     return { success: true };
   }
 
-  async archive(id: string, actorUserId?: string) {
+  async delete(id: string, actorUserId?: string) {
     let product;
     try {
+      // First ensure the product exists and fetch it
+      product = await this.prisma.product.findUnique({
+        where: { id },
+        include: productInclude,
+      });
+      if (!product) {
+        throw new NotFoundException(`Product ${id} was not found`);
+      }
+
+      // Execute soft delete directly via Prisma update setting deletedAt = new Date()
+      // while keeping status intact.
       product = await this.prisma.product.update({
         where: { id },
         data: {
-          status: ProductStatus.ARCHIVED,
+          deletedAt: new Date(),
           ...(actorUserId
             ? { updatedBy: { connect: { id: actorUserId } } }
             : {}),
@@ -346,10 +357,10 @@ export class ProductsService {
 
     await this.auditLogService.record({
       userId: actorUserId,
-      action: "product.archive",
+      action: "product.delete",
       entityType: "Product",
       entityId: product.id,
-      changes: { status: ProductStatus.ARCHIVED },
+      changes: { deleted: true },
     });
 
     return product;
