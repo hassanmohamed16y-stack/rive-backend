@@ -304,11 +304,12 @@ describe("ProductsService variant and image administration", () => {
   });
 });
 
-describe("ProductsService update/archive/create error mapping", () => {
+describe("ProductsService update/delete/create error mapping", () => {
   function createService() {
     const prisma = {
       product: {
         update: jest.fn(),
+        delete: jest.fn(),
         create: jest.fn(),
         findUnique: jest.fn(),
       },
@@ -352,21 +353,22 @@ describe("ProductsService update/archive/create error mapping", () => {
     ).rejects.toBe(unexpected);
   });
 
-  it("throws NotFoundException when archiving a product that does not exist (P2025)", async () => {
+  it("throws NotFoundException when deleting a product that does not exist", async () => {
     const { service, prisma } = createService();
-    prisma.product.update.mockRejectedValue({ code: "P2025" });
+    prisma.product.findUnique.mockResolvedValue(null);
 
-    await expect(service.archive("missing-id")).rejects.toBeInstanceOf(
+    await expect(service.delete("missing-id")).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });
 
-  it("rethrows unexpected errors from archive without masking them as NotFoundException", async () => {
+  it("rethrows unexpected errors from delete without masking them as NotFoundException", async () => {
     const { service, prisma } = createService();
+    prisma.product.findUnique.mockResolvedValue({ id: "product-1" });
     const unexpected = new Error("connection reset");
     prisma.product.update.mockRejectedValue(unexpected);
 
-    await expect(service.archive("product-1")).rejects.toBe(unexpected);
+    await expect(service.delete("product-1")).rejects.toBe(unexpected);
   });
 
   it("throws ConflictException when creating a product with a duplicate slug or SKU (P2002)", async () => {
