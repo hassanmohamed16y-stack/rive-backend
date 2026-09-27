@@ -75,3 +75,65 @@
 - الرابط: `GET /api/docs`.
 - **متاح محليًا فقط** (`NODE_ENV=development` أو `NODE_ENV=test`) — بعد إصلاح القفل الأخير (commit `37fd175`) يُعيد أي بيئة أخرى (`production`, `staging`, ...) استجابة `404` على هذا المسار، ولا يُعرَض في الإنتاج عمدًا لأسباب أمنية.
 - للحصول على نفس التوصيف في بيئة CI/الإنتاج، استخدم ملف `openapi.json` الثابت في جذر المستودع (`npm run export:openapi` لإعادة توليده).
+
+## 7. لوحة حالة النظام (Health Dashboard - rive-admin)
+
+تُتيح endpoints حالة النظام فحص الجاهزية والاتصال الفعلي لكل خدمة وتكامل بشكل منفصل (Database, Cloudinary, Paymob) بالإضافة إلى متابعة النسخ الاحتياطية لقاعدة البيانات (Neon PostgreSQL).
+
+### الـ Endpoints المتاحة
+- `GET /api/v1/health` أو `GET /api/v1/health/detailed` (يتطلب توكن `full_admin`): يُرجع حالة النظام الشاملة ولكل خدمة على حدة.
+- `GET /api/v1/health/backup` (يتطلب توكن `full_admin`): يُرجع تفاصيل النسخ الاحتياطية وإرشادات التحقق.
+
+### بنية الاستجابة (`GET /api/v1/health`)
+
+```json
+{
+  "status": "healthy",
+  "services": {
+    "database": {
+      "name": "Database",
+      "status": "healthy",
+      "message": "Database query SELECT 1 executed successfully.",
+      "lastCheckedAt": "2026-09-27T20:00:00.000Z"
+    },
+    "cloudinary": {
+      "name": "Cloudinary",
+      "status": "healthy",
+      "message": "Cloudinary API ping succeeded.",
+      "lastCheckedAt": "2026-09-27T20:00:00.000Z"
+    },
+    "paymob": {
+      "name": "Paymob",
+      "status": "healthy",
+      "message": "Paymob API authentication token generated successfully.",
+      "lastCheckedAt": "2026-09-27T20:00:00.000Z"
+    }
+  },
+  "backup": {
+    "status": "automated_pitr_active",
+    "lastBackupAt": null,
+    "provider": "Neon PostgreSQL",
+    "pitrEnabled": true,
+    "message": "Neon PostgreSQL performs continuous automatic Point-in-Time Recovery (PITR) backups...",
+    "manualVerification": {
+      "dashboardUrl": "https://console.neon.tech",
+      "steps": [
+        "1. Log in to the Neon Management Console (https://console.neon.tech).",
+        "2. Select your project and navigate to the 'Branches' or 'Restore' tab.",
+        "3. Review continuous Point-in-Time Recovery (PITR) points or create a restore branch.",
+        "4. For long-term offsite backups, execute './scripts/backup-db.sh' on the server."
+      ]
+    }
+  },
+  "timestamp": "2026-09-27T20:00:00.000Z"
+}
+```
+
+### إرشادات بناء الواجهة في `rive-admin`:
+1. **عرض البطاقات المستقلة**: يجب عرض كل خدمة (`database`, `cloudinary`, `paymob`) في بطاقة (Card) خاصة بها.
+2. **مؤشر الحالة (Status Badge)**:
+   - حالة `"healthy"`: دائرة خضراء / إشارة خضراء (Healthy).
+   - حالة `"unhealthy"`: دائرة حمراء / إشارة حمراء (Unhealthy) مع عرض النص الموجود في `message`.
+   - حالة `"unknown"`: دائرة رمادية / صفراء.
+3. **زر "إعادة الفحص الآن" (Re-check Now)**: يستدعي `GET /api/v1/health` لإعادة إجراء الفحوصات المباشرة وتحديث حالة البطاقات فورًا.
+4. **بطاقة النسخ الاحتياطي (Database Backup)**: تعرض مزود الخدمة (Neon PostgreSQL) وحالة الـ PITR المستمر مع رابط Neon Console وخطوات التحقق المباشر.

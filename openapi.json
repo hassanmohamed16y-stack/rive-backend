@@ -5508,11 +5508,11 @@
     },
     "/health": {
       "get": {
-        "operationId": "HealthController_check",
+        "operationId": "HealthController_check[0]",
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Returns health status of database, Cloudinary, and Paymob integrations."
+            "description": "Returns independent health status for database, Cloudinary, Paymob, and database backup verification."
           },
           "401": {
             "description": "Unauthorized"
@@ -5526,7 +5526,85 @@
             "bearer": []
           }
         ],
-        "summary": "Check health status of application and external integrations (full_admin only)",
+        "summary": "Check detailed health status of application and individual integrations (full_admin only)",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "operationId": "HealthController_check[1]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Returns independent health status for database, Cloudinary, Paymob, and database backup verification."
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Requires full_admin role"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Check detailed health status of application and individual integrations (full_admin only)",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health/detailed": {
+      "get": {
+        "operationId": "HealthController_check[2]",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Returns independent health status for database, Cloudinary, Paymob, and database backup verification."
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Requires full_admin role"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Check detailed health status of application and individual integrations (full_admin only)",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health/backup": {
+      "get": {
+        "operationId": "HealthController_checkBackupEndpoint",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Returns Neon PostgreSQL backup status or manual verification instructions."
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Requires full_admin role"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get database backup status and verification guidance (full_admin only)",
         "tags": [
           "health"
         ]
@@ -5807,7 +5885,7 @@
         ]
       },
       "delete": {
-        "operationId": "ProductsController_archive",
+        "operationId": "ProductsController_delete",
         "parameters": [
           {
             "name": "id",
@@ -5820,7 +5898,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Product archived successfully."
+            "description": "Product soft deleted successfully."
           },
           "404": {
             "description": "Product not found."
@@ -5831,7 +5909,7 @@
             "bearer": []
           }
         ],
-        "summary": "Archive a product without deleting order history (Admin)",
+        "summary": "Soft delete a product by setting deletedAt without altering status (Admin)",
         "tags": [
           "products"
         ]
@@ -9580,7 +9658,8 @@
           "categorySlug": {
             "type": "string",
             "example": "lingerie",
-            "maxLength": 256
+            "maxLength": 256,
+            "default": "uncategorized"
           },
           "images": {
             "maxItems": 20,
@@ -9600,10 +9679,7 @@
         "required": [
           "name",
           "slug",
-          "price",
-          "categorySlug",
-          "images",
-          "variants"
+          "price"
         ]
       },
       "UpdateProductDto": {
