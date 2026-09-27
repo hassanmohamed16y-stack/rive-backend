@@ -5,6 +5,22 @@ import { configureApp } from "./app.config";
 import { AppModule } from "./app.module";
 import { validateEnvironment } from "./config/environment.validation";
 
+// Ensure environment variables are validated as the very first operation at startup
+try {
+  validateEnvironment();
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  // eslint-disable-next-line no-console
+  console.error("==========================================================================");
+  // eslint-disable-next-line no-console
+  console.error("❌ CRITICAL ENVIRONMENT CONFIGURATION ERROR / خطأ حرجي في تهيئة البيئة:");
+  // eslint-disable-next-line no-console
+  console.error(message);
+  // eslint-disable-next-line no-console
+  console.error("==========================================================================");
+  process.exit(1);
+}
+
 if (process.env.SENTRY_DSN?.trim()) {
   Sentry.init({
     dsn: process.env.SENTRY_DSN.trim(),
@@ -14,20 +30,6 @@ if (process.env.SENTRY_DSN?.trim()) {
 }
 
 export async function createApp(): Promise<INestApplication> {
-  try {
-    validateEnvironment();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    // eslint-disable-next-line no-console
-    console.error("==========================================================================");
-    // eslint-disable-next-line no-console
-    console.error("❌ CRITICAL ENVIRONMENT CONFIGURATION ERROR / خطأ حرجي في تهيئة البيئة:");
-    // eslint-disable-next-line no-console
-    console.error(message);
-    // eslint-disable-next-line no-console
-    console.error("==========================================================================");
-    process.exit(1);
-  }
   const app = await NestFactory.create(AppModule, { bodyParser: false });
   // Required behind reverse proxies (Nginx/ALB/Cloudflare) so req.ip reflects the real client.
   // Without this, Nest/Express sees only the proxy IP, which breaks ThrottlerGuard and IP-based logging.

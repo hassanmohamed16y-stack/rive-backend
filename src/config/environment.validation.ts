@@ -18,9 +18,11 @@ const productionRequiredVariables = [
   "INTERNAL_CRON_SECRET",
 ] as const;
 
-export function validateEnvironment(environment = process.env) {
-  const nodeEnvironment = environment.NODE_ENV ?? "development";
-  if (!nodeEnvironment.trim()) {
+export function validateEnvironment(
+  environment: Record<string, string | undefined> = process.env,
+) {
+  const nodeEnvironment = environment.NODE_ENV;
+  if (nodeEnvironment !== undefined && !nodeEnvironment.trim()) {
     throw new Error("NODE_ENV must not be empty");
   }
 
@@ -36,7 +38,7 @@ export function validateEnvironment(environment = process.env) {
   // Any environment other than local development/test (production, staging, qa, ...)
   // must be treated as a real deployment. See isLocalOnlyEnvironment for the single
   // source of truth for this distinction.
-  if (isLocalOnlyEnvironment(nodeEnvironment)) return;
+  if (isLocalOnlyEnvironment(nodeEnvironment, environment)) return;
 
   const missingVariables = productionRequiredVariables.filter(
     (name) => !environment[name]?.trim(),

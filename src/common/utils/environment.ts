@@ -13,6 +13,23 @@
  */
 export function isLocalOnlyEnvironment(
   nodeEnv: string | undefined = process.env.NODE_ENV,
+  environment: Record<string, string | undefined> = process.env,
 ): boolean {
+  // If cloud provider variables (such as Railway or Render) are present,
+  // the app is running in a deployed environment regardless of NODE_ENV.
+  const isCloudDeployment = Boolean(
+    environment.RAILWAY_ENVIRONMENT ||
+      environment.RAILWAY_PROJECT_ID ||
+      environment.RAILWAY_SERVICE_ID ||
+      environment.RAILWAY_STATIC_URL ||
+      environment.RENDER ||
+      environment.HEROKU,
+  );
+
+  if (isCloudDeployment) {
+    return false;
+  }
+
+  // Without NODE_ENV explicitly set to "development" or "test", default to non-local (strict validation).
   return nodeEnv === "development" || nodeEnv === "test";
 }

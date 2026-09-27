@@ -77,10 +77,29 @@ describe("production environment validation", () => {
     },
   );
 
-  it("skips strict validation for local development and test environments", () => {
+  it("skips strict validation for local development and test environments when not in cloud deployment", () => {
     expect(() =>
       validateEnvironment({ NODE_ENV: "development" }),
     ).not.toThrow();
     expect(() => validateEnvironment({ NODE_ENV: "test" })).not.toThrow();
+  });
+
+  it("enforces strict validation when NODE_ENV is unset/missing", () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    delete process.env.NODE_ENV;
+    try {
+      expect(() => validateEnvironment({})).toThrow("Missing required environment variable");
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
+  });
+
+  it("enforces strict validation when running in cloud providers like Railway regardless of NODE_ENV", () => {
+    expect(() =>
+      validateEnvironment({
+        NODE_ENV: "development",
+        RAILWAY_ENVIRONMENT: "production",
+      }),
+    ).toThrow("Missing required environment variable");
   });
 });
