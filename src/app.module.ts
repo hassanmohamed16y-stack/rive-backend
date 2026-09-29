@@ -32,11 +32,13 @@ import { MessageTemplatesModule } from "./message-templates/message-templates.mo
 import { ExportModule } from "./export/export.module";
 import { StaticPagesModule } from "./static-pages/static-pages.module";
 import { InternalNotesModule } from "./internal-notes/internal-notes.module";
+import { CustomersModule } from "./customers/customers.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 
 @Module({
   imports: [
     ExportModule,
+    CustomersModule,
     BannersModule,
     MessageTemplatesModule,
     StaticPagesModule,
