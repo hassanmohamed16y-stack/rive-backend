@@ -8,6 +8,8 @@ import {
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
+import { PermissionsGuard } from "../auth/permissions.guard";
+import { RequirePermission } from "../auth/permissions.decorator";
 import { EmailService } from "../email/email.service";
 import { SettingsService } from "../settings/settings.service";
 import { TestAlertDto } from "./dto/test-alert.dto";
@@ -16,7 +18,8 @@ import { WhatsAppService } from "./whatsapp.service";
 
 @ApiTags("admin notifications")
 @Controller(["api/admin/notifications", "api/v1/admin/notifications"])
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@RequirePermission("settings.manage")
 @Roles("ADMIN")
 @ApiBearerAuth()
 export class AdminNotificationsController {

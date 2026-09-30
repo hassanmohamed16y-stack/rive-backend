@@ -113,7 +113,13 @@ describe("ProductsService variant and image administration", () => {
       productImage: {
         create: jest.fn(),
         findFirst: jest.fn(),
+        update: jest.fn(),
+        updateMany: jest.fn(),
         delete: jest.fn(),
+      },
+      priceHistory: {
+        findMany: jest.fn(),
+        create: jest.fn(),
       },
     };
     const auditLogService = { record: jest.fn().mockResolvedValue(undefined) };
@@ -301,6 +307,59 @@ describe("ProductsService variant and image administration", () => {
     await expect(
       service.removeImage("product-1", "image-1"),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("updates product image details and resets other primary images when isPrimary is true", async () => {
+    const { service, prisma, auditLogService } = createService();
+    prisma.productImage.findFirst.mockResolvedValue({
+      id: "img-1",
+      productId: "prod-1",
+      altText: "Old Alt",
+      isPrimary: false,
+    });
+    prisma.productImage.updateMany.mockResolvedValue({ count: 1 });
+    prisma.productImage.update.mockResolvedValue({
+      id: "img-1",
+      altText: "New Alt",
+      isPrimary: true,
+    });
+
+    const res = await service.updateImage(
+      "prod-1",
+      "img-1",
+      { altText: "New Alt", isPrimary: true },
+      "admin-1",
+    );
+
+    expect(prisma.productImage.updateMany).toHaveBeenCalledWith({
+      where: { productId: "prod-1", isPrimary: true },
+      data: { isPrimary: false },
+    });
+    expect(prisma.productImage.update).toHaveBeenCalledWith({
+      where: { id: "img-1" },
+      data: { altText: "New Alt", isPrimary: true },
+    });
+    expect(auditLogService.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "product.image.update" }),
+    );
+    expect(res).toEqual({ id: "img-1", altText: "New Alt", isPrimary: true });
+  });
+
+  it("returns price history for product and its variants", async () => {
+    const { service, prisma } = createService();
+    prisma.priceHistory.findMany.mockResolvedValue([
+      { id: "ph-1", productId: "prod-1", oldPrice: 100, newPrice: 150 },
+    ]);
+
+    const res = await service.getPriceHistory("prod-1");
+
+    expect(prisma.priceHistory.findMany).toHaveBeenCalledWith({
+      where: {
+        OR: [{ productId: "prod-1" }, { productVariant: { productId: "prod-1" } }],
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(res).toEqual([{ id: "ph-1", productId: "prod-1", oldPrice: 100, newPrice: 150 }]);
   });
 });
 

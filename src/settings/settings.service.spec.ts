@@ -13,6 +13,10 @@ describe("SettingsService", () => {
       findUnique: jest.Mock;
       upsert: jest.Mock;
     };
+    alertSettings: {
+      findUnique: jest.Mock;
+      upsert: jest.Mock;
+    };
   };
 
   beforeEach(async () => {
@@ -22,6 +26,10 @@ describe("SettingsService", () => {
         upsert: jest.fn(),
       },
       siteSettings: {
+        findUnique: jest.fn(),
+        upsert: jest.fn(),
+      },
+      alertSettings: {
         findUnique: jest.fn(),
         upsert: jest.fn(),
       },
@@ -85,5 +93,49 @@ describe("SettingsService", () => {
 
     const result = await service.setMaintenanceMode(true);
     expect(result).toEqual({ maintenanceMode: true });
+  });
+
+  it("gets alert settings and creates default if missing", async () => {
+    prisma.alertSettings.findUnique.mockResolvedValue(null);
+    prisma.alertSettings.upsert.mockResolvedValue({
+      id: "default",
+      lowStockThreshold: 5,
+      alertEmails: [],
+      newOrderAlertsEnabled: true,
+      lowStockAlertsEnabled: true,
+      failedPaymentAlertsEnabled: true,
+    });
+
+    const alerts = await service.getAlertSettings();
+    expect(alerts.lowStockThreshold).toBe(5);
+    expect(prisma.alertSettings.upsert).toHaveBeenCalled();
+  });
+
+  it("updates alert settings in database", async () => {
+    prisma.alertSettings.findUnique.mockResolvedValue({
+      id: "default",
+      lowStockThreshold: 5,
+      alertEmails: [],
+      newOrderAlertsEnabled: true,
+      lowStockAlertsEnabled: true,
+      failedPaymentAlertsEnabled: true,
+    });
+    prisma.alertSettings.upsert.mockResolvedValue({
+      id: "default",
+      lowStockThreshold: 10,
+      alertEmails: ["ops@rive.com"],
+      newOrderAlertsEnabled: false,
+      lowStockAlertsEnabled: true,
+      failedPaymentAlertsEnabled: true,
+    });
+
+    const updated = await service.updateAlertSettings({
+      lowStockThreshold: 10,
+      alertEmails: ["ops@rive.com"],
+      newOrderAlertsEnabled: false,
+    });
+
+    expect(updated.lowStockThreshold).toBe(10);
+    expect(updated.alertEmails).toEqual(["ops@rive.com"]);
   });
 });
