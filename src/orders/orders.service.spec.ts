@@ -330,4 +330,38 @@ describe("OrdersService.findOne ownership enforcement and missing order handling
       service.findOne("RIV-1000-ABC", { userId: "admin-1", role: "ADMIN" }),
     ).resolves.toMatchObject({ orderNumber: "RIV-1000-ABC" });
   });
+
+  it("updates order shipping details and records audit log", async () => {
+    const context = transactionPrisma();
+    context.prisma.order.findUnique = jest.fn().mockResolvedValue({ id: "order-1", status: "PROCESSING" });
+    context.prisma.order.update = jest.fn().mockResolvedValue({
+      id: "order-1",
+      carrier: "DHL",
+      trackingNumber: "TRACK123",
+      trackingUrl: "https://dhl.com/TRACK123",
+      shippingAddress: "123 Cairo St",
+    });
+
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    const result = await service.updateShipping("order-1", {
+      carrier: "DHL",
+      trackingNumber: "TRACK123",
+      trackingUrl: "https://dhl.com/TRACK123",
+      shippingAddress: "123 Cairo St",
+    }, "admin-1");
+
+    expect(result.carrier).toBe("DHL");
+    expect(context.auditLogService.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "admin-1",
+        action: "order.shipping.update",
+        entityType: "Order",
+        entityId: "order-1",
+      }),
+    );
+  });
 });

@@ -2,7 +2,7 @@ import { ApiPropertyOptional } from "@nestjs/swagger";
 import { IsOptional, IsString } from "class-validator";
 
 export class ExportCustomersQueryDto {
-  @ApiPropertyOptional({ enum: ["csv"], default: "csv" })
+  @ApiPropertyOptional({ enum: ["csv", "pdf"], default: "csv" })
   @IsOptional()
   @IsString()
   format?: string;

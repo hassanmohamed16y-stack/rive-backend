@@ -9,6 +9,8 @@ describe("AdminSettingsController", () => {
     setMaintenanceMode: jest.Mock;
     getEnforce2FA: jest.Mock;
     setEnforce2FA: jest.Mock;
+    getAlertSettings: jest.Mock;
+    updateAlertSettings: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -17,6 +19,8 @@ describe("AdminSettingsController", () => {
       setMaintenanceMode: jest.fn(),
       getEnforce2FA: jest.fn(),
       setEnforce2FA: jest.fn(),
+      getAlertSettings: jest.fn(),
+      updateAlertSettings: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -51,5 +55,20 @@ describe("AdminSettingsController", () => {
     const res = await controller.updateEnforce2FA({ enforce2FAGlobally: true });
     expect(res).toEqual({ enforce2FAGlobally: true });
     expect(settingsService.setEnforce2FA).toHaveBeenCalledWith(true);
+  });
+
+  it("gets alert settings", async () => {
+    const mockAlerts = { id: "default", lowStockThreshold: 10, alertEmails: ["a@b.com"] };
+    settingsService.getAlertSettings.mockResolvedValue(mockAlerts);
+    const res = await controller.getAlertSettings();
+    expect(res).toEqual(mockAlerts);
+  });
+
+  it("updates alert settings", async () => {
+    const dto = { lowStockThreshold: 10, alertEmails: ["a@b.com"] };
+    settingsService.updateAlertSettings.mockResolvedValue({ id: "default", ...dto });
+    const res = await controller.updateAlertSettings(dto);
+    expect(res).toEqual({ id: "default", ...dto });
+    expect(settingsService.updateAlertSettings).toHaveBeenCalledWith(dto);
   });
 });

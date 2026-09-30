@@ -46,4 +46,48 @@ describe("AdminDashboardService", () => {
     expect(report.overview.ordersCount).toBe(10);
     expect(report).toHaveProperty("generatedAt");
   });
+
+  it("calculates sales by category", async () => {
+    prisma.orderItem = {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          quantity: 2,
+          totalPrice: 200,
+          productVariant: {
+            product: {
+              categoryId: "cat-1",
+              category: { id: "cat-1", name: "Lingerie" },
+            },
+          },
+        },
+      ]),
+    };
+
+    const res = await service.getSalesByCategory(30);
+    expect(res).toEqual([
+      {
+        categoryId: "cat-1",
+        categoryName: "Lingerie",
+        totalRevenue: 200,
+        totalQuantitySold: 2,
+      },
+    ]);
+  });
+
+  it("calculates sales by region", async () => {
+    prisma.order = {
+      ...prisma.order,
+      findMany: jest.fn().mockResolvedValue([
+        { shippingCity: "Cairo", totalAmount: 300 },
+        { shippingCity: "Cairo", totalAmount: 150 },
+        { shippingCity: "Alexandria", totalAmount: 200 },
+      ]),
+    };
+
+    const res = await service.getSalesByRegion(30);
+    expect(res).toEqual([
+      { region: "Cairo", totalRevenue: 450, totalOrders: 2 },
+      { region: "Alexandria", totalRevenue: 200, totalOrders: 1 },
+    ]);
+  });
 });

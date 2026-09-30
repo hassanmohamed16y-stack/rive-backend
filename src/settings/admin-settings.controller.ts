@@ -10,6 +10,7 @@ import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { RequirePermission } from "../auth/permissions.decorator";
+import { UpdateAlertSettingsDto } from "./dto/update-alert-settings.dto";
 import { UpdateEnforce2FaDto } from "./dto/update-enforce-2fa.dto";
 import { UpdateMaintenanceModeDto } from "./dto/update-maintenance-mode.dto";
 import { SettingsService } from "./settings.service";
@@ -49,5 +50,19 @@ export class AdminSettingsController {
   @ApiResponse({ status: 200, description: "Enforce 2FA status updated." })
   async updateEnforce2FA(@Body() dto: UpdateEnforce2FaDto) {
     return this.settingsService.setEnforce2FA(dto.enforce2FAGlobally);
+  }
+
+  @Get("settings/alerts")
+  @ApiOperation({ summary: "Get alert settings (Admin)" })
+  @ApiResponse({ status: 200, description: "Alert settings returned." })
+  async getAlertSettings() {
+    return this.settingsService.getAlertSettings();
+  }
+
+  @Put("settings/alerts")
+  @ApiOperation({ summary: "Update alert settings (Admin)" })
+  @ApiResponse({ status: 200, description: "Alert settings updated." })
+  async updateAlertSettings(@Body() dto: UpdateAlertSettingsDto) {
+    return this.settingsService.updateAlertSettings(dto);
   }
 }
