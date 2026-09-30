@@ -363,6 +363,18 @@ export class CustomersService {
   }
 
   async createDeletionRequest(userId: string, dto: CreateDeletionRequestDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    if (user.role !== UserRole.CUSTOMER) {
+      throw new BadRequestException("Data deletion requests can only be created by customers");
+    }
+
     const existing = await this.prisma.dataDeletionRequest.findFirst({
       where: { userId, status: DeletionRequestStatus.PENDING },
     });
@@ -435,39 +447,130 @@ export class CustomersService {
     }
 
     const targetUserId = request.userId;
+    const targetUser = request.user;
 
-    // Anonymize user record
-    await this.prisma.user.update({
-      where: { id: targetUserId },
-      data: {
-        fullName: "Anonymized User",
-        email: `anonymized_${targetUserId}@deleted.local`,
-        passwordHash: "ANONYMIZED_USER_PASSWORD_HASH",
-        isActive: false,
-        deletedAt: new Date(),
-        emailVerifiedAt: null,
-        emailVerificationToken: null,
-        passwordResetToken: null,
+    if (!targetUser || targetUser.role !== UserRole.CUSTOMER) {
+      throw new BadRequestException("Only customer data deletion requests can be approved");
+    }
+
+    // Refuse if customer has active orders (PENDING, CONFIRMED, PROCESSING, SHIPPED)
+    const activeOrdersCount = await this.prisma.order.count({
+      where: {
+        userId: targetUserId,
+        status: {
+          in: [
+            OrderStatus.PENDING,
+            OrderStatus.CONFIRMED,
+            OrderStatus.PROCESSING,
+            OrderStatus.SHIPPED,
+          ],
+        },
       },
     });
 
-    // Anonymize personal info on orders while keeping financial/item records intact for accounting
-    await this.prisma.order.updateMany({
-      where: { userId: targetUserId },
-      data: {
-        customerName: "Anonymized Customer",
-        customerEmail: `anonymized_${targetUserId}@deleted.local`,
-        shippingPhone: null,
-        shippingAddress: "Anonymized Address",
-      },
-    });
+    if (activeOrdersCount > 0) {
+      throw new BadRequestException(
+        "Cannot approve data deletion request for a customer with active orders (PENDING, CONFIRMED, PROCESSING, SHIPPED)",
+      );
+    }
 
-    const updatedRequest = await this.prisma.dataDeletionRequest.update({
-      where: { id },
-      data: {
-        status: DeletionRequestStatus.APPROVED,
-        processedAt: new Date(),
-      },
+    // Run everything inside one database transaction
+    const updatedRequest = await this.prisma.$transaction(async (tx) => {
+      // 1. Anonymize user record
+      await tx.user.update({
+        where: { id: targetUserId },
+        data: {
+          fullName: "Anonymized User",
+          email: `anonymized_${targetUserId}@deleted.local`,
+          passwordHash: `UNUSABLE_PASSWORD_HASH_${Math.random().toString(36).substring(2)}_${Date.now()}`,
+          isActive: false,
+          deletedAt: new Date(),
+          emailVerifiedAt: null,
+          emailVerificationToken: null,
+          passwordResetToken: null,
+          passwordResetExpiresAt: null,
+          emailVerificationExpiresAt: null,
+          lockedUntil: null,
+          failedLoginAttempts: 0,
+        },
+      });
+
+      // 2. Anonymize personal data on orders but keep all financial/order item records
+      await tx.order.updateMany({
+        where: { userId: targetUserId },
+        data: {
+          customerName: "Anonymized Customer",
+          customerEmail: `anonymized_${targetUserId}@deleted.local`,
+          shippingPhone: null,
+          shippingAddress: "Anonymized Address",
+          shippingCity: null,
+          shippingCountry: null,
+          shippingZipCode: null,
+          carrier: null,
+          trackingNumber: null,
+          trackingUrl: null,
+          notes: null,
+        },
+      });
+
+      // 3. Delete or revoke all refresh tokens
+      await tx.refreshToken.deleteMany({
+        where: { userId: targetUserId },
+      });
+
+      // 4. Delete Wishlist items
+      await tx.wishlistItem.deleteMany({
+        where: { customerId: targetUserId },
+      });
+
+      // 5. Delete Cart sessions
+      await tx.cartSession.deleteMany({
+        where: { customerId: targetUserId },
+      });
+
+      // 6. Anonymize Reviews
+      await tx.review.updateMany({
+        where: { customerId: targetUserId },
+        data: {
+          customerId: null,
+          authorName: "Anonymized User",
+        },
+      });
+
+      // 7. Delete Referral codes
+      await tx.referralCode.deleteMany({
+        where: { customerId: targetUserId },
+      });
+
+      // 8. Handle Internal Notes
+      await tx.internalNote.updateMany({
+        where: { createdById: targetUserId },
+        data: { createdById: null },
+      });
+      await tx.internalNote.deleteMany({
+        where: { entityType: "User", entityId: targetUserId },
+      });
+
+      // 9. Anonymize Meta Conversations
+      await tx.metaConversation.updateMany({
+        where: { userId: targetUserId },
+        data: {
+          userId: null,
+          customerName: "Anonymized Customer",
+          customerEmail: null,
+        },
+      });
+
+      // 10. Update DataDeletionRequest status
+      const updated = await tx.dataDeletionRequest.update({
+        where: { id },
+        data: {
+          status: DeletionRequestStatus.APPROVED,
+          processedAt: new Date(),
+        },
+      });
+
+      return updated;
     });
 
     await this.auditLogService.record({

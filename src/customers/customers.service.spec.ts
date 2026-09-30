@@ -16,6 +16,7 @@ describe("CustomersService", () => {
       findMany: jest.Mock;
       count: jest.Mock;
       findFirst: jest.Mock;
+      findUnique: jest.Mock;
       update: jest.Mock;
     };
     order: {
@@ -43,6 +44,7 @@ describe("CustomersService", () => {
         findMany: jest.fn(),
         count: jest.fn(),
         findFirst: jest.fn(),
+        findUnique: jest.fn(),
         update: jest.fn(),
       },
       order: {
@@ -368,7 +370,8 @@ describe("CustomersService", () => {
   });
 
   describe("data deletion requests", () => {
-    it("creates deletion request", async () => {
+    it("creates deletion request for customer", async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", role: UserRole.CUSTOMER });
       prisma.dataDeletionRequest.findFirst.mockResolvedValue(null);
       prisma.dataDeletionRequest.create.mockResolvedValue({ id: "req-1", userId: "u1", status: DeletionRequestStatus.PENDING });
 
@@ -379,23 +382,86 @@ describe("CustomersService", () => {
       );
     });
 
-    it("approves deletion request and anonymizes customer PII while retaining orders", async () => {
+    it("refuses creating deletion request for non-customer user", async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: "admin-1", role: UserRole.ADMIN });
+
+      await expect(
+        service.createDeletionRequest("admin-1", { reason: "Test" }),
+      ).rejects.toThrow("Data deletion requests can only be created by customers");
+    });
+
+    it("refuses approval if customer has active orders", async () => {
       prisma.dataDeletionRequest.findUnique.mockResolvedValue({
         id: "req-1",
         userId: "u1",
+        user: { id: "u1", role: UserRole.CUSTOMER },
         status: DeletionRequestStatus.PENDING,
       });
-      prisma.user.update.mockResolvedValue({ id: "u1", fullName: "Anonymized User" });
-      prisma.order.updateMany.mockResolvedValue({ count: 2 });
-      prisma.dataDeletionRequest.update.mockResolvedValue({
+      prisma.order.count.mockResolvedValue(1);
+
+      await expect(
+        service.approveDeletionRequest("req-1", "admin-1"),
+      ).rejects.toThrow(/Cannot approve data deletion request for a customer with active orders/);
+    });
+
+    it("refuses approval if user is not a customer", async () => {
+      prisma.dataDeletionRequest.findUnique.mockResolvedValue({
+        id: "req-1",
+        userId: "admin-1",
+        user: { id: "admin-1", role: UserRole.ADMIN },
+        status: DeletionRequestStatus.PENDING,
+      });
+
+      await expect(
+        service.approveDeletionRequest("req-1", "admin-1"),
+      ).rejects.toThrow("Only customer data deletion requests can be approved");
+    });
+
+    it("approves deletion request and anonymizes customer PII & linked models inside transaction", async () => {
+      const mockUser = { id: "u1", role: UserRole.CUSTOMER };
+      prisma.dataDeletionRequest.findUnique.mockResolvedValue({
+        id: "req-1",
+        userId: "u1",
+        user: mockUser,
+        status: DeletionRequestStatus.PENDING,
+      });
+      prisma.order.count.mockResolvedValue(0);
+
+      const txUserUpdate = jest.fn().mockResolvedValue({ id: "u1" });
+      const txOrderUpdateMany = jest.fn().mockResolvedValue({ count: 2 });
+      const txRefreshTokenDeleteMany = jest.fn().mockResolvedValue({ count: 1 });
+      const txWishlistDeleteMany = jest.fn().mockResolvedValue({ count: 1 });
+      const txCartSessionDeleteMany = jest.fn().mockResolvedValue({ count: 1 });
+      const txReviewUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+      const txReferralCodeDeleteMany = jest.fn().mockResolvedValue({ count: 1 });
+      const txInternalNoteUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+      const txInternalNoteDeleteMany = jest.fn().mockResolvedValue({ count: 1 });
+      const txMetaConversationUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+      const txDataDeletionRequestUpdate = jest.fn().mockResolvedValue({
         id: "req-1",
         status: DeletionRequestStatus.APPROVED,
       });
 
+      const txMock = {
+        user: { update: txUserUpdate },
+        order: { updateMany: txOrderUpdateMany },
+        refreshToken: { deleteMany: txRefreshTokenDeleteMany },
+        wishlistItem: { deleteMany: txWishlistDeleteMany },
+        cartSession: { deleteMany: txCartSessionDeleteMany },
+        review: { updateMany: txReviewUpdateMany },
+        referralCode: { deleteMany: txReferralCodeDeleteMany },
+        internalNote: { updateMany: txInternalNoteUpdateMany, deleteMany: txInternalNoteDeleteMany },
+        metaConversation: { updateMany: txMetaConversationUpdateMany },
+        dataDeletionRequest: { update: txDataDeletionRequestUpdate },
+      };
+
+      (prisma as any).$transaction = jest.fn(async (cb: any) => cb(txMock));
+
       const res = await service.approveDeletionRequest("req-1", "admin-1");
 
       expect(res.status).toBe(DeletionRequestStatus.APPROVED);
-      expect(prisma.user.update).toHaveBeenCalledWith({
+
+      expect(txUserUpdate).toHaveBeenCalledWith({
         where: { id: "u1" },
         data: expect.objectContaining({
           fullName: "Anonymized User",
@@ -403,11 +469,56 @@ describe("CustomersService", () => {
           isActive: false,
         }),
       });
-      expect(prisma.order.updateMany).toHaveBeenCalledWith({
+
+      expect(txOrderUpdateMany).toHaveBeenCalledWith({
         where: { userId: "u1" },
         data: expect.objectContaining({
           customerName: "Anonymized Customer",
           customerEmail: "anonymized_u1@deleted.local",
+          shippingAddress: "Anonymized Address",
+        }),
+      });
+
+      expect(txRefreshTokenDeleteMany).toHaveBeenCalledWith({ where: { userId: "u1" } });
+      expect(txWishlistDeleteMany).toHaveBeenCalledWith({ where: { customerId: "u1" } });
+      expect(txCartSessionDeleteMany).toHaveBeenCalledWith({ where: { customerId: "u1" } });
+      expect(txReviewUpdateMany).toHaveBeenCalledWith({
+        where: { customerId: "u1" },
+        data: { customerId: null, authorName: "Anonymized User" },
+      });
+      expect(txReferralCodeDeleteMany).toHaveBeenCalledWith({ where: { customerId: "u1" } });
+      expect(txInternalNoteUpdateMany).toHaveBeenCalledWith({
+        where: { createdById: "u1" },
+        data: { createdById: null },
+      });
+      expect(txInternalNoteDeleteMany).toHaveBeenCalledWith({
+        where: { entityType: "User", entityId: "u1" },
+      });
+      expect(txMetaConversationUpdateMany).toHaveBeenCalledWith({
+        where: { userId: "u1" },
+        data: { userId: null, customerName: "Anonymized Customer", customerEmail: null },
+      });
+    });
+
+    it("rejects deletion request with admin notes", async () => {
+      prisma.dataDeletionRequest.findUnique.mockResolvedValue({
+        id: "req-1",
+        status: DeletionRequestStatus.PENDING,
+      });
+      prisma.dataDeletionRequest.update.mockResolvedValue({
+        id: "req-1",
+        status: DeletionRequestStatus.REJECTED,
+        adminNotes: "Active fraud dispute",
+      });
+
+      const res = await service.rejectDeletionRequest("req-1", { adminNotes: "Active fraud dispute" }, "admin-1");
+
+      expect(res.status).toBe(DeletionRequestStatus.REJECTED);
+      expect(prisma.dataDeletionRequest.update).toHaveBeenCalledWith({
+        where: { id: "req-1" },
+        data: expect.objectContaining({
+          status: DeletionRequestStatus.REJECTED,
+          adminNotes: "Active fraud dispute",
         }),
       });
     });
