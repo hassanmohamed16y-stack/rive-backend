@@ -148,8 +148,8 @@ export class ExportService {
 
   async exportCustomers(query: ExportCustomersQueryDto, actorUserId: string): Promise<{ buffer: Buffer; filename: string; mimeType: string }> {
     const format = (query.format ?? "csv").toLowerCase();
-    if (format !== "csv") {
-      throw new BadRequestException("Format for customers export must be 'csv'");
+    if (format !== "csv" && format !== "pdf") {
+      throw new BadRequestException("Format must be 'csv' or 'pdf'");
     }
 
     const where: Prisma.UserWhereInput = { role: UserRole.CUSTOMER };
@@ -182,26 +182,51 @@ export class ExportService {
       take: MAX_EXPORT_ROWS,
     });
 
-    const filename = `customers-export-${Date.now()}.csv`;
-    const mimeType = "text/csv";
+    let buffer: Buffer;
+    let filename: string;
+    let mimeType: string;
 
-    const columns = [
-      { header: "ID", key: "id", width: 25 },
-      { header: "Full Name", key: "fullName", width: 25 },
-      { header: "Email", key: "email", width: 30 },
-      { header: "Verified At", key: "verifiedAt", width: 22 },
-      { header: "Created At", key: "createdAt", width: 22 },
-    ];
+    if (format === "csv") {
+      filename = `customers-export-${Date.now()}.csv`;
+      mimeType = "text/csv";
 
-    const rows = customers.map((c) => ({
-      id: c.id,
-      fullName: c.fullName,
-      email: c.email,
-      verifiedAt: c.emailVerifiedAt ? c.emailVerifiedAt.toISOString() : "Unverified",
-      createdAt: c.createdAt.toISOString(),
-    }));
+      const columns = [
+        { header: "ID", key: "id", width: 25 },
+        { header: "Full Name", key: "fullName", width: 25 },
+        { header: "Email", key: "email", width: 30 },
+        { header: "Verified At", key: "verifiedAt", width: 22 },
+        { header: "Created At", key: "createdAt", width: 22 },
+      ];
 
-    const buffer = await generateCsvReport("Customers", columns, rows);
+      const rows = customers.map((c) => ({
+        id: c.id,
+        fullName: c.fullName,
+        email: c.email,
+        verifiedAt: c.emailVerifiedAt ? c.emailVerifiedAt.toISOString() : "Unverified",
+        createdAt: c.createdAt.toISOString(),
+      }));
+
+      buffer = await generateCsvReport("Customers", columns, rows);
+    } else {
+      filename = `customers-export-${Date.now()}.pdf`;
+      mimeType = "application/pdf";
+
+      const headers = ["ID", "Full Name", "Email", "Verified At", "Created At"];
+      const rows = customers.map((c) => [
+        c.id,
+        c.fullName,
+        c.email,
+        c.emailVerifiedAt ? c.emailVerifiedAt.toISOString().slice(0, 10) : "Unverified",
+        c.createdAt.toISOString().slice(0, 10),
+      ]);
+
+      buffer = await generatePdfReport({
+        title: "Customers Export Report",
+        headers,
+        rows,
+        footerText: totalCount > MAX_EXPORT_ROWS ? `Showing top ${MAX_EXPORT_ROWS} of ${totalCount} records` : undefined,
+      });
+    }
 
     if (actorUserId) {
       await this.auditLogService.record({
@@ -210,7 +235,7 @@ export class ExportService {
         entityType: "User",
         entityId: "export",
         changes: {
-          format: "csv",
+          format,
           count: customers.length,
           totalMatched: totalCount,
           truncated: totalCount > MAX_EXPORT_ROWS,
