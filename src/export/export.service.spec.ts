@@ -157,8 +157,16 @@ describe("ExportService", () => {
       });
     });
 
-    it("throws BadRequestException if format is not csv", async () => {
-      await expect(service.exportCustomers({ format: "pdf" }, "admin-1")).rejects.toThrow(BadRequestException);
+    it("exports customer users in PDF format", async () => {
+      const result = await service.exportCustomers({ format: "pdf" }, "admin-1");
+
+      expect(result.mimeType).toBe("application/pdf");
+      expect(result.filename).toContain(".pdf");
+      expect(Buffer.isBuffer(result.buffer)).toBe(true);
+    });
+
+    it("throws BadRequestException if format is invalid", async () => {
+      await expect(service.exportCustomers({ format: "xml" }, "admin-1")).rejects.toThrow(BadRequestException);
     });
   });
 
