@@ -58,6 +58,18 @@ export class AdminCustomersController {
     return this.customersService.findCustomerOrders(id, pagination);
   }
 
+  @Get(":id/activity")
+  @RequirePermission("customers.view")
+  @ApiOperation({ summary: "Get customer activity timeline (Admin)" })
+  @ApiResponse({ status: 200, description: "Paginated customer activity timeline returned." })
+  @ApiResponse({ status: 404, description: "Customer not found." })
+  async findCustomerActivity(
+    @Param("id") id: string,
+    @Query() pagination: PaginationDto,
+  ) {
+    return this.customersService.getCustomerActivity(id, pagination);
+  }
+
   @Get(":id")
   @RequirePermission("customers.view")
   @ApiOperation({ summary: "Get customer profile by ID (Admin)" })

@@ -22,6 +22,9 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
     { key: "users.manage", label: "إدارة المستخدمين" },
     { key: "lists.manage", label: "إدارة القوائم" },
     { key: "automation.manage", label: "إدارة الأتمتة" },
+    { key: "suppliers.manage", label: "إدارة الموردين" },
+    { key: "expenses.manage", label: "إدارة المصروفات التشغيلية" },
+    { key: "data_deletion.manage", label: "إدارة طلبات حذف البيانات" },
   ];
 
   const permissionMap = new Map<string, string>();

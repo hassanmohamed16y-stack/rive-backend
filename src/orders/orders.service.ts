@@ -19,6 +19,7 @@ import {
 } from "../common/utils/pagination";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
+import { UpdateOrderShippingDto } from "./dto/update-order-shipping.dto";
 
 const RESERVATION_DURATION_MS = 30 * 60 * 1000;
 
@@ -456,6 +457,42 @@ export class OrdersService implements OnModuleInit {
     }
 
     return order;
+  }
+
+  async updateShipping(
+    id: string,
+    dto: UpdateOrderShippingDto,
+    actorUserId?: string,
+  ) {
+    const existing = await this.prisma.order.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException(`Order ${id} was not found`);
+    }
+
+    const updatedOrder = await this.prisma.order.update({
+      where: { id },
+      data: {
+        ...(dto.carrier !== undefined ? { carrier: dto.carrier } : {}),
+        ...(dto.trackingNumber !== undefined ? { trackingNumber: dto.trackingNumber } : {}),
+        ...(dto.trackingUrl !== undefined ? { trackingUrl: dto.trackingUrl } : {}),
+        ...(dto.shippingAddress !== undefined ? { shippingAddress: dto.shippingAddress } : {}),
+        ...(actorUserId ? { updatedBy: { connect: { id: actorUserId } } } : {}),
+      },
+      include: orderInclude,
+    });
+
+    await this.auditLogService.record({
+      userId: actorUserId,
+      action: "order.shipping.update",
+      entityType: "Order",
+      entityId: id,
+      changes: dto,
+    });
+
+    return updatedOrder;
   }
 
   /**

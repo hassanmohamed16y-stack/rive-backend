@@ -30,6 +30,7 @@ import { PaginationDto } from "../common/dto/pagination.dto";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { PaymobService } from "../payment/paymob.service";
 import { RefundOrderDto } from "./dto/refund-order.dto";
+import { UpdateOrderShippingDto } from "./dto/update-order-shipping.dto";
 import { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
 import { OrdersService } from "./orders.service";
 
@@ -88,6 +89,19 @@ export class AdminOrdersController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.ordersService.transitionStatus(id, dto.status, req.user!.id);
+  }
+
+  @Patch(":id/shipping")
+  @RequirePermission("orders.update_status")
+  @ApiOperation({ summary: "Update order shipping tracking and address details (Admin)" })
+  @ApiResponse({ status: 200, description: "Order shipping details updated successfully." })
+  @ApiResponse({ status: 404, description: "Order not found." })
+  async updateShipping(
+    @Param("id") id: string,
+    @Body() dto: UpdateOrderShippingDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.ordersService.updateShipping(id, dto, req.user!.id);
   }
 
   @Post(":id/refund")

@@ -30,6 +30,7 @@ import { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { CreateProductImageDto } from "./dto/create-product-image.dto";
 import { CreateProductVariantDto } from "./dto/create-product-variant.dto";
 import { ReorderProductsDto } from "./dto/reorder-products.dto";
+import { UpdateProductImageDto } from "./dto/update-product-image.dto";
 import { UpdateProductVariantDto } from "./dto/update-product-variant.dto";
 import { ProductsService } from "./products.service";
 
@@ -166,6 +167,25 @@ export class AdminProductsController {
     return this.productsService.addImage(productId, dto, req.user!.id);
   }
 
+  @Patch(":productId/images/:imageId")
+  @RequirePermission("products.edit")
+  @ApiOperation({ summary: "Update product image details (altText, isPrimary) (Admin)" })
+  @ApiResponse({ status: 200, description: "Image updated successfully." })
+  @ApiResponse({ status: 404, description: "Product or image not found." })
+  async updateImage(
+    @Param("productId") productId: string,
+    @Param("imageId") imageId: string,
+    @Body() dto: UpdateProductImageDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.productsService.updateImage(
+      productId,
+      imageId,
+      dto,
+      req.user!.id,
+    );
+  }
+
   @Delete(":productId/images/:imageId")
   @RequirePermission("products.edit")
   @HttpCode(HttpStatus.OK)
@@ -178,5 +198,14 @@ export class AdminProductsController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.productsService.removeImage(productId, imageId, req.user!.id);
+  }
+
+  @Get(":productId/price-history")
+  @RequirePermission("products.view")
+  @ApiOperation({ summary: "Get price history for a product and its variants (Admin)" })
+  @ApiResponse({ status: 200, description: "Price history returned successfully." })
+  @ApiResponse({ status: 404, description: "Product not found." })
+  async getPriceHistory(@Param("productId") productId: string) {
+    return this.productsService.getPriceHistory(productId);
   }
 }

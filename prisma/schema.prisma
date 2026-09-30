@@ -78,6 +78,12 @@ enum MessageTemplateChannel {
   whatsapp
 }
 
+enum DeletionRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id                         String             @id @default(cuid())
   fullName                   String
@@ -113,6 +119,7 @@ model User {
   cartSessions               CartSession[]
   reviews                    Review[]
   wishlistItems              WishlistItem[]
+  dataDeletionRequests       DataDeletionRequest[]
 
   @@index([roleId])
   @@index([deletedAt])
@@ -211,6 +218,7 @@ model Product {
   priceTiers       PriceTier[]
   reviews          Review[]
   wishlistItems    WishlistItem[]
+  priceHistory     PriceHistory[]
   deletedAt        DateTime?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
@@ -251,10 +259,27 @@ model ProductVariant {
   isAvailable Boolean     @default(true)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-  orderItems  OrderItem[]
+  orderItems   OrderItem[]
+  priceHistory PriceHistory[]
 
   @@index([productId])
   @@index([productId, colorHex])
+}
+
+model PriceHistory {
+  id               String          @id @default(cuid())
+  productId        String?
+  product          Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productVariantId String?
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+  oldPrice         Decimal         @db.Decimal(10, 2)
+  newPrice         Decimal         @db.Decimal(10, 2)
+  changedById      String?
+  createdAt        DateTime        @default(now())
+
+  @@index([productId])
+  @@index([productVariantId])
+  @@index([createdAt])
 }
 
 model PriceTier {
@@ -306,6 +331,9 @@ model Order {
   shippingCountry      String?
   shippingPhone        String?
   shippingZipCode      String?
+  carrier              String?
+  trackingNumber       String?
+  trackingUrl          String?
   notes                String?
   reservationExpiresAt DateTime?
   paymentSessionId     String?       @unique
@@ -447,6 +475,17 @@ model SystemSettings {
   enforce2FAGlobally Boolean  @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+}
+
+model AlertSettings {
+  id                         String   @id @default("default")
+  lowStockThreshold          Int      @default(5)
+  alertEmails                String[] @default([])
+  newOrderAlertsEnabled      Boolean  @default(true)
+  lowStockAlertsEnabled      Boolean  @default(true)
+  failedPaymentAlertsEnabled Boolean  @default(true)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 }
 
 model SiteSettings {
@@ -701,4 +740,53 @@ model InternalNote {
 
   @@index([entityType, entityId])
   @@index([createdById])
+}
+
+model Supplier {
+  id                  String               @id @default(cuid())
+  name                String
+  contactName         String?
+  email               String?
+  phone               String?
+  address             String?
+  notes               String?
+  deletedAt           DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  operationalExpenses OperationalExpense[]
+
+  @@index([deletedAt])
+  @@index([name])
+}
+
+model OperationalExpense {
+  id         String    @id @default(cuid())
+  title      String
+  category   String
+  amount     Decimal   @db.Decimal(10, 2)
+  date       DateTime
+  notes      String?
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([supplierId])
+  @@index([category])
+  @@index([date])
+}
+
+model DataDeletionRequest {
+  id          String                @id @default(cuid())
+  userId      String
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason      String?
+  status      DeletionRequestStatus @default(PENDING)
+  adminNotes  String?
+  processedAt DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }

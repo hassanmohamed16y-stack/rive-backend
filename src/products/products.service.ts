@@ -15,6 +15,7 @@ import { isPrismaErrorCode } from "../common/utils/prisma-error";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { CreateProductImageDto } from "./dto/create-product-image.dto";
 import { CreateProductVariantDto } from "./dto/create-product-variant.dto";
+import { UpdateProductImageDto } from "./dto/update-product-image.dto";
 import { UpdateProductVariantDto } from "./dto/update-product-variant.dto";
 
 const productInclude = {
@@ -270,6 +271,11 @@ export class ProductsService {
     data: Prisma.ProductUpdateInput,
     actorUserId?: string,
   ) {
+    const currentProduct = await this.prisma.product.findUnique({
+      where: { id },
+      select: { price: true },
+    });
+
     let product;
     try {
       product = await this.prisma.product.update({
@@ -290,6 +296,21 @@ export class ProductsService {
         throw new ConflictException("A product with this slug already exists");
       }
       throw error;
+    }
+
+    if (
+      currentProduct &&
+      data.price !== undefined &&
+      Number(currentProduct.price) !== Number(data.price)
+    ) {
+      await this.prisma.priceHistory.create({
+        data: {
+          productId: id,
+          oldPrice: currentProduct.price,
+          newPrice: data.price as any,
+          changedById: actorUserId,
+        },
+      });
     }
 
     await this.auditLogService.record({
@@ -466,6 +487,21 @@ export class ProductsService {
       where: { id: variantId },
     });
 
+    if (
+      data.price !== undefined &&
+      Number(existing.price) !== Number(data.price)
+    ) {
+      await this.prisma.priceHistory.create({
+        data: {
+          productId,
+          productVariantId: variantId,
+          oldPrice: existing.price,
+          newPrice: data.price as any,
+          changedById: actorUserId,
+        },
+      });
+    }
+
     await this.auditLogService.record({
       userId: actorUserId,
       action: "product.variant.update",
@@ -539,6 +575,62 @@ export class ProductsService {
     });
 
     return image;
+  }
+
+  async updateImage(
+    productId: string,
+    imageId: string,
+    dto: UpdateProductImageDto,
+    actorUserId?: string,
+  ) {
+    const existing = await this.prisma.productImage.findFirst({
+      where: { id: imageId, productId },
+    });
+
+    if (!existing) {
+      throw new NotFoundException(
+        `Image ${imageId} was not found for product ${productId}`,
+      );
+    }
+
+    if (dto.isPrimary === true) {
+      await this.prisma.productImage.updateMany({
+        where: { productId, isPrimary: true },
+        data: { isPrimary: false },
+      });
+    }
+
+    const updatedImage = await this.prisma.productImage.update({
+      where: { id: imageId },
+      data: {
+        ...(dto.altText !== undefined ? { altText: dto.altText } : {}),
+        ...(dto.isPrimary !== undefined ? { isPrimary: dto.isPrimary } : {}),
+      },
+    });
+
+    await this.auditLogService.record({
+      userId: actorUserId,
+      action: "product.image.update",
+      entityType: "ProductImage",
+      entityId: imageId,
+      changes: dto,
+    });
+
+    return updatedImage;
+  }
+
+  async getPriceHistory(productId: string) {
+    await this.assertProductExists(productId);
+
+    return this.prisma.priceHistory.findMany({
+      where: {
+        OR: [
+          { productId },
+          { productVariant: { productId } },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+    });
   }
 
   async removeImage(productId: string, imageId: string, actorUserId?: string) {

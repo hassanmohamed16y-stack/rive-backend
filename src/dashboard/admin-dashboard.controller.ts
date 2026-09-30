@@ -60,4 +60,16 @@ export class AdminDashboardController {
   async getSalesReport() {
     return this.dashboardService.getSalesReport();
   }
+
+  @Get("sales-by-category")
+  @ApiOperation({ summary: "Get sales breakdown by product category over N days (Admin)" })
+  async getSalesByCategory(@Query("days") days?: number) {
+    return this.dashboardService.getSalesByCategory(days ? Number(days) : undefined);
+  }
+
+  @Get("sales-by-region")
+  @ApiOperation({ summary: "Get sales breakdown by region/governorate/city over N days (Admin)" })
+  async getSalesByRegion(@Query("days") days?: number) {
+    return this.dashboardService.getSalesByRegion(days ? Number(days) : undefined);
+  }
 }
