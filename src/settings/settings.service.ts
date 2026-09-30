@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { UpdateAlertSettingsDto } from "./dto/update-alert-settings.dto";
 import { UpdateSiteSettingsDto } from "./dto/update-site-settings.dto";
 
 @Injectable()
@@ -108,5 +109,52 @@ export class SettingsService {
     });
 
     return { enforce2FAGlobally: updated.enforce2FAGlobally };
+  }
+
+  async getAlertSettings() {
+    let alertSettings = await this.prisma.alertSettings?.findUnique({
+      where: { id: "default" },
+    });
+
+    if (!alertSettings) {
+      alertSettings = await this.prisma.alertSettings.upsert({
+        where: { id: "default" },
+        update: {},
+        create: {
+          id: "default",
+          lowStockThreshold: 5,
+          alertEmails: [],
+          newOrderAlertsEnabled: true,
+          lowStockAlertsEnabled: true,
+          failedPaymentAlertsEnabled: true,
+        },
+      });
+    }
+
+    return alertSettings;
+  }
+
+  async updateAlertSettings(dto: UpdateAlertSettingsDto) {
+    const current = await this.getAlertSettings();
+    const updated = await this.prisma.alertSettings.upsert({
+      where: { id: "default" },
+      update: {
+        ...(dto.lowStockThreshold !== undefined && { lowStockThreshold: dto.lowStockThreshold }),
+        ...(dto.alertEmails !== undefined && { alertEmails: dto.alertEmails }),
+        ...(dto.newOrderAlertsEnabled !== undefined && { newOrderAlertsEnabled: dto.newOrderAlertsEnabled }),
+        ...(dto.lowStockAlertsEnabled !== undefined && { lowStockAlertsEnabled: dto.lowStockAlertsEnabled }),
+        ...(dto.failedPaymentAlertsEnabled !== undefined && { failedPaymentAlertsEnabled: dto.failedPaymentAlertsEnabled }),
+      },
+      create: {
+        id: "default",
+        lowStockThreshold: dto.lowStockThreshold ?? current.lowStockThreshold,
+        alertEmails: dto.alertEmails ?? current.alertEmails,
+        newOrderAlertsEnabled: dto.newOrderAlertsEnabled ?? current.newOrderAlertsEnabled,
+        lowStockAlertsEnabled: dto.lowStockAlertsEnabled ?? current.lowStockAlertsEnabled,
+        failedPaymentAlertsEnabled: dto.failedPaymentAlertsEnabled ?? current.failedPaymentAlertsEnabled,
+      },
+    });
+
+    return updated;
   }
 }

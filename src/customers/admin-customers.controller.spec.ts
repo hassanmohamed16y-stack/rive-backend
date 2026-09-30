@@ -9,6 +9,7 @@ describe("AdminCustomersController", () => {
     findOne: jest.Mock;
     findByEmail: jest.Mock;
     findCustomerOrders: jest.Mock;
+    getCustomerActivity: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -17,6 +18,7 @@ describe("AdminCustomersController", () => {
       findOne: jest.fn(),
       findByEmail: jest.fn(),
       findCustomerOrders: jest.fn(),
+      getCustomerActivity: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -73,6 +75,18 @@ describe("AdminCustomersController", () => {
 
       expect(service.findCustomerOrders).toHaveBeenCalledWith("c1", { page: 1, limit: 10 });
       expect(result).toBe(mockOrders);
+    });
+  });
+
+  describe("findCustomerActivity", () => {
+    it("delegates to customersService.getCustomerActivity", async () => {
+      const mockActivity = { data: [], meta: { page: 1, limit: 10, total: 0, totalPages: 0 } };
+      service.getCustomerActivity.mockResolvedValue(mockActivity);
+
+      const result = await controller.findCustomerActivity("c1", { page: 1, limit: 10 });
+
+      expect(service.getCustomerActivity).toHaveBeenCalledWith("c1", { page: 1, limit: 10 });
+      expect(result).toBe(mockActivity);
     });
   });
 

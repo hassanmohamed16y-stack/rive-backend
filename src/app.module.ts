@@ -33,12 +33,16 @@ import { ExportModule } from "./export/export.module";
 import { StaticPagesModule } from "./static-pages/static-pages.module";
 import { InternalNotesModule } from "./internal-notes/internal-notes.module";
 import { CustomersModule } from "./customers/customers.module";
+import { SuppliersModule } from "./suppliers/suppliers.module";
+import { ExpensesModule } from "./expenses/expenses.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 
 @Module({
   imports: [
     ExportModule,
     CustomersModule,
+    SuppliersModule,
+    ExpensesModule,
     BannersModule,
     MessageTemplatesModule,
     StaticPagesModule,

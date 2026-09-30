@@ -63,7 +63,7 @@ export class CustomersExportController {
 
   @Get("export")
   @RequirePermission("customers.view")
-  @ApiOperation({ summary: "Export customers in CSV format (Admin)" })
+  @ApiOperation({ summary: "Export customers in CSV or PDF format (Admin)" })
   @ApiResponse({ status: 200, description: "Export file generated successfully." })
   @ApiResponse({ status: 400, description: "Invalid format or date parameters." })
   @ApiResponse({ status: 403, description: "Insufficient permissions." })

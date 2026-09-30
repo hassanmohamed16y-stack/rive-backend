@@ -150,4 +150,112 @@ export class AdminDashboardService {
       generatedAt: new Date().toISOString(),
     };
   }
+
+  async getSalesByCategory(days?: number) {
+    const whereOrder: any = {
+      status: { not: "CANCELLED" },
+    };
+    if (days && days > 0) {
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      whereOrder.createdAt = { gte: startDate };
+    }
+
+    const orderItems = await this.prisma.orderItem.findMany({
+      where: {
+        order: whereOrder,
+      },
+      select: {
+        quantity: true,
+        totalPrice: true,
+        productVariant: {
+          select: {
+            product: {
+              select: {
+                categoryId: true,
+                category: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const categoryMap = new Map<
+      string,
+      { categoryId: string; categoryName: string; totalRevenue: number; totalQuantitySold: number }
+    >();
+
+    for (const item of orderItems) {
+      const category = item.productVariant?.product?.category;
+      if (!category) continue;
+
+      const catId = category.id;
+      const catName = category.name;
+      const revenue = item.totalPrice ? Number(item.totalPrice) : 0;
+      const qty = item.quantity ?? 0;
+
+      const existing = categoryMap.get(catId) ?? {
+        categoryId: catId,
+        categoryName: catName,
+        totalRevenue: 0,
+        totalQuantitySold: 0,
+      };
+
+      existing.totalRevenue += revenue;
+      existing.totalQuantitySold += qty;
+      categoryMap.set(catId, existing);
+    }
+
+    return Array.from(categoryMap.values()).sort(
+      (a, b) => b.totalRevenue - a.totalRevenue,
+    );
+  }
+
+  async getSalesByRegion(days?: number) {
+    const whereOrder: any = {
+      status: { not: "CANCELLED" },
+    };
+    if (days && days > 0) {
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      whereOrder.createdAt = { gte: startDate };
+    }
+
+    const orders = await this.prisma.order.findMany({
+      where: whereOrder,
+      select: {
+        shippingCity: true,
+        shippingAddress: true,
+        totalAmount: true,
+      },
+    });
+
+    const regionMap = new Map<
+      string,
+      { region: string; totalRevenue: number; totalOrders: number }
+    >();
+
+    for (const order of orders) {
+      const region = order.shippingCity?.trim() || "Unspecified";
+      const revenue = order.totalAmount ? Number(order.totalAmount) : 0;
+
+      const existing = regionMap.get(region) ?? {
+        region,
+        totalRevenue: 0,
+        totalOrders: 0,
+      };
+
+      existing.totalRevenue += revenue;
+      existing.totalOrders += 1;
+      regionMap.set(region, existing);
+    }
+
+    return Array.from(regionMap.values()).sort(
+      (a, b) => b.totalRevenue - a.totalRevenue,
+    );
+  }
 }

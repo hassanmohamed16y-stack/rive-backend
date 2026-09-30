@@ -1,6 +1,7 @@
 import { NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { OrderStatus, PaymentStatus, UserRole } from "@prisma/client";
+import { DeletionRequestStatus, OrderStatus, PaymentStatus, UserRole } from "@prisma/client";
+import { AuditLogService } from "../audit-log/audit-log.service";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   calculateCustomerTier,
@@ -15,12 +16,26 @@ describe("CustomersService", () => {
       findMany: jest.Mock;
       count: jest.Mock;
       findFirst: jest.Mock;
+      update: jest.Mock;
     };
     order: {
       findMany: jest.Mock;
       count: jest.Mock;
+      updateMany: jest.Mock;
+    };
+    review: {
+      findMany: jest.Mock;
+    };
+    dataDeletionRequest: {
+      findFirst: jest.Mock;
+      create: jest.Mock;
+      findMany: jest.Mock;
+      count: jest.Mock;
+      findUnique: jest.Mock;
+      update: jest.Mock;
     };
   };
+  let auditLogService: { record: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -28,12 +43,27 @@ describe("CustomersService", () => {
         findMany: jest.fn(),
         count: jest.fn(),
         findFirst: jest.fn(),
+        update: jest.fn(),
       },
       order: {
         findMany: jest.fn(),
         count: jest.fn(),
+        updateMany: jest.fn(),
+      },
+      review: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      dataDeletionRequest: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
+        findMany: jest.fn(),
+        count: jest.fn(),
+        findUnique: jest.fn(),
+        update: jest.fn(),
       },
     };
+
+    auditLogService = { record: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -41,6 +71,10 @@ describe("CustomersService", () => {
         {
           provide: PrismaService,
           useValue: prisma,
+        },
+        {
+          provide: AuditLogService,
+          useValue: auditLogService,
         },
       ],
     }).compile();
@@ -330,6 +364,52 @@ describe("CustomersService", () => {
       await expect(
         service.findCustomerOrders("missing-cust", {}),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("data deletion requests", () => {
+    it("creates deletion request", async () => {
+      prisma.dataDeletionRequest.findFirst.mockResolvedValue(null);
+      prisma.dataDeletionRequest.create.mockResolvedValue({ id: "req-1", userId: "u1", status: DeletionRequestStatus.PENDING });
+
+      const res = await service.createDeletionRequest("u1", { reason: "Moving away" });
+      expect(res.id).toBe("req-1");
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "customer.data_deletion.request" }),
+      );
+    });
+
+    it("approves deletion request and anonymizes customer PII while retaining orders", async () => {
+      prisma.dataDeletionRequest.findUnique.mockResolvedValue({
+        id: "req-1",
+        userId: "u1",
+        status: DeletionRequestStatus.PENDING,
+      });
+      prisma.user.update.mockResolvedValue({ id: "u1", fullName: "Anonymized User" });
+      prisma.order.updateMany.mockResolvedValue({ count: 2 });
+      prisma.dataDeletionRequest.update.mockResolvedValue({
+        id: "req-1",
+        status: DeletionRequestStatus.APPROVED,
+      });
+
+      const res = await service.approveDeletionRequest("req-1", "admin-1");
+
+      expect(res.status).toBe(DeletionRequestStatus.APPROVED);
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: "u1" },
+        data: expect.objectContaining({
+          fullName: "Anonymized User",
+          email: "anonymized_u1@deleted.local",
+          isActive: false,
+        }),
+      });
+      expect(prisma.order.updateMany).toHaveBeenCalledWith({
+        where: { userId: "u1" },
+        data: expect.objectContaining({
+          customerName: "Anonymized Customer",
+          customerEmail: "anonymized_u1@deleted.local",
+        }),
+      });
     });
   });
 });
