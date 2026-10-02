@@ -7,7 +7,7 @@ import {
   NotFoundException,
   OnModuleInit,
 } from "@nestjs/common";
-import { OrderStatus, PaymentStatus, Prisma, ProductStatus } from "@prisma/client";
+import { CouponType, OrderStatus, PaymentStatus, Prisma, ProductStatus } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { AuditLogService } from "../audit-log/audit-log.service";
 import { isOrderOwnedByActor } from "../common/utils/order-ownership";
@@ -213,7 +213,84 @@ export class OrdersService implements OnModuleInit {
         }
       }
 
-      const discount = new Decimal(dto.discount ?? 0);
+      let discount = new Decimal(dto.discount ?? 0);
+      let couponId: string | undefined;
+      let couponCode: string | undefined;
+
+      if (dto.couponCode) {
+        const normalizedCode = dto.couponCode.trim().toUpperCase();
+        const coupon = await tx.coupon.findUnique({
+          where: { code: normalizedCode },
+        });
+
+        if (!coupon || !coupon.isActive) {
+          throw new BadRequestException("Coupon is invalid or inactive");
+        }
+
+        if (coupon.expiresAt && coupon.expiresAt < new Date()) {
+          throw new BadRequestException("Coupon has expired");
+        }
+
+        if (
+          coupon.minOrderAmount &&
+          subtotal.lessThan(new Decimal(coupon.minOrderAmount))
+        ) {
+          throw new BadRequestException(
+            `Minimum order amount for this coupon is ${coupon.minOrderAmount.toString()}`,
+          );
+        }
+
+        if (
+          coupon.usagePerCustomer !== null &&
+          coupon.usagePerCustomer !== undefined &&
+          userId
+        ) {
+          const userUsageCount = await tx.order.count({
+            where: {
+              userId,
+              couponId: coupon.id,
+              status: { notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED] },
+            },
+          });
+          if (userUsageCount >= coupon.usagePerCustomer) {
+            throw new BadRequestException(
+              "Coupon customer usage limit reached",
+            );
+          }
+        }
+
+        const whereClause: Prisma.CouponWhereInput = {
+          id: coupon.id,
+          isActive: true,
+        };
+        if (coupon.usageLimit !== null && coupon.usageLimit !== undefined) {
+          whereClause.usageCount = { lt: coupon.usageLimit };
+        }
+
+        const updatedCoupon = await tx.coupon.updateMany({
+          where: whereClause,
+          data: { usageCount: { increment: 1 } },
+        });
+
+        if (updatedCoupon.count !== 1) {
+          throw new BadRequestException("Coupon usage limit reached");
+        }
+
+        couponId = coupon.id;
+        couponCode = coupon.code;
+
+        const couponVal =
+          typeof coupon.value === "object" && coupon.value !== null && "toNumber" in (coupon.value as any)
+            ? (coupon.value as any).toNumber()
+            : Number(coupon.value);
+
+        if (coupon.type === CouponType.PERCENTAGE) {
+          discount = subtotal.times(new Decimal(couponVal)).dividedBy(100);
+        } else {
+          discount = Decimal.min(new Decimal(couponVal), subtotal);
+        }
+      }
+
       // NOTE FOR FUTURE ORDER-CREATION LOGIC:
       // When calculating shipping cost during order creation, the price MUST be read
       // server-side directly from the ShippingZone record at order time (e.g. by matching
@@ -246,6 +323,8 @@ export class OrdersService implements OnModuleInit {
           shippingZipCode: dto.shippingZipCode,
           notes: dto.notes,
           reservationExpiresAt,
+          couponId,
+          couponCode,
           items: { create: orderItemsData },
         },
         include: orderInclude,
@@ -522,6 +601,24 @@ export class OrdersService implements OnModuleInit {
       },
     });
     if (updated.count === 0) return false;
+
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      select: { couponId: true },
+    });
+
+    if (order?.couponId) {
+      await tx.coupon.updateMany({
+        where: {
+          id: order.couponId,
+          usageCount: { gt: 0 },
+        },
+        data: {
+          usageCount: { decrement: 1 },
+        },
+      });
+    }
+
     const items = await tx.orderItem.findMany({ where: { orderId } });
     // Restore variant stock concurrently within the transaction.
     await Promise.all(

@@ -101,6 +101,12 @@ export class CreateOrderDto {
   @Length(1, 255)
   idempotencyKey?: string;
 
+  @ApiPropertyOptional({ example: "SUMMER20", maxLength: 50 })
+  @IsOptional()
+  @IsString()
+  @Length(1, 50)
+  couponCode?: string;
+
   @ApiProperty({ type: [OrderItemDto], maxItems: 50 })
   @IsArray()
   @ArrayMinSize(1)
