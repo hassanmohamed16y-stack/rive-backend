@@ -35,6 +35,9 @@ describe("CustomersService", () => {
       findUnique: jest.Mock;
       update: jest.Mock;
     };
+    refreshToken: {
+      deleteMany: jest.Mock;
+    };
   };
   let auditLogService: { record: jest.Mock };
 
@@ -62,6 +65,9 @@ describe("CustomersService", () => {
         count: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
+      },
+      refreshToken: {
+        deleteMany: jest.fn(),
       },
     };
 
@@ -521,6 +527,147 @@ describe("CustomersService", () => {
           adminNotes: "Active fraud dispute",
         }),
       });
+    });
+  });
+
+  describe("blockCustomer", () => {
+    it("blocks customer and revokes refresh tokens", async () => {
+      const mockUser = { id: "cust-1", role: UserRole.CUSTOMER, fullName: "Alice Smith", email: "alice@example.com", createdAt: new Date(), orders: [] };
+      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.user.findFirst.mockResolvedValue(mockUser);
+      prisma.user.update.mockResolvedValue({ ...mockUser, isBlocked: true, isActive: false });
+      prisma.refreshToken.deleteMany.mockResolvedValue({ count: 2 });
+
+      const result = await service.blockCustomer("cust-1", "admin-1");
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: "cust-1" },
+        data: { isBlocked: true, isActive: false },
+      });
+      expect(prisma.refreshToken.deleteMany).toHaveBeenCalledWith({ where: { userId: "cust-1" } });
+      expect(auditLogService.record).toHaveBeenCalledWith({
+        userId: "admin-1",
+        action: "customer.block",
+        entityType: "User",
+        entityId: "cust-1",
+        changes: { isBlocked: true, isActive: false },
+      });
+      expect(result.id).toBe("cust-1");
+    });
+
+    it("throws BadRequestException if target user is ADMIN or staff", async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: "admin-1", role: UserRole.ADMIN });
+
+      await expect(service.blockCustomer("admin-1", "admin-actor")).rejects.toThrow(
+        "Admins or staff accounts cannot be blocked or deleted",
+      );
+    });
+
+    it("throws NotFoundException if customer is not found", async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(service.blockCustomer("missing", "admin-actor")).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe("unblockCustomer", () => {
+    it("unblocks customer", async () => {
+      const mockUser = { id: "cust-1", role: UserRole.CUSTOMER, fullName: "Alice Smith", email: "alice@example.com", createdAt: new Date(), orders: [] };
+      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.user.findFirst.mockResolvedValue(mockUser);
+      prisma.user.update.mockResolvedValue({ ...mockUser, isBlocked: false, isActive: true });
+
+      const result = await service.unblockCustomer("cust-1", "admin-1");
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: "cust-1" },
+        data: { isBlocked: false, isActive: true },
+      });
+      expect(auditLogService.record).toHaveBeenCalledWith({
+        userId: "admin-1",
+        action: "customer.unblock",
+        entityType: "User",
+        entityId: "cust-1",
+        changes: { isBlocked: false, isActive: true },
+      });
+      expect(result.id).toBe("cust-1");
+    });
+
+    it("throws BadRequestException if target user is ADMIN or staff", async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: "admin-1", role: UserRole.ADMIN });
+
+      await expect(service.unblockCustomer("admin-1", "admin-actor")).rejects.toThrow(
+        "Admins or staff accounts cannot be blocked or deleted",
+      );
+    });
+  });
+
+  describe("deleteCustomer", () => {
+    it("anonymizes customer data, revokes refresh tokens and audits action", async () => {
+      const mockUser = {
+        id: "cust-1",
+        role: UserRole.CUSTOMER,
+        fullName: "Alice Smith",
+        email: "alice@example.com",
+        createdAt: new Date(),
+        orders: [],
+      };
+      prisma.user.findUnique.mockResolvedValue(mockUser);
+
+      const txUserUpdate = jest.fn().mockResolvedValue({ id: "cust-1" });
+      const txOrderUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+      const txRefreshTokenDeleteMany = jest.fn().mockResolvedValue({ count: 1 });
+      const txWishlistDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
+      const txCartSessionDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
+      const txReviewUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+      const txReferralCodeDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
+      const txInternalNoteUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+      const txInternalNoteDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
+      const txMetaConversationUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+
+      const txMock = {
+        user: { update: txUserUpdate },
+        order: { updateMany: txOrderUpdateMany },
+        refreshToken: { deleteMany: txRefreshTokenDeleteMany },
+        wishlistItem: { deleteMany: txWishlistDeleteMany },
+        cartSession: { deleteMany: txCartSessionDeleteMany },
+        review: { updateMany: txReviewUpdateMany },
+        referralCode: { deleteMany: txReferralCodeDeleteMany },
+        internalNote: { updateMany: txInternalNoteUpdateMany, deleteMany: txInternalNoteDeleteMany },
+        metaConversation: { updateMany: txMetaConversationUpdateMany },
+      };
+
+      (prisma as any).$transaction = jest.fn(async (cb: any) => cb(txMock));
+
+      const result = await service.deleteCustomer("cust-1", "admin-1");
+
+      expect(txUserUpdate).toHaveBeenCalledWith({
+        where: { id: "cust-1" },
+        data: expect.objectContaining({
+          fullName: "Anonymized User",
+          email: "anonymized_cust-1@deleted.local",
+          isActive: false,
+        }),
+      });
+      expect(auditLogService.record).toHaveBeenCalledWith({
+        userId: "admin-1",
+        action: "customer.delete",
+        entityType: "User",
+        entityId: "cust-1",
+        changes: expect.objectContaining({ deletedAt: expect.any(Date) }),
+      });
+      expect(result.name).toBe("Anonymized User");
+      expect(result.email).toBe("anonymized_cust-1@deleted.local");
+    });
+
+    it("throws BadRequestException if target user is ADMIN or staff", async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: "admin-1", role: UserRole.ADMIN });
+
+      await expect(service.deleteCustomer("admin-1", "admin-actor")).rejects.toThrow(
+        "Admins or staff accounts cannot be blocked or deleted",
+      );
     });
   });
 });

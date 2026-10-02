@@ -93,6 +93,7 @@ model User {
   roleId                     String?
   roleRecord                 Role?              @relation(fields: [roleId], references: [id], onDelete: SetNull)
   isActive                   Boolean            @default(true)
+  isBlocked                  Boolean            @default(false)
   lastLoginAt                DateTime?
   emailVerifiedAt            DateTime?
   emailVerificationToken     String?            @unique

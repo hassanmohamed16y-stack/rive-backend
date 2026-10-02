@@ -21,6 +21,8 @@ describe("AuthService", () => {
     email: "aisha@example.com",
     passwordHash: "stored-hash",
     role: "CUSTOMER",
+    isActive: true,
+    isBlocked: false,
     emailVerifiedAt: null,
     emailVerificationToken: null,
     emailVerificationExpiresAt: null,
@@ -144,6 +146,18 @@ describe("AuthService", () => {
     expect(jwtService.verify(result.accessToken)).toMatchObject({
       sub: "user-1",
     });
+  });
+
+  it("rejects login for blocked accounts", async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue({
+      ...baseUser,
+      isBlocked: true,
+    });
+
+    await expect(
+      service.login({ email: baseUser.email, password: "password" }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it("locks an account for 15 minutes after 5 failed login attempts", async () => {

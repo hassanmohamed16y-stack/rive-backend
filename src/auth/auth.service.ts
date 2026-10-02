@@ -229,6 +229,13 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
+    if (user.isBlocked) {
+      await bcrypt.compare(dto.password, DUMMY_HASH_FOR_TIMING);
+      throw new ForbiddenException(
+        "Your account has been blocked. Please contact customer support.",
+      );
+    }
+
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       await bcrypt.compare(dto.password, DUMMY_HASH_FOR_TIMING);
       throw new ForbiddenException(
@@ -315,6 +322,12 @@ export class AuthService {
 
     if (!storedToken || storedToken.expiresAt <= new Date()) {
       throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+
+    if (storedToken.user.isBlocked || !storedToken.user.isActive) {
+      throw new ForbiddenException(
+        "Your account has been blocked. Please contact customer support.",
+      );
     }
 
     if (storedToken.revokedAt !== null) {
@@ -578,7 +591,7 @@ export class AuthService {
       },
     });
 
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || user.isBlocked) {
       return null;
     }
 

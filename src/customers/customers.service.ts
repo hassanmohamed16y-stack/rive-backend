@@ -616,4 +616,202 @@ export class CustomersService {
 
     return updatedRequest;
   }
+
+  async blockCustomer(id: string, actorUserId?: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Customer with ID ${id} not found`);
+    }
+
+    if (user.role !== UserRole.CUSTOMER) {
+      throw new BadRequestException("Admins or staff accounts cannot be blocked or deleted");
+    }
+
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        isBlocked: true,
+        isActive: false,
+      },
+    });
+
+    await this.prisma.refreshToken.deleteMany({
+      where: { userId: id },
+    });
+
+    await this.auditLogService.record({
+      userId: actorUserId,
+      action: "customer.block",
+      entityType: "User",
+      entityId: id,
+      changes: { isBlocked: true, isActive: false },
+    });
+
+    return this.findOne(id);
+  }
+
+  async unblockCustomer(id: string, actorUserId?: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Customer with ID ${id} not found`);
+    }
+
+    if (user.role !== UserRole.CUSTOMER) {
+      throw new BadRequestException("Admins or staff accounts cannot be blocked or deleted");
+    }
+
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        isBlocked: false,
+        isActive: true,
+      },
+    });
+
+    await this.auditLogService.record({
+      userId: actorUserId,
+      action: "customer.unblock",
+      entityType: "User",
+      entityId: id,
+      changes: { isBlocked: false, isActive: true },
+    });
+
+    return this.findOne(id);
+  }
+
+  async deleteCustomer(id: string, actorUserId?: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        orders: {
+          select: {
+            totalAmount: true,
+            paymentStatus: true,
+            status: true,
+            shippingPhone: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Customer with ID ${id} not found`);
+    }
+
+    if (user.role !== UserRole.CUSTOMER) {
+      throw new BadRequestException("Admins or staff accounts cannot be blocked or deleted");
+    }
+
+    const metricsBefore = this.mapCustomerMetrics(user);
+
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Anonymize user record
+      await tx.user.update({
+        where: { id },
+        data: {
+          fullName: "Anonymized User",
+          email: `anonymized_${id}@deleted.local`,
+          passwordHash: `UNUSABLE_PASSWORD_HASH_${Math.random().toString(36).substring(2)}_${Date.now()}`,
+          isActive: false,
+          isBlocked: false,
+          deletedAt: new Date(),
+          emailVerifiedAt: null,
+          emailVerificationToken: null,
+          passwordResetToken: null,
+          passwordResetExpiresAt: null,
+          emailVerificationExpiresAt: null,
+          lockedUntil: null,
+          failedLoginAttempts: 0,
+        },
+      });
+
+      // 2. Anonymize personal data on orders but keep all financial/order item records
+      await tx.order.updateMany({
+        where: { userId: id },
+        data: {
+          customerName: "Anonymized Customer",
+          customerEmail: `anonymized_${id}@deleted.local`,
+          shippingPhone: null,
+          shippingAddress: "Anonymized Address",
+          shippingCity: null,
+          shippingCountry: null,
+          shippingZipCode: null,
+          carrier: null,
+          trackingNumber: null,
+          trackingUrl: null,
+          notes: null,
+        },
+      });
+
+      // 3. Delete refresh tokens
+      await tx.refreshToken.deleteMany({
+        where: { userId: id },
+      });
+
+      // 4. Delete Wishlist items
+      await tx.wishlistItem.deleteMany({
+        where: { customerId: id },
+      });
+
+      // 5. Delete Cart sessions
+      await tx.cartSession.deleteMany({
+        where: { customerId: id },
+      });
+
+      // 6. Anonymize Reviews
+      await tx.review.updateMany({
+        where: { customerId: id },
+        data: {
+          customerId: null,
+          authorName: "Anonymized User",
+        },
+      });
+
+      // 7. Delete Referral codes
+      await tx.referralCode.deleteMany({
+        where: { customerId: id },
+      });
+
+      // 8. Handle Internal Notes
+      await tx.internalNote.updateMany({
+        where: { createdById: id },
+        data: { createdById: null },
+      });
+      await tx.internalNote.deleteMany({
+        where: { entityType: "User", entityId: id },
+      });
+
+      // 9. Anonymize Meta Conversations
+      await tx.metaConversation.updateMany({
+        where: { userId: id },
+        data: {
+          userId: null,
+          customerName: "Anonymized Customer",
+          customerEmail: null,
+        },
+      });
+    });
+
+    await this.auditLogService.record({
+      userId: actorUserId,
+      action: "customer.delete",
+      entityType: "User",
+      entityId: id,
+      changes: { deletedAt: new Date() },
+    });
+
+    return {
+      ...metricsBefore,
+      name: "Anonymized User",
+      email: `anonymized_${id}@deleted.local`,
+      phone: null,
+    };
+  }
 }
