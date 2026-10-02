@@ -10,6 +10,9 @@ describe("AdminCustomersController", () => {
     findByEmail: jest.Mock;
     findCustomerOrders: jest.Mock;
     getCustomerActivity: jest.Mock;
+    blockCustomer: jest.Mock;
+    unblockCustomer: jest.Mock;
+    deleteCustomer: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -19,6 +22,9 @@ describe("AdminCustomersController", () => {
       findByEmail: jest.fn(),
       findCustomerOrders: jest.fn(),
       getCustomerActivity: jest.fn(),
+      blockCustomer: jest.fn(),
+      unblockCustomer: jest.fn(),
+      deleteCustomer: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -98,6 +104,45 @@ describe("AdminCustomersController", () => {
       const result = await controller.findOne("c1");
 
       expect(service.findOne).toHaveBeenCalledWith("c1");
+      expect(result).toBe(mockProfile);
+    });
+  });
+
+  describe("blockCustomer", () => {
+    it("delegates to customersService.blockCustomer", async () => {
+      const mockProfile = { id: "c1", name: "Alice" };
+      service.blockCustomer.mockResolvedValue(mockProfile);
+
+      const req = { user: { id: "admin-1" } } as any;
+      const result = await controller.blockCustomer("c1", req);
+
+      expect(service.blockCustomer).toHaveBeenCalledWith("c1", "admin-1");
+      expect(result).toBe(mockProfile);
+    });
+  });
+
+  describe("unblockCustomer", () => {
+    it("delegates to customersService.unblockCustomer", async () => {
+      const mockProfile = { id: "c1", name: "Alice" };
+      service.unblockCustomer.mockResolvedValue(mockProfile);
+
+      const req = { user: { id: "admin-1" } } as any;
+      const result = await controller.unblockCustomer("c1", req);
+
+      expect(service.unblockCustomer).toHaveBeenCalledWith("c1", "admin-1");
+      expect(result).toBe(mockProfile);
+    });
+  });
+
+  describe("deleteCustomer", () => {
+    it("delegates to customersService.deleteCustomer", async () => {
+      const mockProfile = { id: "c1", name: "Anonymized User" };
+      service.deleteCustomer.mockResolvedValue(mockProfile);
+
+      const req = { user: { id: "admin-1" } } as any;
+      const result = await controller.deleteCustomer("c1", req);
+
+      expect(service.deleteCustomer).toHaveBeenCalledWith("c1", "admin-1");
       expect(result).toBe(mockProfile);
     });
   });

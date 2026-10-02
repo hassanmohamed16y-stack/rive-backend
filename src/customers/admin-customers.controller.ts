@@ -1,10 +1,14 @@
 import {
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Query,
+  Req,
   UseGuards,
 } from "@nestjs/common";
+import { Request } from "express";
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -77,5 +81,44 @@ export class AdminCustomersController {
   @ApiResponse({ status: 404, description: "Customer not found." })
   async findOne(@Param("id") id: string) {
     return this.customersService.findOne(id);
+  }
+
+  @Patch(":id/block")
+  @RequirePermission("customers.view")
+  @ApiOperation({ summary: "Block a customer account (Admin)" })
+  @ApiResponse({ status: 200, description: "Customer blocked successfully." })
+  @ApiResponse({ status: 400, description: "Admin or staff accounts cannot be blocked." })
+  @ApiResponse({ status: 404, description: "Customer not found." })
+  async blockCustomer(
+    @Param("id") id: string,
+    @Req() req: Request & { user?: { id: string } },
+  ) {
+    return this.customersService.blockCustomer(id, req.user?.id);
+  }
+
+  @Patch(":id/unblock")
+  @RequirePermission("customers.view")
+  @ApiOperation({ summary: "Unblock a customer account (Admin)" })
+  @ApiResponse({ status: 200, description: "Customer unblocked successfully." })
+  @ApiResponse({ status: 400, description: "Admin or staff accounts cannot be unblocked." })
+  @ApiResponse({ status: 404, description: "Customer not found." })
+  async unblockCustomer(
+    @Param("id") id: string,
+    @Req() req: Request & { user?: { id: string } },
+  ) {
+    return this.customersService.unblockCustomer(id, req.user?.id);
+  }
+
+  @Delete(":id")
+  @RequirePermission("customers.view")
+  @ApiOperation({ summary: "Delete or anonymize customer account (Admin)" })
+  @ApiResponse({ status: 200, description: "Customer deleted/anonymized successfully." })
+  @ApiResponse({ status: 400, description: "Admin or staff accounts cannot be deleted." })
+  @ApiResponse({ status: 404, description: "Customer not found." })
+  async deleteCustomer(
+    @Param("id") id: string,
+    @Req() req: Request & { user?: { id: string } },
+  ) {
+    return this.customersService.deleteCustomer(id, req.user?.id);
   }
 }
