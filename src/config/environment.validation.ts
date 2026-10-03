@@ -114,4 +114,11 @@ export function validateEnvironment(
   ) {
     throw new Error("META_APP_SECRET must not be empty if specified");
   }
+
+  if (
+    environment.META_PAGE_ACCESS_TOKEN !== undefined &&
+    !environment.META_PAGE_ACCESS_TOKEN.trim()
+  ) {
+    throw new Error("META_PAGE_ACCESS_TOKEN must not be empty if specified");
+  }
 }

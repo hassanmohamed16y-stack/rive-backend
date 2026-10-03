@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RequirePermission } from "../auth/permissions.decorator";
@@ -6,6 +6,8 @@ import { PermissionsGuard } from "../auth/permissions.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { PaginationDto } from "../common/dto/pagination.dto";
+import { AuthenticatedRequest } from "../common/types/authenticated-request";
+import { SendMetaMessageDto } from "./dto/send-meta-message.dto";
 import { MetaService } from "./meta.service";
 
 @ApiTags("admin meta")
@@ -44,5 +46,17 @@ export class AdminMetaController {
       page: pagination?.page,
       limit: pagination?.limit,
     });
+  }
+
+  @Post("conversations/:id/messages")
+  @RequirePermission("customers.update")
+  @ApiOperation({ summary: "Reply to a Facebook Messenger or Instagram conversation" })
+  @ApiResponse({ status: 201, description: "Reply message sent and stored." })
+  async sendReply(
+    @Param("id") id: string,
+    @Body() dto: SendMetaMessageDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.metaService.sendReply(id, dto.text, req.user?.id);
   }
 }
