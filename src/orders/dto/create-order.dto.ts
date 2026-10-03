@@ -75,13 +75,6 @@ export class CreateOrderDto {
   @Length(1, 20)
   shippingZipCode?: string;
 
-  @ApiPropertyOptional({ example: 0, minimum: 0 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  discount?: number;
-
   @ApiPropertyOptional({ example: 50, minimum: 0 })
   @IsOptional()
   @Type(() => Number)
