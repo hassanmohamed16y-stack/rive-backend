@@ -1,4 +1,14 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BadGatewayException,
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from "@nestjs/common";
+import { AuditLogService } from "../audit-log/audit-log.service";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   buildPaginationMeta,
@@ -10,7 +20,10 @@ import {
 export class MetaService {
   private readonly logger = new Logger(MetaService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   private get verifyToken(): string {
     return process.env.META_VERIFY_TOKEN?.trim() || "rive_meta_verify_token";
@@ -32,6 +45,10 @@ export class MetaService {
 
       if (messaging && Array.isArray(messaging)) {
         for (const item of messaging) {
+          if (item.message?.is_echo || item.delivery || item.read) {
+            continue;
+          }
+
           const senderId = item.sender?.id;
           const text = item.message?.text || "Non-text media or interaction";
           const platform = entry?.id ? "FACEBOOK" : "INSTAGRAM";
@@ -155,5 +172,154 @@ export class MetaService {
       conversation,
       messages: { data: messages, meta: buildPaginationMeta(page, limit, total) },
     };
+  }
+
+  async sendReply(conversationId: string, text: string, userId?: string) {
+    const conversation = await this.prisma.metaConversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation) {
+      throw new NotFoundException(`Conversation ${conversationId} not found`);
+    }
+
+    if (
+      conversation.platform !== "FACEBOOK" &&
+      conversation.platform !== "INSTAGRAM"
+    ) {
+      throw new BadRequestException(
+        `Unsupported conversation platform: ${conversation.platform}`,
+      );
+    }
+
+    const latestCustomerMessage = await this.prisma.metaMessage.findFirst({
+      where: {
+        conversationId,
+        sender: "CUSTOMER",
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!latestCustomerMessage) {
+      throw new BadRequestException(
+        "The 24-hour reply window has expired. You can only reply within 24 hours of the customer's last message.",
+      );
+    }
+
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    if (latestCustomerMessage.createdAt < twentyFourHoursAgo) {
+      throw new BadRequestException(
+        "The 24-hour reply window has expired. You can only reply within 24 hours of the customer's last message.",
+      );
+    }
+
+    const pageAccessToken = process.env.META_PAGE_ACCESS_TOKEN?.trim();
+    if (!pageAccessToken) {
+      throw new ServiceUnavailableException(
+        "Meta integration is not configured with a page access token.",
+      );
+    }
+
+    // Graph API v21.0 send message endpoint.
+    // Note: Facebook and Instagram both use graph.facebook.com/v21.0/me/messages with standard messaging payload in current design.
+    // Note: Instagram may require a different page token or Instagram-specific endpoint depending on the app setup; verify when the new Meta app is created.
+    const url = "https://graph.facebook.com/v21.0/me/messages";
+
+    let response: Response;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${pageAccessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          recipient: { id: conversation.platformUserId },
+          messaging_type: "RESPONSE",
+          message: { text },
+        }),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      this.logger.error("Meta Graph API request failed due to network or timeout error", error);
+      throw new BadGatewayException("Failed to communicate with Meta API");
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    let responseData: any;
+    try {
+      responseData = await response.json();
+    } catch {
+      responseData = null;
+    }
+
+    if (!response.ok) {
+      const errCode = responseData?.error?.code;
+      const errSubcode = responseData?.error?.error_subcode;
+
+      this.logger.error(
+        `Meta Graph API returned error status ${response.status}, code ${errCode}, subcode ${errSubcode}`,
+      );
+
+      if (errCode === 190) {
+        throw new BadGatewayException(
+          "Meta token needs renewal. Please update the META_PAGE_ACCESS_TOKEN.",
+        );
+      }
+
+      if (
+        errCode === 10 ||
+        errCode === 551 ||
+        errSubcode === 2018278
+      ) {
+        throw new BadRequestException(
+          "Cannot send message due to Meta messaging window or policy policy restrictions.",
+        );
+      }
+
+      if ([4, 17, 32, 613].includes(errCode)) {
+        throw new HttpException(
+          "Meta API rate limit exceeded. Please try again later.",
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+
+      throw new BadGatewayException("Failed to send message via Meta API");
+    }
+
+    const createdMessage = await this.prisma.$transaction(async (tx) => {
+      const newMessage = await tx.metaMessage.create({
+        data: {
+          conversationId: conversation.id,
+          sender: "ADMIN",
+          text,
+          rawPayload: responseData ?? {},
+        },
+      });
+
+      await tx.metaConversation.update({
+        where: { id: conversation.id },
+        data: {
+          lastMessageText: text,
+          lastMessageAt: new Date(),
+        },
+      });
+
+      return newMessage;
+    });
+
+    await this.auditLogService.record({
+      userId,
+      action: "meta.message.send",
+      entityType: "MetaConversation",
+      entityId: conversation.id,
+      changes: { textLength: text.length },
+    });
+
+    return createdMessage;
   }
 }
