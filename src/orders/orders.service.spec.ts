@@ -3,7 +3,7 @@ import {
   ConflictException,
   NotFoundException,
 } from "@nestjs/common";
-import { OrderStatus, ProductStatus } from "@prisma/client";
+import { CouponType, OrderStatus, ProductStatus } from "@prisma/client";
 import { OrdersService } from "./orders.service";
 
 const dto = {
@@ -12,13 +12,25 @@ const dto = {
   items: [{ productVariantId: "variant-1", quantity: 1 }],
 };
 
-function transactionPrisma(stock = 1) {
+function transactionPrisma(stock = 1, couponInitial?: any) {
   const variant = {
     id: "variant-1",
     stock,
     isAvailable: true,
     price: "25.00",
     product: { status: ProductStatus.ACTIVE },
+  };
+  const coupon = couponInitial ?? {
+    id: "coupon-1",
+    code: "SUMMER20",
+    type: CouponType.PERCENTAGE,
+    value: "20.00",
+    isActive: true,
+    expiresAt: null,
+    usageLimit: 5,
+    usageCount: 0,
+    usagePerCustomer: null,
+    minOrderAmount: null,
   };
   const order: any = {
     id: "order-1",
@@ -27,11 +39,13 @@ function transactionPrisma(stock = 1) {
     guestAccessToken: "guest-token",
     status: OrderStatus.PENDING,
     reservationExpiresAt: new Date(Date.now() + 60_000),
+    couponId: null,
+    couponCode: null,
     items: [
       { productVariantId: "variant-1", quantity: 1, productVariant: variant },
     ],
   };
-  const tx = {
+  const tx: any = {
     productVariant: {
       findMany: jest.fn().mockResolvedValue([variant]),
       updateMany: jest.fn(async ({ where, data }) => {
@@ -45,12 +59,47 @@ function transactionPrisma(stock = 1) {
         stock: (variant.stock += data.stock.increment),
       })),
     },
+    coupon: {
+      findUnique: jest.fn(async ({ where }) => {
+        if (!coupon || (where.code && where.code !== coupon.code) || (where.id && where.id !== coupon.id)) {
+          return null;
+        }
+        return coupon;
+      }),
+      updateMany: jest.fn(async ({ where, data }) => {
+        if (!coupon || coupon.id !== where.id) {
+          return { count: 0 };
+        }
+        if (where.isActive !== undefined && coupon.isActive !== where.isActive) {
+          return { count: 0 };
+        }
+        if (where.usageCount?.lt !== undefined && coupon.usageCount >= where.usageCount.lt) {
+          return { count: 0 };
+        }
+        if (where.usageCount?.gt !== undefined && coupon.usageCount <= where.usageCount.gt) {
+          return { count: 0 };
+        }
+        if (data.usageCount?.increment) {
+          coupon.usageCount += data.usageCount.increment;
+        }
+        if (data.usageCount?.decrement) {
+          coupon.usageCount = Math.max(0, coupon.usageCount - data.usageCount.decrement);
+        }
+        return { count: 1 };
+      }),
+    },
     order: {
-      create: jest.fn(async ({ data }) => ({
-        ...order,
-        ...data,
-        items: order.items,
-      })),
+      create: jest.fn(async ({ data }) => {
+        if (data.couponId) {
+          order.couponId = data.couponId;
+          order.couponCode = data.couponCode;
+        }
+        return {
+          ...order,
+          ...data,
+          items: order.items,
+        };
+      }),
       findUnique: jest.fn(async ({ where }) => {
         if (where.id && where.id !== order.id) return null;
         if (where.orderNumber && where.orderNumber !== order.orderNumber)
@@ -100,7 +149,7 @@ function transactionPrisma(stock = 1) {
     order: tx.order,
   };
   const auditLogService = { record: jest.fn().mockResolvedValue(undefined) };
-  return { prisma, tx, variant, order, auditLogService };
+  return { prisma, tx, variant, coupon, order, auditLogService };
 }
 
 describe("OrdersService inventory reservations", () => {
@@ -246,6 +295,119 @@ describe("OrdersService inventory reservations", () => {
     await expect(
       service.cancelByOrderNumber("RIV-1000-ABC"),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+});
+
+describe("OrdersService coupon usage tracking", () => {
+  it("increments coupon usageCount and calculates discount when valid coupon is provided", async () => {
+    const context = transactionPrisma(5);
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    const result = await service.create({
+      ...dto,
+      couponCode: "SUMMER20",
+    });
+
+    expect(result.couponId).toBe("coupon-1");
+    expect(result.couponCode).toBe("SUMMER20");
+    expect(result.discount).toBe("5"); // 20% of 25.00 = 5.00
+    expect(context.coupon.usageCount).toBe(1);
+  });
+
+  it("rejects order creation when coupon usageLimit is reached", async () => {
+    const context = transactionPrisma(5);
+    context.coupon.usageLimit = 5;
+    context.coupon.usageCount = 5;
+
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    await expect(
+      service.create({ ...dto, couponCode: "SUMMER20" }),
+    ).rejects.toThrow("Coupon usage limit reached");
+    expect(context.coupon.usageCount).toBe(5);
+  });
+
+  it("prevents concurrent order creation from exceeding usageLimit when limit is 1", async () => {
+    const context = transactionPrisma(5);
+    context.coupon.usageLimit = 1;
+    context.coupon.usageCount = 0;
+
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    const results = await Promise.allSettled([
+      service.create({ ...dto, couponCode: "SUMMER20" }),
+      service.create({ ...dto, couponCode: "SUMMER20" }),
+    ]);
+
+    expect(
+      results.filter((result) => result.status === "fulfilled"),
+    ).toHaveLength(1);
+    expect(
+      results.filter((result) => result.status === "rejected"),
+    ).toHaveLength(1);
+    expect(context.coupon.usageCount).toBe(1);
+  });
+
+  it("rejects order creation when user exceeds usagePerCustomer limit", async () => {
+    const context = transactionPrisma(5);
+    context.coupon.usagePerCustomer = 1;
+    context.tx.order.count.mockResolvedValue(1);
+
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    await expect(
+      service.create({ ...dto, couponCode: "SUMMER20" }, "user-1"),
+    ).rejects.toThrow("Coupon customer usage limit reached");
+    expect(context.coupon.usageCount).toBe(0);
+  });
+
+  it("decrements coupon usageCount when pending order is cancelled or expires", async () => {
+    const context = transactionPrisma(0);
+    context.order.couponId = "coupon-1";
+    context.coupon.usageCount = 1;
+
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    await service.cancelByOrderNumber("RIV-1000-ABC");
+
+    expect(context.order.status).toBe(OrderStatus.CANCELLED);
+    expect(context.coupon.usageCount).toBe(0);
+  });
+
+  it("does not double decrement coupon usageCount on repeated cancellation or expiry", async () => {
+    const context = transactionPrisma(0);
+    context.order.couponId = "coupon-1";
+    context.coupon.usageCount = 1;
+
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    const expirationMoment = new Date(Date.now() + 120_000);
+
+    const firstResult = await service.expireOrder("order-1", expirationMoment);
+    expect(firstResult).toBe(true);
+    expect(context.coupon.usageCount).toBe(0);
+
+    const secondResult = await service.expireOrder("order-1", expirationMoment);
+    expect(secondResult).toBe(false);
+    expect(context.coupon.usageCount).toBe(0);
   });
 });
 
