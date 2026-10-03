@@ -1,5 +1,14 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import {
+  BadGatewayException,
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { maskPhoneNumber } from "./whatsapp-conversation.util";
 
 export interface WhatsAppProvider {
   sendMessage(
@@ -40,10 +49,11 @@ export class WhatsAppService implements WhatsAppProvider {
     const { accessToken, phoneNumberId, isConfigured } = this.credentials;
 
     const cleanPhone = to.replace(/\+/g, "").trim();
+    const maskedPhone = maskPhoneNumber(cleanPhone);
 
     if (!isConfigured) {
       this.logger.warn("WhatsApp API credentials are not configured.");
-      throw new BadRequestException(
+      throw new ServiceUnavailableException(
         "WhatsApp API credentials are not configured. Please set WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID.",
       );
     }
@@ -67,8 +77,19 @@ export class WhatsAppService implements WhatsAppProvider {
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
-        this.logger.error(`WhatsApp Cloud API error (${response.status}): ${errorData}`);
+        const errorText = await response.text();
+        let errCode: number | undefined;
+        try {
+          const parsed = JSON.parse(errorText);
+          errCode = parsed?.error?.code;
+        } catch {
+          // non-JSON response
+        }
+
+        this.logger.error(
+          `WhatsApp Cloud API error (${response.status}) sending to ${maskedPhone}: code ${errCode ?? "N/A"}`,
+        );
+
         await this.prisma.whatsAppMessage.create({
           data: {
             recipient: cleanPhone,
@@ -76,10 +97,25 @@ export class WhatsAppService implements WhatsAppProvider {
             messageType,
             body,
             status: "FAILED",
-            rawPayload: { error: errorData, status: response.status },
+            rawPayload: { code: errCode ?? null, status: response.status },
           },
         });
-        throw new BadRequestException(`WhatsApp API request failed: status ${response.status}`);
+
+        if (errCode === 190) {
+          throw new BadGatewayException("WhatsApp token needs renewal");
+        }
+
+        if (errCode === 131047) {
+          throw new BadRequestException(
+            "The 24-hour reply window has expired. WhatsApp only allows free-text replies within 24 hours of the customer's last message.",
+          );
+        }
+
+        if ([4, 17, 32, 613, 80007, 130429].includes(errCode as number)) {
+          throw new HttpException("Rate limit reached", HttpStatus.TOO_MANY_REQUESTS);
+        }
+
+        throw new BadGatewayException(`WhatsApp API request failed with status ${response.status}`);
       }
 
       const data = (await response.json()) as { messages?: Array<{ id: string }> };
@@ -97,14 +133,14 @@ export class WhatsAppService implements WhatsAppProvider {
         },
       });
 
-      this.logger.log(`WhatsApp message sent successfully to ${to} (ID: ${messageId ?? "N/A"})`);
+      this.logger.log(`WhatsApp message sent successfully to ${maskedPhone} (ID: ${messageId ?? "N/A"})`);
       return { success: true, messageId };
     } catch (error) {
-      if (error instanceof BadRequestException) {
+      if (error instanceof HttpException) {
         throw error;
       }
-      this.logger.error(`Failed to send WhatsApp message to ${to}`, error);
-      throw new BadRequestException("Failed to send WhatsApp message due to network or configuration error");
+      this.logger.error(`Failed to send WhatsApp message to ${maskedPhone}`, error);
+      throw new BadGatewayException("Failed to send WhatsApp message due to network or configuration error");
     }
   }
 
@@ -178,10 +214,37 @@ export class WhatsAppService implements WhatsAppProvider {
       if (statuses && Array.isArray(statuses)) {
         for (const st of statuses) {
           if (st.id) {
-            await this.prisma.whatsAppMessage.updateMany({
-              where: { messageId: st.id },
-              data: { status: st.status?.toUpperCase() ?? "UPDATED" },
-            });
+            const isFailed = st.status?.toLowerCase() === "failed" || Boolean(st.errors?.length);
+            const firstErr = Array.isArray(st.errors) ? st.errors[0] : null;
+
+            if (isFailed && firstErr) {
+              const errorObj = {
+                code: firstErr.code ?? null,
+                title: firstErr.title ?? firstErr.message ?? "Failed",
+              };
+
+              const existingMessages = await this.prisma.whatsAppMessage.findMany({
+                where: { messageId: st.id },
+              });
+
+              for (const existingMsg of existingMessages) {
+                const currentPayload = typeof existingMsg.rawPayload === "object" && existingMsg.rawPayload !== null
+                  ? existingMsg.rawPayload
+                  : {};
+                await this.prisma.whatsAppMessage.update({
+                  where: { id: existingMsg.id },
+                  data: {
+                    status: st.status?.toUpperCase() ?? "FAILED",
+                    rawPayload: { ...(currentPayload as object), error: errorObj },
+                  },
+                });
+              }
+            } else {
+              await this.prisma.whatsAppMessage.updateMany({
+                where: { messageId: st.id },
+                data: { status: st.status?.toUpperCase() ?? "UPDATED" },
+              });
+            }
           }
         }
       }
@@ -197,7 +260,7 @@ export class WhatsAppService implements WhatsAppProvider {
     const { isConfigured } = this.credentials;
     if (!isConfigured) {
       this.logger.warn("WhatsApp test requested but credentials are not configured.");
-      throw new BadRequestException(
+      throw new ServiceUnavailableException(
         "WhatsApp API credentials are not configured. Please set WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID.",
       );
     }
