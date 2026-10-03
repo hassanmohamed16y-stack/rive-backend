@@ -1,7 +1,8 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query, UseGuards } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { MetaService } from "./meta.service";
+import { MetaSignatureGuard } from "../common/guards/meta-signature.guard";
 
 @ApiTags("meta")
 @Controller("api/v1/integrations/meta")
@@ -21,6 +22,7 @@ export class MetaController {
 
   @SkipThrottle()
   @Post("webhook")
+  @UseGuards(MetaSignatureGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Receive Meta (Facebook/Instagram) webhook events" })
   @ApiResponse({ status: 200, description: "Webhook event received" })

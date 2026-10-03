@@ -107,4 +107,11 @@ export function validateEnvironment(
       throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON must be a valid JSON string");
     }
   }
+
+  if (
+    environment.META_APP_SECRET !== undefined &&
+    !environment.META_APP_SECRET.trim()
+  ) {
+    throw new Error("META_APP_SECRET must not be empty if specified");
+  }
 }

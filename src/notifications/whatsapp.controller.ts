@@ -1,7 +1,8 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query, UseGuards } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { WhatsAppService } from "./whatsapp.service";
+import { MetaSignatureGuard } from "../common/guards/meta-signature.guard";
 
 @ApiTags("whatsapp")
 @Controller("api/v1/integrations/whatsapp")
@@ -21,6 +22,7 @@ export class WhatsAppController {
 
   @SkipThrottle()
   @Post("webhook")
+  @UseGuards(MetaSignatureGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Receive WhatsApp Business API webhook events" })
   @ApiResponse({ status: 200, description: "Webhook event received" })
