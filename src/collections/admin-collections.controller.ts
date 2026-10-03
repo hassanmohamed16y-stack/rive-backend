@@ -16,6 +16,8 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RequirePermission } from "../auth/permissions.decorator";
+import { PermissionsGuard } from "../auth/permissions.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { PaginationDto } from "../common/dto/pagination.dto";
@@ -26,13 +28,14 @@ import { UpdateCollectionDto } from "./dto/update-collection.dto";
 
 @ApiTags("admin collections")
 @Controller("api/v1/admin/collections")
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")
 @ApiBearerAuth()
 export class AdminCollectionsController {
   constructor(private readonly collectionsService: CollectionsService) {}
 
   @Get()
+  @RequirePermission("products.view")
   @ApiOperation({ summary: "List collections (Admin)" })
   async findAll(
     @Query("search") search?: string,
@@ -46,12 +49,14 @@ export class AdminCollectionsController {
   }
 
   @Get(":id")
+  @RequirePermission("products.view")
   @ApiOperation({ summary: "Get collection by ID (Admin)" })
   async findOne(@Param("id") id: string) {
     return this.collectionsService.findById(id);
   }
 
   @Post()
+  @RequirePermission("products.edit")
   @ApiOperation({ summary: "Create a new collection (Admin)" })
   async create(
     @Body() dto: CreateCollectionDto,
@@ -61,6 +66,7 @@ export class AdminCollectionsController {
   }
 
   @Patch(":id")
+  @RequirePermission("products.edit")
   @ApiOperation({ summary: "Update a collection (Admin)" })
   async update(
     @Param("id") id: string,
@@ -71,12 +77,14 @@ export class AdminCollectionsController {
   }
 
   @Delete(":id")
+  @RequirePermission("products.edit")
   @ApiOperation({ summary: "Delete a collection (Admin)" })
   async delete(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.collectionsService.delete(id, req.user!.id);
   }
 
   @Post(":id/products/:productId")
+  @RequirePermission("products.edit")
   @ApiOperation({ summary: "Add a product to a collection (Admin)" })
   async addProduct(
     @Param("id") collectionId: string,
@@ -91,6 +99,7 @@ export class AdminCollectionsController {
   }
 
   @Delete(":id/products/:productId")
+  @RequirePermission("products.edit")
   @ApiOperation({ summary: "Remove a product from a collection (Admin)" })
   async removeProduct(
     @Param("id") collectionId: string,

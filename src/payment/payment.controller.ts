@@ -20,6 +20,8 @@ import {
 import { Request } from "express";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
+import { RequirePermission } from "../auth/permissions.decorator";
+import { PermissionsGuard } from "../auth/permissions.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
@@ -127,8 +129,9 @@ export class PaymentController {
     return this.paymentService.handleWebhook(rawBody, signature);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
+  @RequirePermission("orders.refund")
   @ApiBearerAuth()
   @Post("refund")
   @HttpCode(HttpStatus.OK)
@@ -140,8 +143,9 @@ export class PaymentController {
     return this.paymobService.refundTransaction(dto.orderId, dto.amount);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
+  @RequirePermission("orders.refund")
   @ApiBearerAuth()
   @Post("reconcile")
   @HttpCode(HttpStatus.OK)

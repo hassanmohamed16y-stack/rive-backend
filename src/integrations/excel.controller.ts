@@ -21,6 +21,8 @@ import {
 } from "@nestjs/swagger";
 import { Response } from "express";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RequirePermission } from "../auth/permissions.decorator";
+import { PermissionsGuard } from "../auth/permissions.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
@@ -28,13 +30,14 @@ import { ExcelService } from "./excel.service";
 
 @ApiTags("admin excel")
 @Controller("api/v1/admin/excel")
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")
 @ApiBearerAuth()
 export class ExcelController {
   constructor(private readonly excelService: ExcelService) {}
 
   @Get("export/products")
+  @RequirePermission("products.view")
   @ApiOperation({ summary: "Export products and variants as Excel file (.xlsx)" })
   async exportProducts(@Res() res: Response) {
     const buffer = await this.excelService.exportProducts();
@@ -50,6 +53,7 @@ export class ExcelController {
   }
 
   @Get("export/orders")
+  @RequirePermission("orders.view")
   @ApiOperation({ summary: "Export orders as Excel file (.xlsx)" })
   async exportOrders(@Res() res: Response) {
     const buffer = await this.excelService.exportOrders();
@@ -65,6 +69,7 @@ export class ExcelController {
   }
 
   @Get("export/customers")
+  @RequirePermission("customers.view")
   @ApiOperation({ summary: "Export customers as Excel file (.xlsx)" })
   async exportCustomers(@Res() res: Response) {
     const buffer = await this.excelService.exportCustomers();
@@ -80,6 +85,7 @@ export class ExcelController {
   }
 
   @Post("import/products")
+  @RequirePermission("products.edit")
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor("file"))
   @ApiConsumes("multipart/form-data")
@@ -96,6 +102,7 @@ export class ExcelController {
   }
 
   @Post("import/inventory")
+  @RequirePermission("products.edit")
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor("file"))
   @ApiConsumes("multipart/form-data")
