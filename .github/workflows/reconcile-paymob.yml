@@ -1,0 +1,31 @@
+name: Reconcile Paymob payments
+
+on:
+  schedule:
+    # Every 15 minutes.
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reconcile-paymob
+  cancel-in-progress: false
+
+jobs:
+  reconcile-paymob:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Call internal reconcile-paymob endpoint
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "x-internal-cron-secret: ${INTERNAL_CRON_SECRET}" \
+            "${API_BASE_URL%/}/api/v1/internal/reconcile-paymob"
