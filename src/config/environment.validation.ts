@@ -1,4 +1,5 @@
 import { isLocalOnlyEnvironment } from "../common/utils/environment";
+import { getTwoFactorEncryptionKey } from "../auth/utils/two-factor-crypto.util";
 
 const productionRequiredVariables = [
   "DATABASE_URL",
@@ -120,5 +121,18 @@ export function validateEnvironment(
     !environment.META_PAGE_ACCESS_TOKEN.trim()
   ) {
     throw new Error("META_PAGE_ACCESS_TOKEN must not be empty if specified");
+  }
+
+  if (
+    environment.TWO_FACTOR_ENCRYPTION_KEY !== undefined &&
+    environment.TWO_FACTOR_ENCRYPTION_KEY.trim() !== ""
+  ) {
+    try {
+      getTwoFactorEncryptionKey(environment.TWO_FACTOR_ENCRYPTION_KEY);
+    } catch {
+      throw new Error(
+        "TWO_FACTOR_ENCRYPTION_KEY must be a valid 32-byte key (64 hex characters, base64, or 32 raw bytes)",
+      );
+    }
   }
 }

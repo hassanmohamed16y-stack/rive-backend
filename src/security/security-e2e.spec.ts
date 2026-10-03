@@ -55,7 +55,7 @@ describeWithDatabase("Comprehensive Automated Security Tests (E2E against real N
         role: UserRole.CUSTOMER,
       },
     });
-    const u1Login = await authService.login({ email: u1Email, password: testPassword });
+    const u1Login = (await authService.login({ email: u1Email, password: testPassword })) as { accessToken: string };
     regularUser1 = { email: u1Email, password: testPassword, id: u1Db.id, accessToken: u1Login.accessToken };
 
     // Create regular User 2
@@ -68,7 +68,7 @@ describeWithDatabase("Comprehensive Automated Security Tests (E2E against real N
         role: UserRole.CUSTOMER,
       },
     });
-    const u2Login = await authService.login({ email: u2Email, password: testPassword });
+    const u2Login = (await authService.login({ email: u2Email, password: testPassword })) as { accessToken: string };
     regularUser2 = { email: u2Email, password: testPassword, id: u2Db.id, accessToken: u2Login.accessToken };
 
     // Create Admin User
@@ -88,7 +88,7 @@ describeWithDatabase("Comprehensive Automated Security Tests (E2E against real N
         roleId: fullAdminRole.id,
       },
     });
-    const adminLogin = await authService.login({ email: adminEmail, password: testPassword });
+    const adminLogin = (await authService.login({ email: adminEmail, password: testPassword })) as { accessToken: string };
     adminUser = { email: adminEmail, password: testPassword, id: adminDb.id, accessToken: adminLogin.accessToken };
 
     // Create an order owned by User 2

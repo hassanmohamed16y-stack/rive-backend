@@ -4,12 +4,14 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Prisma, User } from "@prisma/client";
 import * as bcrypt from "bcrypt";
 import * as crypto from "crypto";
+import { authenticator } from "otplib";
 import { AuditLogService } from "../audit-log/audit-log.service";
 import { isLocalOnlyEnvironment } from "../common/utils/environment";
 import { isPrismaErrorCode } from "../common/utils/prisma-error";
@@ -23,6 +25,14 @@ import { ChangePasswordDto } from "./dto/change-password.dto";
 import { CreateAdminDto } from "./dto/create-admin.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
+import { TwoFactorDisableDto } from "./dto/two-factor-disable.dto";
+import { TwoFactorEnableDto } from "./dto/two-factor-enable.dto";
+import { TwoFactorVerifyDto } from "./dto/two-factor-verify.dto";
+import {
+  decryptTwoFactorSecret,
+  encryptTwoFactorSecret,
+  isTwoFactorConfigured,
+} from "./utils/two-factor-crypto.util";
 
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
@@ -287,17 +297,41 @@ export class AuthService {
           })
         : user;
 
-    const tokenPair = await this.issueTokenPair(authenticatedUser);
-
     const settings = await this.prisma.systemSettings?.findUnique({
       where: { id: "default" },
     });
-    const requires2FA =
+    const enforceGlobally =
       authenticatedUser.role === "ADMIN" && (settings?.enforce2FAGlobally ?? false);
+
+    if (Boolean(authenticatedUser.twoFactorEnabledAt)) {
+      if (!isTwoFactorConfigured()) {
+        throw new ServiceUnavailableException(
+          "Two-factor authentication is not configured",
+        );
+      }
+
+      const jti = crypto.randomUUID();
+      const twoFactorToken = this.jwtService.sign(
+        {
+          sub: authenticatedUser.id,
+          purpose: "2fa",
+          jti,
+        },
+        { expiresIn: "5m" },
+      );
+
+      return {
+        twoFactorRequired: true,
+        twoFactorToken,
+      };
+    }
+
+    const tokenPair = await this.issueTokenPair(authenticatedUser);
 
     return {
       ...tokenPair,
-      requires2FA,
+      requires2FA: enforceGlobally,
+      ...(enforceGlobally ? { requires2FASetup: true } : {}),
     };
   }
 
@@ -614,5 +648,475 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  private ensureTwoFactorConfigured() {
+    if (!isTwoFactorConfigured()) {
+      throw new ServiceUnavailableException(
+        "Two-factor authentication is not configured",
+      );
+    }
+  }
+
+  private generateRecoveryCodes(): { plainText: string[]; hashes: string[] } {
+    const plainText: string[] = [];
+    const hashes: string[] = [];
+
+    for (let i = 0; i < 10; i++) {
+      const code = crypto.randomBytes(5).toString("hex").toUpperCase();
+      plainText.push(code);
+      hashes.push(crypto.createHash("sha256").update(code).digest("hex"));
+    }
+
+    return { plainText, hashes };
+  }
+
+  private async findMatchingRecoveryCode(userId: string, inputCode: string) {
+    const normalizedInput = inputCode.trim().toUpperCase();
+    const inputHashHex = crypto
+      .createHash("sha256")
+      .update(normalizedInput)
+      .digest("hex");
+    const inputHashBuf = Buffer.from(inputHashHex, "hex");
+
+    const recoveryCodes = await this.prisma.twoFactorRecoveryCode.findMany({
+      where: { userId, usedAt: null },
+    });
+
+    for (const rc of recoveryCodes) {
+      const candidateBuf = Buffer.from(rc.codeHash, "hex");
+      if (
+        candidateBuf.length === inputHashBuf.length &&
+        crypto.timingSafeEqual(candidateBuf, inputHashBuf)
+      ) {
+        return rc;
+      }
+    }
+
+    return null;
+  }
+
+  async setupTwoFactor(userId: string) {
+    this.ensureTwoFactorConfigured();
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    if (Boolean(user.twoFactorEnabledAt)) {
+      throw new ConflictException(
+        "Two-factor authentication is already enabled",
+      );
+    }
+
+    const secret = authenticator.generateSecret();
+    const otpauthUri = authenticator.keyuri(user.email, "RIVÉ", secret);
+
+    const twoFactorSecretEnc = encryptTwoFactorSecret(secret);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorSecretEnc },
+    });
+
+    return {
+      secret,
+      otpauthUri,
+    };
+  }
+
+  async enableTwoFactor(userId: string, dto: TwoFactorEnableDto) {
+    this.ensureTwoFactorConfigured();
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    if (user.twoFactorEnabledAt !== null) {
+      throw new ConflictException(
+        "Two-factor authentication is already enabled",
+      );
+    }
+
+    if (!user.twoFactorSecretEnc) {
+      throw new BadRequestException(
+        "Two-factor authentication setup has not been initiated",
+      );
+    }
+
+    const secret = decryptTwoFactorSecret(user.twoFactorSecretEnc);
+    authenticator.options = { window: 1 };
+    const delta = authenticator.checkDelta(dto.code.trim(), secret);
+
+    if (delta === null) {
+      throw new BadRequestException("Invalid two-factor code");
+    }
+
+    const timeStep = Math.floor(Date.now() / 1000 / 30) + delta;
+
+    if (
+      user.twoFactorLastUsedStep !== null &&
+      timeStep <= user.twoFactorLastUsedStep
+    ) {
+      throw new BadRequestException("Two-factor code has already been used");
+    }
+
+    const { plainText, hashes } = this.generateRecoveryCodes();
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.twoFactorRecoveryCode.deleteMany({
+        where: { userId },
+      });
+
+      await tx.twoFactorRecoveryCode.createMany({
+        data: hashes.map((codeHash) => ({
+          userId,
+          codeHash,
+        })),
+      });
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          twoFactorEnabledAt: new Date(),
+          twoFactorLastUsedStep: timeStep,
+        },
+      });
+    });
+
+    await this.auditLogService.record({
+      userId,
+      action: "auth.2fa-enabled",
+      entityType: "User",
+      entityId: userId,
+      changes: { reason: "Two-factor authentication enabled" },
+    });
+
+    return { recoveryCodes: plainText };
+  }
+
+  async disableTwoFactor(userId: string, dto: TwoFactorDisableDto) {
+    this.ensureTwoFactorConfigured();
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    if (!user.twoFactorEnabledAt) {
+      throw new BadRequestException(
+        "Two-factor authentication is not enabled",
+      );
+    }
+
+    const passwordValid = await bcrypt.compare(
+      dto.password,
+      user.passwordHash,
+    );
+    if (!passwordValid) {
+      throw new UnauthorizedException("Current password is incorrect");
+    }
+
+    let codeValid = false;
+
+    if (user.twoFactorSecretEnc) {
+      try {
+        const secret = decryptTwoFactorSecret(user.twoFactorSecretEnc);
+        authenticator.options = { window: 1 };
+        const delta = authenticator.checkDelta(dto.code.trim(), secret);
+        if (delta !== null) {
+          const timeStep = Math.floor(Date.now() / 1000 / 30) + delta;
+          if (
+            user.twoFactorLastUsedStep === null ||
+            timeStep > user.twoFactorLastUsedStep
+          ) {
+            codeValid = true;
+          }
+        }
+      } catch {
+        codeValid = false;
+      }
+    }
+
+    if (!codeValid) {
+      const matchingRc = await this.findMatchingRecoveryCode(
+        userId,
+        dto.code,
+      );
+      if (matchingRc) {
+        codeValid = true;
+      }
+    }
+
+    if (!codeValid) {
+      throw new UnauthorizedException("Invalid two-factor code");
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          twoFactorSecretEnc: null,
+          twoFactorEnabledAt: null,
+          twoFactorLastUsedStep: null,
+        },
+      });
+
+      await tx.twoFactorRecoveryCode.deleteMany({
+        where: { userId },
+      });
+    });
+
+    await this.auditLogService.record({
+      userId,
+      action: "auth.2fa-disabled",
+      entityType: "User",
+      entityId: userId,
+      changes: { reason: "Two-factor authentication disabled" },
+    });
+
+    return { message: "Two-factor authentication disabled successfully." };
+  }
+
+  async regenerateRecoveryCodes(userId: string, dto: TwoFactorDisableDto) {
+    this.ensureTwoFactorConfigured();
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    if (user.twoFactorEnabledAt === null) {
+      throw new BadRequestException(
+        "Two-factor authentication is not enabled",
+      );
+    }
+
+    const passwordValid = await bcrypt.compare(
+      dto.password,
+      user.passwordHash,
+    );
+    if (!passwordValid) {
+      throw new UnauthorizedException("Current password is incorrect");
+    }
+
+    let codeValid = false;
+
+    if (user.twoFactorSecretEnc) {
+      try {
+        const secret = decryptTwoFactorSecret(user.twoFactorSecretEnc);
+        authenticator.options = { window: 1 };
+        const delta = authenticator.checkDelta(dto.code.trim(), secret);
+        if (delta !== null) {
+          const timeStep = Math.floor(Date.now() / 1000 / 30) + delta;
+          if (
+            user.twoFactorLastUsedStep === null ||
+            timeStep > user.twoFactorLastUsedStep
+          ) {
+            codeValid = true;
+          }
+        }
+      } catch {
+        codeValid = false;
+      }
+    }
+
+    if (!codeValid) {
+      const matchingRc = await this.findMatchingRecoveryCode(
+        userId,
+        dto.code,
+      );
+      if (matchingRc) {
+        codeValid = true;
+      }
+    }
+
+    if (!codeValid) {
+      throw new UnauthorizedException("Invalid two-factor code");
+    }
+
+    const { plainText, hashes } = this.generateRecoveryCodes();
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.twoFactorRecoveryCode.deleteMany({
+        where: { userId },
+      });
+
+      await tx.twoFactorRecoveryCode.createMany({
+        data: hashes.map((codeHash) => ({
+          userId,
+          codeHash,
+        })),
+      });
+    });
+
+    await this.auditLogService.record({
+      userId,
+      action: "auth.2fa-recovery-codes-regenerated",
+      entityType: "User",
+      entityId: userId,
+      changes: { reason: "Recovery codes regenerated" },
+    });
+
+    return { recoveryCodes: plainText };
+  }
+
+  async getTwoFactorStatus(userId: string) {
+    this.ensureTwoFactorConfigured();
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    const recoveryCodesRemaining =
+      await this.prisma.twoFactorRecoveryCode.count({
+        where: { userId, usedAt: null },
+      });
+
+    const settings = await this.prisma.systemSettings?.findUnique({
+      where: { id: "default" },
+    });
+
+    const enforced =
+      user.role === "ADMIN" && (settings?.enforce2FAGlobally ?? false);
+
+    return {
+      enabled: Boolean(user.twoFactorEnabledAt),
+      recoveryCodesRemaining,
+      enforced,
+    };
+  }
+
+  async verifyTwoFactorLogin(dto: TwoFactorVerifyDto) {
+    this.ensureTwoFactorConfigured();
+
+    let payload: { sub?: string; purpose?: string };
+    try {
+      payload = this.jwtService.verify(dto.twoFactorToken);
+    } catch {
+      throw new UnauthorizedException("Invalid or expired two-factor token");
+    }
+
+    if (payload.purpose !== "2fa" || !payload.sub) {
+      throw new UnauthorizedException("Invalid or expired two-factor token");
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+    });
+
+    if (!user || !user.isActive || user.isBlocked) {
+      throw new UnauthorizedException("Invalid credentials");
+    }
+
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new ForbiddenException(
+        "Account locked due to too many failed login attempts. Try again later.",
+      );
+    }
+
+    let authenticated = false;
+    let usedTimeStep: number | null = null;
+    let matchedRecoveryCodeId: string | null = null;
+
+    if (user.twoFactorSecretEnc) {
+      try {
+        const secret = decryptTwoFactorSecret(user.twoFactorSecretEnc);
+        authenticator.options = { window: 1 };
+        const delta = authenticator.checkDelta(dto.code.trim(), secret);
+
+        if (delta !== null) {
+          const timeStep = Math.floor(Date.now() / 1000 / 30) + delta;
+          if (
+            user.twoFactorLastUsedStep === null ||
+            timeStep > user.twoFactorLastUsedStep
+          ) {
+            authenticated = true;
+            usedTimeStep = timeStep;
+          }
+        }
+      } catch {
+        authenticated = false;
+      }
+    }
+
+    if (!authenticated) {
+      const matchingRc = await this.findMatchingRecoveryCode(
+        user.id,
+        dto.code,
+      );
+      if (matchingRc) {
+        authenticated = true;
+        matchedRecoveryCodeId = matchingRc.id;
+      }
+    }
+
+    if (!authenticated) {
+      const failedLoginAttempts = user.failedLoginAttempts + 1;
+      const isNowLocked = failedLoginAttempts >= ACCOUNT_LOCKOUT_THRESHOLD;
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: isNowLocked
+          ? {
+              failedLoginAttempts: 0,
+              lockedUntil: new Date(Date.now() + ACCOUNT_LOCKOUT_MS),
+            }
+          : { failedLoginAttempts },
+      });
+
+      if (isNowLocked) {
+        await this.auditLogService.record({
+          userId: user.id,
+          action: "auth.account-locked",
+          entityType: "User",
+          entityId: user.id,
+          changes: {
+            reason: "Too many failed 2FA verification attempts",
+            lockedUntilMs: ACCOUNT_LOCKOUT_MS,
+          },
+        });
+      }
+
+      throw new UnauthorizedException("Invalid credentials");
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      if (usedTimeStep !== null) {
+        await tx.user.update({
+          where: { id: user.id },
+          data: {
+            twoFactorLastUsedStep: usedTimeStep,
+            failedLoginAttempts: 0,
+            lockedUntil: null,
+          },
+        });
+      } else {
+        await tx.user.update({
+          where: { id: user.id },
+          data: {
+            failedLoginAttempts: 0,
+            lockedUntil: null,
+          },
+        });
+      }
+
+      if (matchedRecoveryCodeId) {
+        await tx.twoFactorRecoveryCode.update({
+          where: { id: matchedRecoveryCodeId },
+          data: { usedAt: new Date() },
+        });
+      }
+    });
+
+    const tokenPair = await this.issueTokenPair(user);
+
+    return {
+      ...tokenPair,
+      requires2FA: false,
+    };
   }
 }

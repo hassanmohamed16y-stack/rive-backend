@@ -100,6 +100,9 @@ model User {
   emailVerificationExpiresAt DateTime?
   passwordResetToken         String?            @unique
   passwordResetExpiresAt     DateTime?
+  twoFactorSecretEnc         String?
+  twoFactorEnabledAt         DateTime?
+  twoFactorLastUsedStep      Int?
   failedLoginAttempts        Int                @default(0)
   lockedUntil                DateTime?
   deletedAt                  DateTime?
@@ -121,9 +124,21 @@ model User {
   reviews                    Review[]
   wishlistItems              WishlistItem[]
   dataDeletionRequests       DataDeletionRequest[]
+  twoFactorRecoveryCodes     TwoFactorRecoveryCode[]
 
   @@index([roleId])
   @@index([deletedAt])
+}
+
+model TwoFactorRecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Role {

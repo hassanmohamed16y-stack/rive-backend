@@ -136,10 +136,10 @@ describe("AuthService", () => {
     prisma.refreshToken.create.mockResolvedValue({ id: "refresh-1" });
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
-    const result = await service.login({
+    const result = (await service.login({
       email: "AISHA@example.com",
       password: "StrongPassword123!",
-    });
+    })) as { accessToken: string; refreshToken: string; user: any };
 
     expect(result.user).not.toHaveProperty("passwordHash");
     expect(result).toHaveProperty("refreshToken");
