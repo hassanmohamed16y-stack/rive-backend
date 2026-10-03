@@ -298,6 +298,80 @@ describe("OrdersService inventory reservations", () => {
   });
 });
 
+describe("OrdersService discount and pricing security", () => {
+  it("ignores any client-provided discount and sets discount to 0 when no coupon is provided", async () => {
+    const context = transactionPrisma(5);
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    // Cast as any in case client attempts to pass discount property
+    const result = await service.create({
+      ...dto,
+      discount: 10,
+    } as any);
+
+    expect(result.discount).toBe("0");
+    expect(result.totalAmount).toBe("25"); // 25 subtotal - 0 discount + 0 shipping
+  });
+
+  it("calculates server-computed discount when a valid couponCode is provided", async () => {
+    const context = transactionPrisma(5);
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    const result = await service.create({
+      ...dto,
+      couponCode: "SUMMER20",
+    });
+
+    expect(result.couponId).toBe("coupon-1");
+    expect(result.couponCode).toBe("SUMMER20");
+    expect(result.discount).toBe("5"); // 20% of 25.00 = 5.00
+    expect(result.totalAmount).toBe("20"); // 25 - 5
+    expect(context.coupon.usageCount).toBe(1);
+  });
+
+  it("rejects order creation when couponCode is invalid or inactive", async () => {
+    const context = transactionPrisma(5);
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    await expect(
+      service.create({ ...dto, couponCode: "INVALID_CODE" }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it("rejects order creation when couponCode is expired", async () => {
+    const expiredCoupon = {
+      id: "coupon-expired",
+      code: "EXPIRED10",
+      type: CouponType.FIXED,
+      value: "10.00",
+      isActive: true,
+      expiresAt: new Date(Date.now() - 10_000), // in the past
+      usageLimit: null,
+      usageCount: 0,
+      usagePerCustomer: null,
+      minOrderAmount: null,
+    };
+    const context = transactionPrisma(5, expiredCoupon);
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    await expect(
+      service.create({ ...dto, couponCode: "EXPIRED10" }),
+    ).rejects.toThrow("Coupon has expired");
+  });
+});
+
 describe("OrdersService coupon usage tracking", () => {
   it("increments coupon usageCount and calculates discount when valid coupon is provided", async () => {
     const context = transactionPrisma(5);

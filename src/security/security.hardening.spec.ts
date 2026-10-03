@@ -81,6 +81,22 @@ describe("Backend security regression tests", () => {
   });
 
   describe("Input validation - DTO security", () => {
+    it("rejects client-supplied discount field in CreateOrderDto", async () => {
+      const dto = plainToInstance(CreateOrderDto, {
+        customerName: "Aisha Rahman",
+        customerEmail: "aisha@example.com",
+        discount: 50,
+        items: [{ productVariantId: "variant-12345", quantity: 1 }],
+      });
+
+      const errors = await validate(dto, {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      } as any);
+
+      expect(errors.some((error) => error.property === "discount")).toBe(true);
+    });
+
     it("rejects duplicate items in order", async () => {
       const dto = plainToInstance(CreateOrderDto, {
         customerName: "Aisha Rahman",

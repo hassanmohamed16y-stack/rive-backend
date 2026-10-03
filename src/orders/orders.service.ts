@@ -213,7 +213,7 @@ export class OrdersService implements OnModuleInit {
         }
       }
 
-      let discount = new Decimal(dto.discount ?? 0);
+      let discount = new Decimal(0);
       let couponId: string | undefined;
       let couponCode: string | undefined;
 
