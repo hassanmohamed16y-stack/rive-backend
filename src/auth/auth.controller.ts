@@ -24,7 +24,12 @@ import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { TwoFactorDisableDto } from "./dto/two-factor-disable.dto";
+import { TwoFactorEnableDto } from "./dto/two-factor-enable.dto";
+import { TwoFactorVerifyDto } from "./dto/two-factor-verify.dto";
 import { JwtAuthGuard } from "./jwt-auth.guard";
+import { Roles } from "./roles.decorator";
+import { RolesGuard } from "./roles.guard";
 
 @ApiTags("auth")
 @Controller("api/v1/auth")
@@ -157,5 +162,135 @@ export class AuthController {
   })
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.newPassword);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post("2fa/setup")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Initiate 2FA setup and get TOTP secret and URI" })
+  @ApiResponse({
+    status: 201,
+    description: "2FA setup initiated successfully.",
+  })
+  @ApiResponse({ status: 409, description: "2FA is already enabled." })
+  @ApiResponse({
+    status: 503,
+    description: "Two-factor authentication is not configured.",
+  })
+  async setupTwoFactor(@Req() req: Request & { user: { id: string } }) {
+    return this.authService.setupTwoFactor(req.user.id);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post("2fa/enable")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Enable 2FA using a valid TOTP code" })
+  @ApiResponse({
+    status: 201,
+    description: "2FA enabled successfully and recovery codes returned.",
+  })
+  @ApiResponse({
+    status: 400,
+    description: "Invalid code or setup not initiated.",
+  })
+  @ApiResponse({ status: 409, description: "2FA is already enabled." })
+  @ApiResponse({
+    status: 503,
+    description: "Two-factor authentication is not configured.",
+  })
+  async enableTwoFactor(
+    @Req() req: Request & { user: { id: string } },
+    @Body() dto: TwoFactorEnableDto,
+  ) {
+    return this.authService.enableTwoFactor(req.user.id, dto);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post("2fa/disable")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Disable 2FA requiring current password and code" })
+  @ApiResponse({ status: 200, description: "2FA disabled successfully." })
+  @ApiResponse({ status: 401, description: "Invalid password or 2FA code." })
+  @ApiResponse({
+    status: 503,
+    description: "Two-factor authentication is not configured.",
+  })
+  async disableTwoFactor(
+    @Req() req: Request & { user: { id: string } },
+    @Body() dto: TwoFactorDisableDto,
+  ) {
+    return this.authService.disableTwoFactor(req.user.id, dto);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post("2fa/regenerate-recovery-codes")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "Regenerate 2FA recovery codes requiring password and code",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "New recovery codes generated successfully.",
+  })
+  @ApiResponse({ status: 401, description: "Invalid password or 2FA code." })
+  @ApiResponse({
+    status: 503,
+    description: "Two-factor authentication is not configured.",
+  })
+  async regenerateRecoveryCodes(
+    @Req() req: Request & { user: { id: string } },
+    @Body() dto: TwoFactorDisableDto,
+  ) {
+    return this.authService.regenerateRecoveryCodes(req.user.id, dto);
+  }
+
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Get("2fa/status")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Get current user 2FA status" })
+  @ApiResponse({
+    status: 200,
+    description: "2FA status returned successfully.",
+  })
+  @ApiResponse({
+    status: 503,
+    description: "Two-factor authentication is not configured.",
+  })
+  async getTwoFactorStatus(@Req() req: Request & { user: { id: string } }) {
+    return this.authService.getTwoFactorStatus(req.user.id);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 900000 } })
+  @Post("2fa/verify")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Verify 2FA login token and TOTP or recovery code" })
+  @ApiResponse({
+    status: 200,
+    description:
+      "2FA login verification successful, token pair returned.",
+  })
+  @ApiResponse({ status: 401, description: "Invalid 2FA token or code." })
+  @ApiResponse({
+    status: 403,
+    description: "Account locked due to too many failed login attempts.",
+  })
+  @ApiResponse({
+    status: 503,
+    description: "Two-factor authentication is not configured.",
+  })
+  async verifyTwoFactorLogin(@Body() dto: TwoFactorVerifyDto) {
+    return this.authService.verifyTwoFactorLogin(dto);
   }
 }

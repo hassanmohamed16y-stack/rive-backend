@@ -140,10 +140,10 @@ describeWithDatabase("AuthController e2e flows", () => {
     let refreshToken: string;
 
     beforeEach(async () => {
-      const res = await authService.login({
+      const res = (await authService.login({
         email: testUser.email,
         password: testUser.password,
-      });
+      })) as { refreshToken: string };
       refreshToken = res.refreshToken;
     });
 
@@ -192,10 +192,10 @@ describeWithDatabase("AuthController e2e flows", () => {
     let refreshToken: string;
 
     beforeEach(async () => {
-      const res = await authService.login({
+      const res = (await authService.login({
         email: testUser.email,
         password: testUser.password,
-      });
+      })) as { refreshToken: string };
       refreshToken = res.refreshToken;
     });
 
@@ -224,10 +224,10 @@ describeWithDatabase("AuthController e2e flows", () => {
     let accessToken: string;
 
     beforeEach(async () => {
-      const res = await authService.login({
+      const res = (await authService.login({
         email: testUser.email,
         password: testUser.password,
-      });
+      })) as { accessToken: string };
       accessToken = res.accessToken;
     });
 

@@ -23,7 +23,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     role?: string;
     email?: string;
     id?: string;
+    purpose?: string;
   }) {
+    if (payload.purpose && payload.purpose !== "access") {
+      this.logger.warn(`Rejected JWT: invalid token purpose '${payload.purpose}'`);
+      throw new UnauthorizedException("Invalid token payload");
+    }
+
     const userId = payload.userId ?? payload.sub ?? payload.id;
     if (!userId) {
       this.logger.warn("Rejected JWT: payload is missing a user identifier");
