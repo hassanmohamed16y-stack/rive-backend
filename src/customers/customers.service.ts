@@ -1,6 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadGatewayException, BadRequestException, Injectable, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { DeletionRequestStatus, OrderStatus, PaymentStatus, Prisma, UserRole } from "@prisma/client";
 import { AuditLogService } from "../audit-log/audit-log.service";
+import { EmailService } from "../email/email.service";
 import {
   buildPaginationMeta,
   PaginationInput,
@@ -12,6 +13,16 @@ import { CreateDeletionRequestDto } from "./dto/create-deletion-request.dto";
 import { GetCustomersQueryDto } from "./dto/get-customers-query.dto";
 import { ListDeletionRequestsQueryDto } from "./dto/list-deletion-requests-query.dto";
 import { RejectDeletionRequestDto } from "./dto/reject-deletion-request.dto";
+import { SendCustomerEmailDto } from "./dto/send-customer-email.dto";
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 const customerOrderInclude = {
   items: {
@@ -30,12 +41,14 @@ export class CustomersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
+    private readonly emailService: EmailService,
   ) {}
 
   private mapCustomerMetrics(user: {
     id: string;
     fullName: string;
     email: string;
+    isBlocked?: boolean;
     createdAt: Date;
     orders?: Array<{
       totalAmount: Prisma.Decimal | number;
@@ -66,6 +79,7 @@ export class CustomersService {
       id: user.id,
       name: user.fullName,
       email: user.email,
+      isBlocked: user.isBlocked ?? false,
       phone,
       createdAt: user.createdAt,
       ordersCount,
@@ -813,5 +827,49 @@ export class CustomersService {
       email: `anonymized_${id}@deleted.local`,
       phone: null,
     };
+  }
+
+  async sendCustomerEmail(id: string, dto: SendCustomerEmailDto, actorUserId?: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id, role: UserRole.CUSTOMER },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Customer with ID ${id} not found`);
+    }
+
+    if (!user.email || user.deletedAt !== null || user.email.startsWith("anonymized_")) {
+      throw new BadRequestException("Customer has no email or was anonymized");
+    }
+
+    if (!process.env.EMAIL_PROVIDER_API_KEY || !process.env.EMAIL_PROVIDER_API_URL) {
+      throw new ServiceUnavailableException("Email provider is not configured");
+    }
+
+    const htmlBody = `<p>${escapeHtml(dto.message).replace(/\n/g, "<br>")}</p>`;
+
+    try {
+      await this.emailService.sendEmail({
+        to: user.email,
+        subject: dto.subject,
+        html: htmlBody,
+        text: dto.message,
+      });
+    } catch {
+      throw new BadGatewayException("Email provider failed to send message");
+    }
+
+    await this.auditLogService.record({
+      userId: actorUserId,
+      action: "customer.email.send",
+      entityType: "User",
+      entityId: id,
+      changes: {
+        subjectLength: dto.subject.length,
+        messageLength: dto.message.length,
+      },
+    });
+
+    return { success: true };
   }
 }

@@ -1,7 +1,8 @@
-import { NotFoundException } from "@nestjs/common";
+import { BadGatewayException, BadRequestException, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { DeletionRequestStatus, OrderStatus, PaymentStatus, UserRole } from "@prisma/client";
 import { AuditLogService } from "../audit-log/audit-log.service";
+import { EmailService } from "../email/email.service";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   calculateCustomerTier,
@@ -40,6 +41,7 @@ describe("CustomersService", () => {
     };
   };
   let auditLogService: { record: jest.Mock };
+  let emailService: { sendEmail: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -72,6 +74,7 @@ describe("CustomersService", () => {
     };
 
     auditLogService = { record: jest.fn() };
+    emailService = { sendEmail: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -83,6 +86,10 @@ describe("CustomersService", () => {
         {
           provide: AuditLogService,
           useValue: auditLogService,
+        },
+        {
+          provide: EmailService,
+          useValue: emailService,
         },
       ],
     }).compile();
@@ -168,6 +175,7 @@ describe("CustomersService", () => {
         id: "cust-1",
         name: "Alice Smith",
         email: "alice@example.com",
+        isBlocked: false,
         phone: "+201234567890",
         createdAt: new Date("2025-01-01"),
         ordersCount: 1,
@@ -178,6 +186,7 @@ describe("CustomersService", () => {
         id: "cust-2",
         name: "Bob Jones",
         email: "bob@example.com",
+        isBlocked: false,
         phone: null,
         createdAt: new Date("2025-01-03"),
         ordersCount: 0,
@@ -278,6 +287,7 @@ describe("CustomersService", () => {
         id: "cust-1",
         name: "Alice Smith",
         email: "alice@example.com",
+        isBlocked: false,
         phone: "+201234567890",
         createdAt: new Date("2025-01-01"),
         ordersCount: 1,
@@ -668,6 +678,109 @@ describe("CustomersService", () => {
       await expect(service.deleteCustomer("admin-1", "admin-actor")).rejects.toThrow(
         "Admins or staff accounts cannot be blocked or deleted",
       );
+    });
+  });
+
+  describe("sendCustomerEmail", () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      process.env = {
+        ...originalEnv,
+        EMAIL_PROVIDER_API_KEY: "test-api-key",
+        EMAIL_PROVIDER_API_URL: "https://api.resend.com/emails",
+      };
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+    });
+
+    it("sends email, HTML-escapes message content, and logs audit record without message body", async () => {
+      const mockUser = {
+        id: "cust-1",
+        email: "customer@example.com",
+        role: UserRole.CUSTOMER,
+        deletedAt: null,
+      };
+      prisma.user.findFirst.mockResolvedValue(mockUser);
+      emailService.sendEmail.mockResolvedValue(undefined);
+
+      const dto = {
+        subject: "Welcome & Info",
+        message: "Hello <script>alert(1)</script>\nLine 2",
+      };
+
+      const result = await service.sendCustomerEmail("cust-1", dto, "admin-1");
+
+      expect(result).toEqual({ success: true });
+      expect(emailService.sendEmail).toHaveBeenCalledWith({
+        to: "customer@example.com",
+        subject: "Welcome & Info",
+        html: "<p>Hello &lt;script&gt;alert(1)&lt;/script&gt;<br>Line 2</p>",
+        text: "Hello <script>alert(1)</script>\nLine 2",
+      });
+      expect(auditLogService.record).toHaveBeenCalledWith({
+        userId: "admin-1",
+        action: "customer.email.send",
+        entityType: "User",
+        entityId: "cust-1",
+        changes: {
+          subjectLength: dto.subject.length,
+          messageLength: dto.message.length,
+        },
+      });
+    });
+
+    it("throws NotFoundException (404) if customer does not exist", async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.sendCustomerEmail("missing", { subject: "Sub", message: "Msg" }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("throws BadRequestException (400) if customer is anonymized or has no email", async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        id: "cust-1",
+        email: "anonymized_cust-1@deleted.local",
+        role: UserRole.CUSTOMER,
+        deletedAt: new Date(),
+      });
+
+      await expect(
+        service.sendCustomerEmail("cust-1", { subject: "Sub", message: "Msg" }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("throws ServiceUnavailableException (503) when email provider is not configured", async () => {
+      delete process.env.EMAIL_PROVIDER_API_KEY;
+
+      prisma.user.findFirst.mockResolvedValue({
+        id: "cust-1",
+        email: "customer@example.com",
+        role: UserRole.CUSTOMER,
+        deletedAt: null,
+      });
+
+      await expect(
+        service.sendCustomerEmail("cust-1", { subject: "Sub", message: "Msg" }),
+      ).rejects.toThrow(ServiceUnavailableException);
+    });
+
+    it("throws BadGatewayException (502) when email provider call fails", async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        id: "cust-1",
+        email: "customer@example.com",
+        role: UserRole.CUSTOMER,
+        deletedAt: null,
+      });
+
+      emailService.sendEmail.mockRejectedValue(new Error("Provider error"));
+
+      await expect(
+        service.sendCustomerEmail("cust-1", { subject: "Sub", message: "Msg" }),
+      ).rejects.toThrow(BadGatewayException);
     });
   });
 });

@@ -1,9 +1,15 @@
+import { ExecutionContext } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 import { Test, TestingModule } from "@nestjs/testing";
+import { validate } from "class-validator";
+import { PermissionsGuard } from "../auth/permissions.guard";
 import { AdminCustomersController } from "./admin-customers.controller";
 import { CustomersService } from "./customers.service";
+import { SendCustomerEmailDto } from "./dto/send-customer-email.dto";
 
 describe("AdminCustomersController", () => {
   let controller: AdminCustomersController;
+  let permissionsGuard: PermissionsGuard;
   let service: {
     findAll: jest.Mock;
     findOne: jest.Mock;
@@ -13,6 +19,7 @@ describe("AdminCustomersController", () => {
     blockCustomer: jest.Mock;
     unblockCustomer: jest.Mock;
     deleteCustomer: jest.Mock;
+    sendCustomerEmail: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -25,11 +32,14 @@ describe("AdminCustomersController", () => {
       blockCustomer: jest.fn(),
       unblockCustomer: jest.fn(),
       deleteCustomer: jest.fn(),
+      sendCustomerEmail: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminCustomersController],
       providers: [
+        Reflector,
+        PermissionsGuard,
         {
           provide: CustomersService,
           useValue: service,
@@ -38,6 +48,7 @@ describe("AdminCustomersController", () => {
     }).compile();
 
     controller = module.get<AdminCustomersController>(AdminCustomersController);
+    permissionsGuard = module.get<PermissionsGuard>(PermissionsGuard);
   });
 
   it("should be defined", () => {
@@ -144,6 +155,93 @@ describe("AdminCustomersController", () => {
 
       expect(service.deleteCustomer).toHaveBeenCalledWith("c1", "admin-1");
       expect(result).toBe(mockProfile);
+    });
+  });
+
+  describe("sendEmail", () => {
+    it("delegates to customersService.sendCustomerEmail", async () => {
+      const mockResponse = { success: true };
+      service.sendCustomerEmail.mockResolvedValue(mockResponse);
+
+      const dto = { subject: "Hello", message: "World" };
+      const req = { user: { id: "admin-1" } } as any;
+      const result = await controller.sendEmail("c1", dto, req);
+
+      expect(service.sendCustomerEmail).toHaveBeenCalledWith("c1", dto, "admin-1");
+      expect(result).toEqual({ success: true });
+    });
+  });
+
+  describe("PermissionsGuard integration for sendEmail route", () => {
+    function createMockContext(user: any): ExecutionContext {
+      return {
+        getHandler: () => controller.sendEmail,
+        getClass: () => AdminCustomersController,
+        switchToHttp: () => ({
+          getRequest: () => ({ user }),
+        }),
+      } as unknown as ExecutionContext;
+    }
+
+    it("allows full_admin user regardless of permissions", () => {
+      const context = createMockContext({
+        id: "admin-1",
+        roleName: "full_admin",
+        permissions: [],
+      });
+
+      expect(permissionsGuard.canActivate(context)).toBe(true);
+    });
+
+    it("allows user with customers.update permission", () => {
+      const context = createMockContext({
+        id: "staff-1",
+        roleName: "support",
+        permissions: ["customers.update"],
+      });
+
+      expect(permissionsGuard.canActivate(context)).toBe(true);
+    });
+
+    it("denies (throws ForbiddenException) for user without customers.update permission", () => {
+      const context = createMockContext({
+        id: "staff-2",
+        roleName: "support",
+        permissions: ["customers.view"],
+      });
+
+      expect(() => permissionsGuard.canActivate(context)).toThrow();
+    });
+  });
+
+  describe("SendCustomerEmailDto validation", () => {
+    it("passes for valid subject and message", async () => {
+      const dto = new SendCustomerEmailDto();
+      dto.subject = "Notice";
+      dto.message = "Hello customer";
+
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+
+    it("fails when subject is empty or exceeds 150 characters", async () => {
+      const dto = new SendCustomerEmailDto();
+      dto.subject = "a".repeat(151);
+      dto.message = "Valid message";
+
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0].property).toBe("subject");
+    });
+
+    it("fails when message is empty or exceeds 5000 characters", async () => {
+      const dto = new SendCustomerEmailDto();
+      dto.subject = "Valid subject";
+      dto.message = "a".repeat(5001);
+
+      const errors = await validate(dto);
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0].property).toBe("message");
     });
   });
 });
