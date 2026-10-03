@@ -75,13 +75,6 @@ export class CreateOrderDto {
   @Length(1, 20)
   shippingZipCode?: string;
 
-  @ApiPropertyOptional({ example: 50, minimum: 0 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  shippingFee?: number;
-
   @ApiPropertyOptional({ example: "Gift wrap requested", maxLength: 500 })
   @IsOptional()
   @IsString()

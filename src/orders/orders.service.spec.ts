@@ -9,10 +9,32 @@ import { OrdersService } from "./orders.service";
 const dto = {
   customerName: "Aisha Rahman",
   customerEmail: "aisha@example.com",
+  shippingCity: "Cairo",
   items: [{ productVariantId: "variant-1", quantity: 1 }],
 };
 
-function transactionPrisma(stock = 1, couponInitial?: any) {
+const defaultShippingZones = [
+  {
+    id: "sz-1",
+    cityLabel: "Cairo",
+    price: "50.00",
+    isActive: true,
+  },
+  {
+    id: "sz-2",
+    cityLabel: "Alexandria",
+    price: "70.00",
+    isActive: true,
+  },
+  {
+    id: "sz-3",
+    cityLabel: "Giza",
+    price: "45.00",
+    isActive: false,
+  },
+];
+
+function transactionPrisma(stock = 1, couponInitial?: any, siteSettingsOverride?: any, shippingZonesOverride?: any) {
   const variant = {
     id: "variant-1",
     stock,
@@ -142,6 +164,29 @@ function transactionPrisma(stock = 1, couponInitial?: any) {
       findMany: jest
         .fn()
         .mockResolvedValue([{ productVariantId: "variant-1", quantity: 1 }]),
+    },
+    shippingZone: {
+      findMany: jest.fn().mockImplementation(async ({ where }: any) => {
+        const zones = shippingZonesOverride ?? defaultShippingZones;
+        if (where?.isActive) {
+          return zones.filter((z: any) => z.isActive);
+        }
+        return zones;
+      }),
+    },
+    siteSettings: {
+      findUnique: jest.fn().mockImplementation(async ({ where }: any) => {
+        if (where.id === "default") {
+          return (
+            siteSettingsOverride ?? {
+              id: "default",
+              minimumOrderAmount: "0.00",
+              freeShippingThreshold: null,
+            }
+          );
+        }
+        return null;
+      }),
     },
   };
   const prisma = {
@@ -313,7 +358,8 @@ describe("OrdersService discount and pricing security", () => {
     } as any);
 
     expect(result.discount).toBe("0");
-    expect(result.totalAmount).toBe("25"); // 25 subtotal - 0 discount + 0 shipping
+    expect(result.shippingFee).toBe("50");
+    expect(result.totalAmount).toBe("75"); // 25 subtotal - 0 discount + 50 shipping
   });
 
   it("calculates server-computed discount when a valid couponCode is provided", async () => {
@@ -331,7 +377,8 @@ describe("OrdersService discount and pricing security", () => {
     expect(result.couponId).toBe("coupon-1");
     expect(result.couponCode).toBe("SUMMER20");
     expect(result.discount).toBe("5"); // 20% of 25.00 = 5.00
-    expect(result.totalAmount).toBe("20"); // 25 - 5
+    expect(result.shippingFee).toBe("50");
+    expect(result.totalAmount).toBe("70"); // 25 - 5 + 50
     expect(context.coupon.usageCount).toBe(1);
   });
 
@@ -599,5 +646,110 @@ describe("OrdersService.findOne ownership enforcement and missing order handling
         entityId: "order-1",
       }),
     );
+  });
+});
+
+describe("OrdersService server-controlled shipping fee calculation", () => {
+  it("computes shipping fee from matching active zone and ignores client-supplied shippingFee", async () => {
+    const context = transactionPrisma(5);
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    const result = await service.create({
+      ...dto,
+      shippingCity: "Alexandria",
+      shippingFee: 0, // Client tries to override fee to 0
+    } as any);
+
+    expect(result.shippingFee).toBe("70"); // Fee from Alexandria zone is 70.00
+    expect(result.totalAmount).toBe("95"); // 25 + 70
+  });
+
+  it("rejects order creation when shippingCity is missing or empty", async () => {
+    const context = transactionPrisma(5);
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    await expect(
+      service.create({ ...dto, shippingCity: "  " }),
+    ).rejects.toThrow("Shipping city is required");
+  });
+
+  it("rejects order creation when no active shipping zone matches shippingCity", async () => {
+    const context = transactionPrisma(5);
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    await expect(
+      service.create({ ...dto, shippingCity: "Giza" }), // Giza is inactive in default mock
+    ).rejects.toThrow('No active shipping zone found for city "Giza"');
+  });
+
+  it("applies free shipping when discounted subtotal reaches or exceeds freeShippingThreshold", async () => {
+    const siteSettings = {
+      id: "default",
+      minimumOrderAmount: "0.00",
+      freeShippingThreshold: "20.00",
+    };
+    const context = transactionPrisma(5, undefined, siteSettings);
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    const result = await service.create({
+      ...dto,
+      shippingCity: "Cairo",
+    });
+
+    // Subtotal = 25.00 >= freeShippingThreshold (20.00)
+    expect(result.shippingFee).toBe("0");
+    expect(result.totalAmount).toBe("25");
+  });
+
+  it("does not apply free shipping when discounted subtotal falls below freeShippingThreshold after discount", async () => {
+    const siteSettings = {
+      id: "default",
+      minimumOrderAmount: "0.00",
+      freeShippingThreshold: "22.00",
+    };
+    const context = transactionPrisma(5, undefined, siteSettings);
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    // Subtotal = 25.00, discount = 5.00 => discounted subtotal = 20.00 < threshold 22.00
+    const result = await service.create({
+      ...dto,
+      shippingCity: "Cairo",
+      couponCode: "SUMMER20",
+    });
+
+    expect(result.shippingFee).toBe("50");
+    expect(result.totalAmount).toBe("70"); // 25 - 5 + 50
+  });
+
+  it("rejects order creation when subtotal is below minimumOrderAmount", async () => {
+    const siteSettings = {
+      id: "default",
+      minimumOrderAmount: "100.00",
+      freeShippingThreshold: null,
+    };
+    const context = transactionPrisma(5, undefined, siteSettings);
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    await expect(
+      service.create({ ...dto, shippingCity: "Cairo" }),
+    ).rejects.toThrow("Minimum order amount is 100");
   });
 });
