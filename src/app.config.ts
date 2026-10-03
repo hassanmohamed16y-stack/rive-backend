@@ -40,6 +40,9 @@ export function configureApp(app: INestApplication) {
         Boolean(request.headers["content-type"]?.includes("json")) &&
         !request.url?.startsWith("/api/v1/payments/webhook") &&
         !request.url?.startsWith("/api/v1/payments/paymob-webhook"),
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf;
+      },
     }),
   );
 

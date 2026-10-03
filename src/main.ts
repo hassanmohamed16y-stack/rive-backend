@@ -26,7 +26,10 @@ if (process.env.SENTRY_DSN?.trim()) {
 }
 
 export async function createApp(): Promise<INestApplication> {
-  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  const app = await NestFactory.create(AppModule, {
+    bodyParser: false,
+    rawBody: true,
+  });
   // Required behind reverse proxies (Nginx/ALB/Cloudflare) so req.ip reflects the real client.
   // Without this, Nest/Express sees only the proxy IP, which breaks ThrottlerGuard and IP-based logging.
   const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS ?? "1");
