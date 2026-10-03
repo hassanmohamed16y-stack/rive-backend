@@ -244,7 +244,7 @@ export class MetaService {
         signal: controller.signal,
       });
     } catch (error) {
-      this.logger.error("Meta Graph API request failed due to network or timeout error");
+      this.logger.error("Meta Graph API request failed due to network or timeout error", error);
       throw new BadGatewayException("Failed to communicate with Meta API");
     } finally {
       clearTimeout(timeoutId);
