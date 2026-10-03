@@ -14,6 +14,8 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RequirePermission } from "../auth/permissions.decorator";
+import { PermissionsGuard } from "../auth/permissions.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { PaginationDto } from "../common/dto/pagination.dto";
@@ -24,13 +26,14 @@ import { UpdateBundleDto } from "./dto/update-bundle.dto";
 
 @ApiTags("admin bundles")
 @Controller("api/v1/admin/bundles")
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")
 @ApiBearerAuth()
 export class AdminBundlesController {
   constructor(private readonly bundlesService: BundlesService) {}
 
   @Post()
+  @RequirePermission("products.edit")
   @ApiOperation({ summary: "Create a product bundle (Admin)" })
   @ApiResponse({ status: 201, description: "Bundle created successfully." })
   async create(
@@ -41,18 +44,21 @@ export class AdminBundlesController {
   }
 
   @Get()
+  @RequirePermission("products.view")
   @ApiOperation({ summary: "List all product bundles (Admin)" })
   async findAll(@Query() pagination: PaginationDto) {
     return this.bundlesService.findAllAdmin({ page: pagination.page, limit: pagination.limit });
   }
 
   @Get(":id")
+  @RequirePermission("products.view")
   @ApiOperation({ summary: "Get product bundle by id (Admin)" })
   async findOne(@Param("id") id: string) {
     return this.bundlesService.findOne(id);
   }
 
   @Patch(":id")
+  @RequirePermission("products.edit")
   @ApiOperation({ summary: "Update product bundle (Admin)" })
   async update(
     @Param("id") id: string,
@@ -63,6 +69,7 @@ export class AdminBundlesController {
   }
 
   @Delete(":id")
+  @RequirePermission("products.edit")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Delete product bundle (Admin)" })
   async remove(

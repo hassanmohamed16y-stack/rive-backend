@@ -14,6 +14,8 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RequirePermission } from "../auth/permissions.decorator";
+import { PermissionsGuard } from "../auth/permissions.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { PaginationDto } from "../common/dto/pagination.dto";
@@ -24,13 +26,14 @@ import { UpdateCouponDto } from "./dto/update-coupon.dto";
 
 @ApiTags("admin coupons")
 @Controller("api/v1/admin/coupons")
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")
 @ApiBearerAuth()
 export class AdminCouponsController {
   constructor(private readonly couponsService: CouponsService) {}
 
   @Post()
+  @RequirePermission("settings.manage")
   @ApiOperation({ summary: "Create a discount coupon (Admin)" })
   @ApiResponse({ status: 201, description: "Coupon created successfully." })
   async create(
@@ -41,18 +44,21 @@ export class AdminCouponsController {
   }
 
   @Get()
+  @RequirePermission("settings.manage")
   @ApiOperation({ summary: "List all discount coupons (Admin)" })
   async findAll(@Query() pagination: PaginationDto) {
     return this.couponsService.findAll({ page: pagination.page, limit: pagination.limit });
   }
 
   @Get(":id")
+  @RequirePermission("settings.manage")
   @ApiOperation({ summary: "Get a discount coupon by id (Admin)" })
   async findOne(@Param("id") id: string) {
     return this.couponsService.findOne(id);
   }
 
   @Patch(":id")
+  @RequirePermission("settings.manage")
   @ApiOperation({ summary: "Update or toggle a discount coupon (Admin)" })
   async update(
     @Param("id") id: string,
@@ -63,6 +69,7 @@ export class AdminCouponsController {
   }
 
   @Delete(":id")
+  @RequirePermission("settings.manage")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Delete a discount coupon (Admin)" })
   async remove(

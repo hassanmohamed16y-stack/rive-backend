@@ -18,6 +18,8 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RequirePermission } from "../auth/permissions.decorator";
+import { PermissionsGuard } from "../auth/permissions.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
@@ -92,8 +94,9 @@ export class ProductsController {
   }
 
   @Patch("reorder")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
+  @RequirePermission("products.edit")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Reorder products manually (Admin)" })
   @ApiResponse({ status: 200, description: "Products reordered successfully." })
@@ -105,8 +108,9 @@ export class ProductsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
+  @RequirePermission("products.edit")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create a product with variants and images" })
   @ApiResponse({ status: 201, description: "Product created successfully." })
@@ -126,8 +130,9 @@ export class ProductsController {
   }
 
   @Patch(":id")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
+  @RequirePermission("products.edit")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Update product details (Admin)" })
   @ApiResponse({ status: 200, description: "Product updated successfully." })
@@ -145,8 +150,9 @@ export class ProductsController {
   }
 
   @Delete(":id")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
+  @RequirePermission("products.edit")
   @ApiBearerAuth()
   @ApiOperation({
     summary: "Soft delete a product by setting deletedAt without altering status (Admin)",

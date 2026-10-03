@@ -22,6 +22,7 @@ import {
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
+import { RequirePermission } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { CreateInternalNoteDto } from "./dto/create-internal-note.dto";
@@ -37,6 +38,7 @@ export class InternalNotesController {
   constructor(private readonly internalNotesService: InternalNotesService) {}
 
   @Post()
+  @RequirePermission("orders.update_status")
   @ApiOperation({ summary: "Create an internal note for an order or customer (Admin)" })
   @ApiResponse({ status: 201, description: "Internal note created successfully." })
   async create(
@@ -47,6 +49,7 @@ export class InternalNotesController {
   }
 
   @Get()
+  @RequirePermission("orders.view")
   @ApiOperation({ summary: "List internal notes by entityType and/or entityId (Admin)" })
   @ApiQuery({ name: "entityType", required: false, type: String })
   @ApiQuery({ name: "entityId", required: false, type: String })
@@ -59,6 +62,7 @@ export class InternalNotesController {
   }
 
   @Get(":id")
+  @RequirePermission("orders.view")
   @ApiOperation({ summary: "Get an internal note by ID (Admin)" })
   @ApiResponse({ status: 200, description: "Internal note returned." })
   @ApiResponse({ status: 404, description: "Internal note not found." })
@@ -67,6 +71,7 @@ export class InternalNotesController {
   }
 
   @Patch(":id")
+  @RequirePermission("orders.update_status")
   @ApiOperation({ summary: "Update an internal note (Admin)" })
   @ApiResponse({ status: 200, description: "Internal note updated." })
   @ApiResponse({ status: 404, description: "Internal note not found." })
@@ -79,6 +84,7 @@ export class InternalNotesController {
   }
 
   @Delete(":id")
+  @RequirePermission("orders.update_status")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Delete an internal note (Admin)" })
   @ApiResponse({ status: 200, description: "Internal note deleted." })

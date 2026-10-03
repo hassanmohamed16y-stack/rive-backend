@@ -18,6 +18,8 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RequirePermission } from "../auth/permissions.decorator";
+import { PermissionsGuard } from "../auth/permissions.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
@@ -82,8 +84,9 @@ export class CategoriesController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
+  @RequirePermission("products.edit")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create a category (Admin)" })
   @ApiResponse({ status: 201, description: "Category created successfully." })
@@ -101,8 +104,9 @@ export class CategoriesController {
   }
 
   @Patch(":id")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
+  @RequirePermission("products.edit")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Update a category (Admin)" })
   @ApiResponse({ status: 200, description: "Category updated successfully." })
@@ -120,8 +124,9 @@ export class CategoriesController {
   }
 
   @Delete(":id")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
+  @RequirePermission("products.edit")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Delete an unused category (Admin)" })
   @ApiResponse({ status: 200, description: "Category deleted successfully." })

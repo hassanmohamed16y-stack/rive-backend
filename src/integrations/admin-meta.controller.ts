@@ -1,6 +1,8 @@
 import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RequirePermission } from "../auth/permissions.decorator";
+import { PermissionsGuard } from "../auth/permissions.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { PaginationDto } from "../common/dto/pagination.dto";
@@ -8,13 +10,14 @@ import { MetaService } from "./meta.service";
 
 @ApiTags("admin meta")
 @Controller("api/v1/admin/meta")
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")
 @ApiBearerAuth()
 export class AdminMetaController {
   constructor(private readonly metaService: MetaService) {}
 
   @Get("conversations")
+  @RequirePermission("customers.view")
   @ApiOperation({ summary: "Get social conversations (Facebook/Instagram) for Admin Dashboard" })
   @ApiResponse({ status: 200, description: "Paginated list of conversations returned." })
   async getConversations(
@@ -30,6 +33,7 @@ export class AdminMetaController {
   }
 
   @Get("conversations/:id/messages")
+  @RequirePermission("customers.view")
   @ApiOperation({ summary: "Get messages for a conversation" })
   @ApiResponse({ status: 200, description: "Conversation messages returned." })
   async getMessages(

@@ -15,6 +15,8 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { JwtAuthGuard } from "./jwt-auth.guard";
+import { RequirePermission } from "./permissions.decorator";
+import { PermissionsGuard } from "./permissions.guard";
 import { Roles } from "./roles.decorator";
 import { RolesGuard } from "./roles.guard";
 import { AuthService } from "./auth.service";
@@ -24,13 +26,14 @@ import { PaginationDto } from "../common/dto/pagination.dto";
 
 @ApiTags("admin users")
 @Controller("api/v1/admin/users")
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")
 @ApiBearerAuth()
 export class AdminUsersController {
   constructor(private readonly authService: AuthService) {}
 
   @Post()
+  @RequirePermission("users.manage")
   @ApiOperation({ summary: "Create a new Admin or Staff account (Admin)" })
   @ApiResponse({ status: 201, description: "Admin user created successfully." })
   @ApiResponse({ status: 409, description: "User already exists." })
@@ -42,6 +45,7 @@ export class AdminUsersController {
   }
 
   @Get()
+  @RequirePermission("users.manage")
   @ApiOperation({ summary: "List all users (Admin)" })
   @ApiResponse({ status: 200, description: "Paginated list of users returned." })
   async findAll(
@@ -53,6 +57,7 @@ export class AdminUsersController {
   }
 
   @Get(":id")
+  @RequirePermission("users.manage")
   @ApiOperation({ summary: "Get user details by ID (Admin)" })
   @ApiResponse({ status: 200, description: "User details returned." })
   @ApiResponse({ status: 404, description: "User not found." })
