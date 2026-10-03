@@ -72,7 +72,12 @@ describeWithDatabase("Comprehensive Automated Security Tests (E2E against real N
     regularUser2 = { email: u2Email, password: testPassword, id: u2Db.id, accessToken: u2Login.accessToken };
 
     // Create Admin User
-    const fullAdminRole = await prisma.role.findUnique({ where: { name: "full_admin" } });
+    let fullAdminRole = await prisma.role.findUnique({ where: { name: "full_admin" } });
+    if (!fullAdminRole) {
+      fullAdminRole = await prisma.role.create({
+        data: { name: "full_admin", label: "Full Admin" },
+      });
+    }
     const adminEmail = `sec-admin-${timestamp}@example.com`;
     const adminDb = await prisma.user.create({
       data: {
@@ -80,7 +85,7 @@ describeWithDatabase("Comprehensive Automated Security Tests (E2E against real N
         fullName: "Security Admin User",
         passwordHash: hashedPassword,
         role: UserRole.ADMIN,
-        ...(fullAdminRole ? { roleId: fullAdminRole.id } : {}),
+        roleId: fullAdminRole.id,
       },
     });
     const adminLogin = await authService.login({ email: adminEmail, password: testPassword });
