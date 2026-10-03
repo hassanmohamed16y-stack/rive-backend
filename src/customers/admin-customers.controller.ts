@@ -1,9 +1,11 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
   Param,
   Patch,
+  Post,
   Query,
   Req,
   UseGuards,
@@ -23,6 +25,7 @@ import { RolesGuard } from "../auth/roles.guard";
 import { PaginationDto } from "../common/dto/pagination.dto";
 import { CustomersService } from "./customers.service";
 import { GetCustomersQueryDto } from "./dto/get-customers-query.dto";
+import { SendCustomerEmailDto } from "./dto/send-customer-email.dto";
 
 @ApiTags("admin customers")
 @Controller(["api/admin/customers", "api/v1/admin/customers"])
@@ -84,7 +87,7 @@ export class AdminCustomersController {
   }
 
   @Patch(":id/block")
-  @RequirePermission("customers.view")
+  @RequirePermission("customers.update")
   @ApiOperation({ summary: "Block a customer account (Admin)" })
   @ApiResponse({ status: 200, description: "Customer blocked successfully." })
   @ApiResponse({ status: 400, description: "Admin or staff accounts cannot be blocked." })
@@ -97,7 +100,7 @@ export class AdminCustomersController {
   }
 
   @Patch(":id/unblock")
-  @RequirePermission("customers.view")
+  @RequirePermission("customers.update")
   @ApiOperation({ summary: "Unblock a customer account (Admin)" })
   @ApiResponse({ status: 200, description: "Customer unblocked successfully." })
   @ApiResponse({ status: 400, description: "Admin or staff accounts cannot be unblocked." })
@@ -110,7 +113,7 @@ export class AdminCustomersController {
   }
 
   @Delete(":id")
-  @RequirePermission("customers.view")
+  @RequirePermission("customers.update")
   @ApiOperation({ summary: "Delete or anonymize customer account (Admin)" })
   @ApiResponse({ status: 200, description: "Customer deleted/anonymized successfully." })
   @ApiResponse({ status: 400, description: "Admin or staff accounts cannot be deleted." })
@@ -120,5 +123,21 @@ export class AdminCustomersController {
     @Req() req: Request & { user?: { id: string } },
   ) {
     return this.customersService.deleteCustomer(id, req.user?.id);
+  }
+
+  @Post(":id/email")
+  @RequirePermission("customers.update")
+  @ApiOperation({ summary: "Send email to customer (Admin)" })
+  @ApiResponse({ status: 200, description: "Email sent successfully." })
+  @ApiResponse({ status: 400, description: "Customer has no email or was anonymized." })
+  @ApiResponse({ status: 404, description: "Customer not found." })
+  @ApiResponse({ status: 502, description: "Email provider failed." })
+  @ApiResponse({ status: 503, description: "Email provider not configured." })
+  async sendEmail(
+    @Param("id") id: string,
+    @Body() dto: SendCustomerEmailDto,
+    @Req() req: Request & { user?: { id: string } },
+  ) {
+    return this.customersService.sendCustomerEmail(id, dto, req.user?.id);
   }
 }
