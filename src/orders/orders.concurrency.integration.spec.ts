@@ -16,9 +16,18 @@ describeWithDatabase("OrdersService PostgreSQL concurrency", () => {
   let variantId: string;
   let categoryId: string;
   let productId: string;
+  let shippingZoneId: string;
 
   beforeAll(async () => {
     await prisma.$connect();
+    const zone = await prisma.shippingZone.create({
+      data: {
+        cityLabel: `Concurrency City ${Date.now()}`,
+        price: 5,
+        isActive: true,
+      },
+    });
+    shippingZoneId = zone.id;
     const category = await prisma.category.create({
       data: {
         name: `Concurrency ${Date.now()}`,
@@ -62,13 +71,20 @@ describeWithDatabase("OrdersService PostgreSQL concurrency", () => {
     await prisma.productVariant.delete({ where: { id: variantId } });
     await prisma.product.delete({ where: { id: productId } });
     await prisma.category.delete({ where: { id: categoryId } });
+    if (shippingZoneId) {
+      await prisma.shippingZone.delete({ where: { id: shippingZoneId } });
+    }
     await prisma.$disconnect();
   });
 
   it("allows exactly one simultaneous reservation when only one unit exists", async () => {
+    const zone = await prisma.shippingZone.findUniqueOrThrow({
+      where: { id: shippingZoneId },
+    });
     const order = {
       customerName: "Test Customer",
       customerEmail: "concurrency@example.com",
+      shippingCity: zone.cityLabel,
       items: [{ productVariantId: variantId, quantity: 1 }],
     };
 
