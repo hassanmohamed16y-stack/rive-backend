@@ -291,12 +291,40 @@ export class OrdersService implements OnModuleInit {
         }
       }
 
-      // NOTE FOR FUTURE ORDER-CREATION LOGIC:
-      // When calculating shipping cost during order creation, the price MUST be read
-      // server-side directly from the ShippingZone record at order time (e.g. by matching
-      // shippingCity against active ShippingZone records).
-      // NEVER trust or accept a shipping fee or price value sent directly from any client.
-      const shippingFee = new Decimal(dto.shippingFee ?? 0);
+      if (!dto.shippingCity || !dto.shippingCity.trim()) {
+        throw new BadRequestException("Shipping city is required");
+      }
+
+      const shippingCityTrimmed = dto.shippingCity.trim();
+      const activeZones = await tx.shippingZone.findMany({
+        where: { isActive: true },
+      });
+
+      const matchingZone = activeZones.find(
+        (zone) =>
+          zone.cityLabel.trim().toLowerCase() ===
+          shippingCityTrimmed.toLowerCase(),
+      );
+
+      if (!matchingZone) {
+        throw new BadRequestException(
+          `No active shipping zone found for city "${dto.shippingCity}"`,
+        );
+      }
+
+      let shippingFee = new Decimal(matchingZone.price);
+
+      if (
+        siteSettings?.freeShippingThreshold &&
+        new Decimal(siteSettings.freeShippingThreshold).greaterThan(0)
+      ) {
+        const threshold = new Decimal(siteSettings.freeShippingThreshold);
+        const subtotalAfterDiscount = subtotal.minus(discount);
+        if (subtotalAfterDiscount.greaterThanOrEqualTo(threshold)) {
+          shippingFee = new Decimal(0);
+        }
+      }
+
       const totalAmount = Decimal.max(
         subtotal.minus(discount).plus(shippingFee),
         new Decimal(0),
