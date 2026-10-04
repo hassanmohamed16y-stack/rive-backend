@@ -53,12 +53,16 @@ describe("InternalOrdersController", () => {
     expect(ordersService.expirePendingReservations).toHaveBeenCalledTimes(1);
   });
 
-  it("triggers paymob reconciliation when secret matches", async () => {
+  it("triggers paymob reconciliation when secret matches with default days=2", async () => {
     process.env.INTERNAL_CRON_SECRET =
       "a-secure-internal-cron-secret-32-chars-min";
     paymobService.reconcilePayments.mockResolvedValue({
       checkedCount: 5,
+      repairedCount: 0,
+      manualReviewCount: 0,
       mismatchesCount: 0,
+      unlinkedIntentions: 0,
+      failedChecks: 0,
       mismatches: [],
     });
     const controller = createController();
@@ -67,7 +71,50 @@ describe("InternalOrdersController", () => {
       "a-secure-internal-cron-secret-32-chars-min",
     );
 
-    expect(result).toEqual({ checkedCount: 5, mismatchesCount: 0, mismatches: [] });
-    expect(paymobService.reconcilePayments).toHaveBeenCalledWith(30);
+    expect(result).toEqual({
+      checkedCount: 5,
+      repairedCount: 0,
+      manualReviewCount: 0,
+      mismatchesCount: 0,
+      unlinkedIntentions: 0,
+      failedChecks: 0,
+      mismatches: [],
+    });
+    expect(paymobService.reconcilePayments).toHaveBeenCalledWith(2, false);
+  });
+
+  it("passes custom days and audit flag to reconcilePayments when secret matches", async () => {
+    process.env.INTERNAL_CRON_SECRET =
+      "a-secure-internal-cron-secret-32-chars-min";
+    paymobService.reconcilePayments.mockResolvedValue({ checkedCount: 0 });
+    const controller = createController();
+
+    await controller.reconcilePaymob(
+      "a-secure-internal-cron-secret-32-chars-min",
+      "7",
+      "true",
+    );
+
+    expect(paymobService.reconcilePayments).toHaveBeenCalledWith(7, true);
+  });
+
+  it("rejects invalid days parameter", async () => {
+    process.env.INTERNAL_CRON_SECRET =
+      "a-secure-internal-cron-secret-32-chars-min";
+    const controller = createController();
+
+    await expect(
+      controller.reconcilePaymob(
+        "a-secure-internal-cron-secret-32-chars-min",
+        "invalid",
+      ),
+    ).rejects.toThrow("days parameter must be an integer between 1 and 30");
+
+    await expect(
+      controller.reconcilePaymob(
+        "a-secure-internal-cron-secret-32-chars-min",
+        "100",
+      ),
+    ).rejects.toThrow("days parameter must be an integer between 1 and 30");
   });
 });

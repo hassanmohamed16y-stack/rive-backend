@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
   Controller,
   ForbiddenException,
   HttpCode,
   HttpStatus,
   Logger,
   Post,
+  Query,
   UnauthorizedException,
   Headers,
 } from "@nestjs/common";
@@ -94,6 +96,8 @@ export class InternalOrdersController {
   })
   async reconcilePaymob(
     @Headers("x-internal-cron-secret") providedSecret?: string,
+    @Query("days") days?: string,
+    @Query("audit") audit?: string,
   ) {
     const expectedSecret = process.env.INTERNAL_CRON_SECRET;
 
@@ -111,9 +115,20 @@ export class InternalOrdersController {
       throw new UnauthorizedException("Invalid internal cron secret");
     }
 
-    const result = await this.paymobService.reconcilePayments(30);
+    let parsedDays = 2;
+    if (days !== undefined) {
+      const num = Number(days);
+      if (!Number.isInteger(num) || num < 1 || num > 30) {
+        throw new BadRequestException("days parameter must be an integer between 1 and 30");
+      }
+      parsedDays = num;
+    }
+
+    const isAudit = audit === "true" || audit === "1";
+
+    const result = await this.paymobService.reconcilePayments(parsedDays, isAudit);
     this.logger.log(
-      `Reconciled Paymob payments: checked ${result.checkedCount}, found ${result.mismatchesCount} mismatch(es)`,
+      `Reconciled Paymob payments: checked ${result.checkedCount}, repaired ${result.repairedCount}, manual review ${result.manualReviewCount}, found ${result.mismatchesCount} mismatch(es)`,
     );
     return result;
   }

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   HttpCode,
@@ -151,7 +152,21 @@ export class PaymentController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Reconcile database payment records with Paymob API (Admin only)" })
   @ApiResponse({ status: 200, description: "Reconciliation completed." })
-  async reconcilePayments(@Query("days") days?: number) {
-    return this.paymobService.reconcilePayments(days ? Number(days) : 30);
+  async reconcilePayments(
+    @Query("days") days?: string,
+    @Query("audit") audit?: string,
+  ) {
+    let parsedDays = 30;
+    if (days !== undefined) {
+      const num = Number(days);
+      if (!Number.isInteger(num) || num < 1 || num > 30) {
+        throw new BadRequestException("days parameter must be an integer between 1 and 30");
+      }
+      parsedDays = num;
+    }
+
+    const isAudit = audit === "true" || audit === "1";
+
+    return this.paymobService.reconcilePayments(parsedDays, isAudit);
   }
 }
