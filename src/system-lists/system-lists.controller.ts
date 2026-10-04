@@ -11,6 +11,8 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
+import { getPublicReadThrottleLimit } from "../common/utils/throttling";
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -50,6 +52,7 @@ export class SystemListsController {
   }
 
   @Get(":listTypeKey/items")
+  @Throttle({ default: { limit: getPublicReadThrottleLimit(), ttl: 60000 } })
   @ApiOperation({
     summary:
       "Get all active ListItems for a given list type (Public). Use includeInactive=true for admin views.",

@@ -13,6 +13,8 @@ import {
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
+import { getPublicReadThrottleLimit } from "../common/utils/throttling";
 import { FileInterceptor } from "@nestjs/platform-express";
 import {
   ApiBearerAuth,
@@ -38,6 +40,7 @@ export class BannersController {
   constructor(private readonly bannersService: BannersService) {}
 
   @Get()
+  @Throttle({ default: { limit: getPublicReadThrottleLimit(), ttl: 60000 } })
   @ApiOperation({
     summary:
       "Get active promotional banners for storefront (Public)",

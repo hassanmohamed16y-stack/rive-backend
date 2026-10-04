@@ -17,6 +17,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { createHmac } from "crypto";
 import { AuditLogService } from "../audit-log/audit-log.service";
 import { isOrderOwnedByActor } from "../common/utils/order-ownership";
+import { getFirstOrigin } from "../common/utils/origin";
 import { isPrismaErrorCode } from "../common/utils/prisma-error";
 import { timingSafeStringEqual } from "../common/utils/timing-safe-compare";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -124,7 +125,10 @@ export class PaymobService {
       );
     }
 
-    const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3001";
+    const frontendUrl = getFirstOrigin(
+      process.env.FRONTEND_URL,
+      "http://localhost:3001",
+    );
     const amountInPiasters = Math.round(
       new Decimal(order.totalAmount ?? 0).toNumber() * 100,
     );

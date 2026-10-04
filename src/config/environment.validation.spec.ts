@@ -25,6 +25,41 @@ describe("production environment validation", () => {
     expect(() => validateEnvironment(productionEnvironment)).not.toThrow();
   });
 
+  it("accepts comma-separated multiple valid URLs for FRONTEND_URL and ADMIN_FRONTEND_URL", () => {
+    expect(() =>
+      validateEnvironment({
+        ...productionEnvironment,
+        FRONTEND_URL:
+          "https://store1.example.com, https://store2.example.com/, http://localhost:3000",
+        ADMIN_FRONTEND_URL:
+          "https://admin1.example.com/, https://admin2.example.com",
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects FRONTEND_URL or ADMIN_FRONTEND_URL containing invalid URLs or wildcards (fail closed)", () => {
+    expect(() =>
+      validateEnvironment({
+        ...productionEnvironment,
+        FRONTEND_URL: "https://store.example.com, invalid-url",
+      }),
+    ).toThrow("FRONTEND_URL must be a valid URL");
+
+    expect(() =>
+      validateEnvironment({
+        ...productionEnvironment,
+        FRONTEND_URL: "https://*.example.com",
+      }),
+    ).toThrow("FRONTEND_URL must be a valid URL");
+
+    expect(() =>
+      validateEnvironment({
+        ...productionEnvironment,
+        ADMIN_FRONTEND_URL: "*",
+      }),
+    ).toThrow("ADMIN_FRONTEND_URL must be a valid URL");
+  });
+
   it("rejects missing production secrets and invalid JWT configuration", () => {
     expect(() =>
       validateEnvironment({
