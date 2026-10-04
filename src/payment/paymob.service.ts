@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ForbiddenException,
   HttpException,
@@ -8,15 +9,17 @@ import {
   Logger,
   NotFoundException,
   Optional,
+  ServiceUnavailableException,
   forwardRef,
 } from "@nestjs/common";
-import { OrderStatus, PaymentStatus } from "@prisma/client";
+import { OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { createHmac } from "crypto";
 import { AuditLogService } from "../audit-log/audit-log.service";
 import { isOrderOwnedByActor } from "../common/utils/order-ownership";
 import { isPrismaErrorCode } from "../common/utils/prisma-error";
 import { timingSafeStringEqual } from "../common/utils/timing-safe-compare";
+import { NotificationsService } from "../notifications/notifications.service";
 import { OrdersService } from "../orders/orders.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -29,6 +32,7 @@ export class PaymobService {
     @Inject(forwardRef(() => OrdersService))
     private readonly ordersService: OrdersService,
     @Optional() private readonly auditLogService?: AuditLogService,
+    @Optional() private readonly notificationsService?: NotificationsService,
   ) {}
 
   private getApiKey(): string {
@@ -542,26 +546,87 @@ export class PaymobService {
     }
   }
 
-  async reconcilePayments(daysBack = 30) {
-    const sinceDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
-    const orders = await this.prisma.order.findMany({
+  private async recordAuditWithDeduplication(
+    orderId: string,
+    action: string,
+    changes?: unknown,
+  ): Promise<void> {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const existing = await this.prisma.auditLog.findFirst({
       where: {
-        createdAt: { gte: sinceDate },
-        OR: [
-          { paymobTransactionId: { not: null } },
-          { paymobIntentionId: { not: null } },
-        ],
-      },
-      select: {
-        id: true,
-        orderNumber: true,
-        status: true,
-        paymentStatus: true,
-        paymobTransactionId: true,
-        paymobIntentionId: true,
-        totalAmount: true,
+        entityType: "Order",
+        entityId: orderId,
+        action,
+        createdAt: { gte: twentyFourHoursAgo },
       },
     });
+
+    if (!existing) {
+      if (this.auditLogService) {
+        await this.auditLogService.record({
+          action,
+          entityType: "Order",
+          entityId: orderId,
+          changes,
+        });
+      } else {
+        await this.prisma.auditLog.create({
+          data: {
+            action,
+            entityType: "Order",
+            entityId: orderId,
+            changes: changes ? (JSON.parse(JSON.stringify(changes)) as any) : undefined,
+          },
+        });
+      }
+    }
+  }
+
+  async reconcilePayments(daysBack = 2, audit = false) {
+    const apiKey = this.getApiKey();
+    if (!apiKey || apiKey.trim() === "") {
+      throw new ServiceUnavailableException("Paymob API key is not configured");
+    }
+
+    const sinceDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+
+    const where: Prisma.OrderWhereInput = {
+      createdAt: { gte: sinceDate },
+      OR: [
+        { paymobTransactionId: { not: null } },
+        { paymobIntentionId: { not: null } },
+      ],
+    };
+
+    if (!audit) {
+      where.status = {
+        in: [OrderStatus.PENDING, OrderStatus.CANCELLED, OrderStatus.EXPIRED],
+      };
+      where.paymentStatus = {
+        notIn: [PaymentStatus.PAID, PaymentStatus.REFUNDED],
+      };
+    }
+
+    const orders = await this.prisma.order.findMany({
+      where,
+      take: 200,
+      orderBy: { createdAt: "asc" },
+      include: {
+        items: {
+          include: {
+            productVariant: true,
+          },
+        },
+      },
+    });
+
+    let checkedCount = 0;
+    let repairedCount = 0;
+    let manualReviewCount = 0;
+    let mismatchesCount = 0;
+    let unlinkedIntentions = 0;
+    let failedChecks = 0;
+    let attemptedPaymobCalls = 0;
 
     const mismatches: Array<{
       orderId: string;
@@ -569,91 +634,474 @@ export class PaymobService {
       dbStatus: OrderStatus;
       dbPaymentStatus: PaymentStatus;
       paymobStatus: PaymentStatus;
-      paymobTransactionId: string;
+      paymobTransactionId?: string;
       details: string;
     }> = [];
-    let checkedCount = 0;
+
+    const txOrders: typeof orders = [];
 
     for (const order of orders) {
-      const txId = order.paymobTransactionId;
-      if (!txId) continue;
-      checkedCount++;
-
-      try {
-        const response = await fetch(
-          `https://accept.paymob.com/api/acceptance/transactions/${txId}`,
+      if (!order.paymobTransactionId && order.paymobIntentionId) {
+        unlinkedIntentions++;
+        await this.recordAuditWithDeduplication(
+          order.id,
+          "payment.reconciliation_unlinked_intention",
           {
-            headers: {
-              Authorization: `Bearer ${this.getApiKey()}`,
-            },
-          },
-        );
-
-        if (!response.ok) {
-          this.logger.warn(`Failed to fetch Paymob transaction ${txId}: HTTP ${response.status}`);
-          continue;
-        }
-
-        const txData = (await response.json()) as {
-          success?: boolean;
-          pending?: boolean;
-          is_refunded?: boolean;
-          is_voided?: boolean;
-        };
-
-        const isSuccess = txData.success === true && txData.pending === false;
-        const isRefunded = txData.is_refunded === true;
-
-        let expectedPaymentStatus: PaymentStatus = PaymentStatus.PENDING;
-
-        if (isRefunded) {
-          expectedPaymentStatus = PaymentStatus.REFUNDED;
-        } else if (isSuccess) {
-          expectedPaymentStatus = PaymentStatus.PAID;
-        } else if (txData.success === false && txData.pending === false) {
-          expectedPaymentStatus = PaymentStatus.FAILED;
-        }
-
-        const hasMismatch =
-          order.paymentStatus !== expectedPaymentStatus ||
-          (expectedPaymentStatus === PaymentStatus.PAID && order.status !== OrderStatus.PAID);
-
-        if (hasMismatch) {
-          mismatches.push({
-            orderId: order.id,
-            orderNumber: order.orderNumber,
+            paymobIntentionId: order.paymobIntentionId,
             dbStatus: order.status,
             dbPaymentStatus: order.paymentStatus,
-            paymobStatus: expectedPaymentStatus,
-            paymobTransactionId: txId,
-            details: `Order ${order.orderNumber} is ${order.status}/${order.paymentStatus} in DB but Paymob transaction ${txId} indicates ${expectedPaymentStatus}`,
-          });
+          },
+        );
+      } else if (order.paymobTransactionId) {
+        txOrders.push(order);
+      }
+    }
 
-          if (this.auditLogService) {
-            await this.auditLogService.record({
-              action: "payment.reconciliation_mismatch",
-              entityType: "Order",
-              entityId: order.id,
-              changes: {
+    // Process orders with paymobTransactionId in batches of 5 (concurrency limit = 5)
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < txOrders.length; i += BATCH_SIZE) {
+      const batch = txOrders.slice(i, i + BATCH_SIZE);
+      await Promise.all(
+        batch.map(async (order) => {
+          const txId = order.paymobTransactionId!;
+          attemptedPaymobCalls++;
+
+          let response: Response;
+          try {
+            response = await fetch(
+              `https://accept.paymob.com/api/acceptance/transactions/${txId}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${apiKey}`,
+                },
+              },
+            );
+          } catch (error) {
+            failedChecks++;
+            this.logger.error(
+              `Failed to fetch Paymob transaction ${txId} for order ${order.id}: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            );
+            return;
+          }
+
+          if (!response.ok) {
+            failedChecks++;
+            this.logger.warn(
+              `Paymob transaction ${txId} request returned HTTP ${response.status}`,
+            );
+            return;
+          }
+
+          let txData: {
+            success?: boolean;
+            pending?: boolean;
+            is_voided?: boolean;
+            is_refunded?: boolean;
+            amount_cents?: number | string;
+            currency?: string;
+          };
+
+          try {
+            txData = (await response.json()) as any;
+          } catch {
+            failedChecks++;
+            this.logger.error(
+              `Failed to parse JSON response for Paymob transaction ${txId}`,
+            );
+            return;
+          }
+
+          checkedCount++;
+
+          // 1. Transaction-to-order binding check
+          const txRef =
+            (txData as any).special_reference ||
+            (txData as any).merchant_order_id ||
+            (typeof (txData as any).order === "object" && (txData as any).order !== null
+              ? String((txData as any).order.merchant_order_id || "")
+              : String((txData as any).order || ""));
+
+          if (!txRef || (txRef !== order.id && txRef !== order.orderNumber)) {
+            mismatchesCount++;
+            manualReviewCount++;
+            mismatches.push({
+              orderId: order.id,
+              orderNumber: order.orderNumber,
+              dbStatus: order.status,
+              dbPaymentStatus: order.paymentStatus,
+              paymobStatus: PaymentStatus.PAID,
+              paymobTransactionId: txId,
+              details: `Order ${order.orderNumber} (id: ${order.id}) has Paymob transaction ${txId} with non-matching reference '${txRef || "null"}'`,
+            });
+            await this.recordAuditWithDeduplication(
+              order.id,
+              "payment.reconciliation_needs_manual_review",
+              {
+                reason: "transaction_order_reference_mismatch",
+                expectedOrderId: order.id,
+                expectedOrderNumber: order.orderNumber,
+                paymobReference: txRef,
+                paymobTransactionId: txId,
+              },
+            );
+            return;
+          }
+
+          // 2. Strict Amount & Currency Validation
+          const isAmountValid =
+            txData.amount_cents !== undefined &&
+            txData.amount_cents !== null &&
+            Number.isFinite(Number(txData.amount_cents)) &&
+            Number.isInteger(Number(txData.amount_cents));
+
+          const isCurrencyValid =
+            typeof txData.currency === "string" &&
+            txData.currency.trim().length > 0;
+
+          if (!isAmountValid || !isCurrencyValid) {
+            mismatchesCount++;
+            manualReviewCount++;
+            const details = `Order ${order.orderNumber} Paymob transaction ${txId} has missing or invalid amount_cents (${txData.amount_cents}) or currency (${txData.currency})`;
+            mismatches.push({
+              orderId: order.id,
+              orderNumber: order.orderNumber,
+              dbStatus: order.status,
+              dbPaymentStatus: order.paymentStatus,
+              paymobStatus: PaymentStatus.PENDING,
+              paymobTransactionId: txId,
+              details,
+            });
+            await this.recordAuditWithDeduplication(
+              order.id,
+              "payment.reconciliation_needs_manual_review",
+              {
+                reason: "missing_or_invalid_paymob_amount_or_currency",
+                amount_cents: txData.amount_cents,
+                currency: txData.currency,
+                paymobTransactionId: txId,
+              },
+            );
+            return;
+          }
+
+          const paymobAmountPiasters = Number(txData.amount_cents);
+          const orderAmountPiasters = Math.round(
+            new Decimal(order.totalAmount).toNumber() * 100,
+          );
+
+          const isAmountMatch = paymobAmountPiasters === orderAmountPiasters;
+          const isCurrencyMatch = (txData.currency as string).trim().toUpperCase() === "EGP";
+
+          const isSuccess =
+            txData.success === true &&
+            txData.pending === false &&
+            txData.is_voided !== true &&
+            txData.is_refunded !== true;
+
+          const isRefunded = txData.is_refunded === true;
+
+          if (isSuccess && isAmountMatch && isCurrencyMatch) {
+            if (order.status === OrderStatus.PENDING) {
+              let wasRepaired = false;
+              try {
+                await this.prisma.$transaction(async (tx) => {
+                  await tx.processedPaymobEvent.create({
+                    data: {
+                      paymobTransactionId: txId,
+                      eventType: "RECONCILIATION_AUTO_REPAIR",
+                      orderId: order.id,
+                    },
+                  });
+
+                  await this.ordersService.markPaidInTransaction(tx, order.id);
+
+                  await tx.order.update({
+                    where: { id: order.id },
+                    data: { paymobTransactionId: txId },
+                  });
+
+                  wasRepaired = true;
+                });
+              } catch (error) {
+                if (isPrismaErrorCode(error, "P2002")) {
+                  // Already processed
+                  return;
+                } else {
+                  this.logger.error(
+                    `Failed to auto-repair PENDING order ${order.id}`,
+                    error instanceof Error ? error.stack : String(error),
+                  );
+                  return;
+                }
+              }
+
+              if (wasRepaired) {
+                repairedCount++;
+
+                await this.recordAuditWithDeduplication(
+                  order.id,
+                  "payment.reconciliation_auto_repair",
+                  {
+                    paymobTransactionId: txId,
+                    previousStatus: OrderStatus.PENDING,
+                    amountPiasters: orderAmountPiasters,
+                  },
+                );
+
+                try {
+                  await this.notificationsService?.notifyPaymentCompleted({
+                    orderNumber: order.orderNumber,
+                    customerName: order.customerName || undefined,
+                    customerEmail: order.customerEmail || undefined,
+                    shippingPhone: order.shippingPhone || undefined,
+                  });
+                } catch (e) {
+                  this.logger.warn(
+                    `Failed to send payment completion notification for order ${order.id}`,
+                    e,
+                  );
+                }
+              }
+            } else if (
+              order.status === OrderStatus.CANCELLED ||
+              order.status === OrderStatus.EXPIRED
+            ) {
+              let wasRepaired = false;
+              let couponLimitExceeded = false;
+
+              try {
+                await this.prisma.$transaction(async (tx) => {
+                  // a. Conditional update on order status
+                  const updatedOrder = await tx.order.updateMany({
+                    where: {
+                      id: order.id,
+                      status: { in: [OrderStatus.CANCELLED, OrderStatus.EXPIRED] },
+                      paymentStatus: { not: PaymentStatus.PAID },
+                    },
+                    data: {
+                      status: OrderStatus.PAID,
+                      paymentStatus: PaymentStatus.PAID,
+                      paymobTransactionId: txId,
+                      reservationExpiresAt: null,
+                    },
+                  });
+
+                  if (updatedOrder.count !== 1) {
+                    return;
+                  }
+
+                  // b. Re-reserve stock atomically for each item
+                  for (const item of order.items) {
+                    const variantUpdate = await tx.productVariant.updateMany({
+                      where: {
+                        id: item.productVariantId,
+                        isAvailable: true,
+                        stock: { gte: item.quantity },
+                      },
+                      data: {
+                        stock: { decrement: item.quantity },
+                      },
+                    });
+
+                    if (variantUpdate.count !== 1) {
+                      throw new Error(
+                        `INSUFFICIENT_STOCK_VARIANT_${item.productVariantId}`,
+                      );
+                    }
+                  }
+
+                  // c. Re-count coupon if order used a coupon
+                  if (order.couponId) {
+                    const coupon = await tx.coupon.findUnique({
+                      where: { id: order.couponId },
+                    });
+
+                    if (coupon) {
+                      if (coupon.usageLimit !== null && coupon.usageLimit !== undefined) {
+                        const updatedCoupon = await tx.coupon.updateMany({
+                          where: {
+                            id: coupon.id,
+                            usageCount: { lt: coupon.usageLimit },
+                          },
+                          data: { usageCount: { increment: 1 } },
+                        });
+
+                        if (updatedCoupon.count !== 1) {
+                          couponLimitExceeded = true;
+                        }
+                      } else {
+                        await tx.coupon.update({
+                          where: { id: coupon.id },
+                          data: { usageCount: { increment: 1 } },
+                        });
+                      }
+                    }
+                  }
+
+                  // d. Create ProcessedPaymobEvent
+                  await tx.processedPaymobEvent.create({
+                    data: {
+                      paymobTransactionId: txId,
+                      eventType: "RECONCILIATION_AUTO_REPAIR",
+                      orderId: order.id,
+                    },
+                  });
+
+                  wasRepaired = true;
+                });
+              } catch (error) {
+                if (isPrismaErrorCode(error, "P2002")) {
+                  return;
+                }
+
+                if (
+                  error instanceof Error &&
+                  error.message.startsWith("INSUFFICIENT_STOCK_VARIANT_")
+                ) {
+                  manualReviewCount++;
+                  mismatchesCount++;
+                  mismatches.push({
+                    orderId: order.id,
+                    orderNumber: order.orderNumber,
+                    dbStatus: order.status,
+                    dbPaymentStatus: order.paymentStatus,
+                    paymobStatus: PaymentStatus.PAID,
+                    paymobTransactionId: txId,
+                    details: `Order ${order.orderNumber} is ${order.status} in DB and Paymob payment succeeded, but inventory is insufficient to re-reserve stock.`,
+                  });
+
+                  await this.recordAuditWithDeduplication(
+                    order.id,
+                    "payment.reconciliation_needs_manual_review",
+                    {
+                      reason: "insufficient_stock_to_re_reserve",
+                      dbStatus: order.status,
+                      dbPaymentStatus: order.paymentStatus,
+                      paymobTransactionId: txId,
+                    },
+                  );
+                  return;
+                }
+
+                this.logger.error(
+                  `Failed to auto-repair ${order.status} order ${order.id}`,
+                  error instanceof Error ? error.stack : String(error),
+                );
+                return;
+              }
+
+              if (wasRepaired) {
+                repairedCount++;
+
+                await this.recordAuditWithDeduplication(
+                  order.id,
+                  "payment.reconciliation_auto_repair",
+                  {
+                    paymobTransactionId: txId,
+                    previousStatus: order.status,
+                    amountPiasters: orderAmountPiasters,
+                  },
+                );
+
+                if (couponLimitExceeded) {
+                  await this.recordAuditWithDeduplication(
+                    order.id,
+                    "payment.reconciliation_coupon_over_limit",
+                    {
+                      couponId: order.couponId,
+                      paymobTransactionId: txId,
+                    },
+                  );
+                }
+
+                try {
+                  await this.notificationsService?.notifyPaymentCompleted({
+                    orderNumber: order.orderNumber,
+                    customerName: order.customerName || undefined,
+                    customerEmail: order.customerEmail || undefined,
+                    shippingPhone: order.shippingPhone || undefined,
+                  });
+                } catch (e) {
+                  this.logger.warn(
+                    `Failed to send payment completion notification for order ${order.id}`,
+                    e,
+                  );
+                }
+              }
+            }
+          } else {
+            // Mismatch or manual review required
+            let expectedPaymentStatus: PaymentStatus = PaymentStatus.PENDING;
+            if (isRefunded) {
+              expectedPaymentStatus = PaymentStatus.REFUNDED;
+            } else if (isSuccess) {
+              expectedPaymentStatus = PaymentStatus.PAID;
+            } else if (txData.success === false && txData.pending === false) {
+              expectedPaymentStatus = PaymentStatus.FAILED;
+            }
+
+            const isMismatch =
+              order.paymentStatus !== expectedPaymentStatus ||
+              (!isAmountMatch && isSuccess) ||
+              (!isCurrencyMatch && isSuccess);
+
+            if (isMismatch) {
+              mismatchesCount++;
+              manualReviewCount++;
+
+              let details = `Order ${order.orderNumber} is ${order.status}/${order.paymentStatus} in DB but Paymob transaction ${txId} indicates ${expectedPaymentStatus}`;
+              if (!isAmountMatch && isSuccess) {
+                details += ` (Amount mismatch: DB=${orderAmountPiasters} piasters, Paymob=${paymobAmountPiasters} piasters)`;
+              }
+              if (!isCurrencyMatch && isSuccess) {
+                details += ` (Currency mismatch: Paymob=${txData.currency})`;
+              }
+
+              mismatches.push({
+                orderId: order.id,
+                orderNumber: order.orderNumber,
                 dbStatus: order.status,
                 dbPaymentStatus: order.paymentStatus,
                 paymobStatus: expectedPaymentStatus,
                 paymobTransactionId: txId,
-              },
-            });
+                details,
+              });
+
+              const auditAction =
+                !isAmountMatch || !isCurrencyMatch
+                  ? "payment.reconciliation_needs_manual_review"
+                  : "payment.reconciliation_mismatch";
+
+              await this.recordAuditWithDeduplication(order.id, auditAction, {
+                dbStatus: order.status,
+                dbPaymentStatus: order.paymentStatus,
+                paymobStatus: expectedPaymentStatus,
+                paymobTransactionId: txId,
+                paymobAmountPiasters,
+                orderAmountPiasters,
+                currency: txData.currency,
+              });
+            }
           }
-        }
-      } catch (error) {
-        this.logger.error(
-          `Failed to reconcile transaction ${txId} for order ${order.id}`,
-          error instanceof Error ? error.stack : String(error),
-        );
-      }
+        }),
+      );
+    }
+
+    if (attemptedPaymobCalls > 0 && failedChecks / attemptedPaymobCalls > 0.5) {
+      throw new BadGatewayException(
+        `Paymob reconciliation failed: ${failedChecks} out of ${attemptedPaymobCalls} provider calls failed`,
+      );
     }
 
     return {
       checkedCount,
-      mismatchesCount: mismatches.length,
+      repairedCount,
+      manualReviewCount,
+      mismatchesCount,
+      unlinkedIntentions,
+      failedChecks,
       mismatches,
     };
   }
