@@ -10,6 +10,8 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
+import { getPublicReadThrottleLimit } from "../common/utils/throttling";
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -35,6 +37,7 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get()
+  @Throttle({ default: { limit: getPublicReadThrottleLimit(), ttl: 60000 } })
   @ApiOperation({ summary: "List all products with filters and pagination" })
   @ApiQuery({ name: "category", required: false, type: String })
   @ApiQuery({ name: "isFeatured", required: false, type: Boolean })
@@ -86,6 +89,7 @@ export class ProductsController {
   }
 
   @Get(":slug")
+  @Throttle({ default: { limit: getPublicReadThrottleLimit(), ttl: 60000 } })
   @ApiOperation({ summary: "Get a single product with full details" })
   @ApiResponse({ status: 200, description: "Active product returned." })
   @ApiResponse({ status: 404, description: "Product not found." })

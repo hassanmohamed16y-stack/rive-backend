@@ -10,6 +10,8 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
+import { getPublicReadThrottleLimit } from "../common/utils/throttling";
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -32,6 +34,7 @@ export class ShippingZonesController {
   constructor(private readonly shippingZonesService: ShippingZonesService) {}
 
   @Get()
+  @Throttle({ default: { limit: getPublicReadThrottleLimit(), ttl: 60000 } })
   @ApiOperation({
     summary:
       "Get all active shipping zones for storefront checkout (Public)",

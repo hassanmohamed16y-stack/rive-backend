@@ -10,6 +10,7 @@ import helmet from "helmet";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { requestLoggingMiddleware } from "./common/middleware/request-logging.middleware";
 import { isLocalOnlyEnvironment } from "./common/utils/environment";
+import { parseOrigins } from "./common/utils/origin";
 
 export function configureApp(app: INestApplication) {
   app.use(requestLoggingMiddleware);
@@ -47,9 +48,9 @@ export function configureApp(app: INestApplication) {
   );
 
   const configuredOrigins = [
-    process.env.FRONTEND_URL,
-    process.env.ADMIN_FRONTEND_URL,
-  ].filter(Boolean) as string[];
+    ...parseOrigins(process.env.FRONTEND_URL),
+    ...parseOrigins(process.env.ADMIN_FRONTEND_URL),
+  ];
   const developmentOrigins = [
     "http://localhost:3000",
     "http://localhost:3001",
@@ -57,8 +58,8 @@ export function configureApp(app: INestApplication) {
     "http://127.0.0.1:3001",
   ];
   const allowedOrigins = isLocalOnlyEnvironment()
-    ? [...configuredOrigins, ...developmentOrigins]
-    : configuredOrigins;
+    ? Array.from(new Set([...configuredOrigins, ...developmentOrigins]))
+    : Array.from(new Set(configuredOrigins));
 
   app.enableCors({
     origin: (origin, callback) => {

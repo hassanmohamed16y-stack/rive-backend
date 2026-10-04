@@ -8,6 +8,8 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
+import { getPublicReadThrottleLimit } from "../common/utils/throttling";
 import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
 import { PaginationDto } from "../common/dto/pagination.dto";
@@ -38,6 +40,7 @@ export class ReviewsController {
   }
 
   @Get(":productId/reviews")
+  @Throttle({ default: { limit: getPublicReadThrottleLimit(), ttl: 60000 } })
   @ApiOperation({ summary: "Get approved reviews for a product" })
   async getApprovedReviews(
     @Param("productId") productId: string,

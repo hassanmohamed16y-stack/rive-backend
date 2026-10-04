@@ -7,6 +7,8 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
+import { getPublicReadThrottleLimit } from "../common/utils/throttling";
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -28,6 +30,7 @@ export class StaticPagesController {
   constructor(private readonly staticPagesService: StaticPagesService) {}
 
   @Get(":slug")
+  @Throttle({ default: { limit: getPublicReadThrottleLimit(), ttl: 60000 } })
   @ApiOperation({ summary: "Get static page by slug (Public)" })
   @ApiResponse({ status: 200, description: "Static page returned." })
   @ApiResponse({ status: 404, description: "Static page not found or not published." })

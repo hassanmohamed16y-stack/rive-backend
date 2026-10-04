@@ -1,4 +1,6 @@
 import { Body, Controller, Get, Patch, UseGuards } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
+import { getPublicReadThrottleLimit } from "../common/utils/throttling";
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -19,6 +21,7 @@ export class SiteSettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
   @Get("site/public")
+  @Throttle({ default: { limit: getPublicReadThrottleLimit(), ttl: 60000 } })
   @ApiOperation({ summary: "Get public site settings" })
   @ApiResponse({ status: 200, description: "Public site settings returned." })
   async getPublicSiteSettings() {

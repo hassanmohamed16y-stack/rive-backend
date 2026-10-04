@@ -74,15 +74,36 @@ export function validateEnvironment(
     );
   }
 
+  try {
+    new URL(environment.DATABASE_URL!);
+  } catch {
+    throw new Error("DATABASE_URL must be a valid URL");
+  }
+
   for (const urlVariable of [
-    "DATABASE_URL",
     "FRONTEND_URL",
     "ADMIN_FRONTEND_URL",
   ] as const) {
-    try {
-      new URL(environment[urlVariable]!);
-    } catch {
+    const rawValue = environment[urlVariable];
+    if (!rawValue || !rawValue.trim()) {
       throw new Error(`${urlVariable} must be a valid URL`);
+    }
+    const parts = rawValue.split(",").map((s) => s.trim()).filter(Boolean);
+    if (parts.length === 0) {
+      throw new Error(`${urlVariable} must be a valid URL`);
+    }
+    for (const part of parts) {
+      if (part.includes("*")) {
+        throw new Error(`${urlVariable} must be a valid URL`);
+      }
+      try {
+        const parsed = new URL(part);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          throw new Error(`${urlVariable} must be a valid URL`);
+        }
+      } catch {
+        throw new Error(`${urlVariable} must be a valid URL`);
+      }
     }
   }
 
