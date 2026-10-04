@@ -1,0 +1,45 @@
+# Note: The schedule is intentionally disabled until a manual run is verified.
+# To enable the schedule later, add:
+# schedule: - cron: '*/15 * * * *'
+
+name: Reconcile Paymob payments
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Number of days back to reconcile (1-30)'
+        required: false
+        default: '2'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reconcile-paymob
+  cancel-in-progress: false
+
+jobs:
+  reconcile-paymob:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Call internal reconcile-paymob endpoint
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET }}
+          DAYS: ${{ inputs.days || '2' }}
+        run: |
+          DAYS_VAL="${DAYS:-2}"
+          if ! [[ "$DAYS_VAL" =~ ^[0-9]+$ ]] || [ "$DAYS_VAL" -lt 1 ] || [ "$DAYS_VAL" -gt 30 ]; then
+            echo "Error: days parameter must be an integer between 1 and 30. Received: '$DAYS_VAL'" >&2
+            exit 1
+          fi
+
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "x-internal-cron-secret: ${INTERNAL_CRON_SECRET}" \
+            "${API_BASE_URL%/}/api/v1/internal/reconcile-paymob?days=${DAYS_VAL}"
