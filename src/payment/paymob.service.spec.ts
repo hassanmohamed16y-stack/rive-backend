@@ -38,6 +38,10 @@ function createService(overrides: Record<string, unknown> = {}) {
     order: {
       findUnique: jest.fn().mockResolvedValue({ paymentSessionId: "cs_123" }),
       update: jest.fn().mockResolvedValue({ id: "order-1", status: OrderStatus.PAID }),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+    productVariant: {
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
   };
   const prisma = {
@@ -395,8 +399,11 @@ describe("PaymobService", () => {
       );
     });
 
-    it("auto-repairs pending order when Paymob payment is confirmed SUCCESS and amount/currency match", async () => {
+    it("auto-repairs pending order when Paymob payment is confirmed SUCCESS and amount/currency/reference match", async () => {
+      const notifyMock = jest.fn().mockResolvedValue(undefined);
       const { service, prisma, ordersService } = createService();
+      (service as any).notificationsService = { notifyPaymentCompleted: notifyMock };
+
       const mockOrders = [
         {
           id: "order-pending-1",
@@ -404,6 +411,46 @@ describe("PaymobService", () => {
           status: OrderStatus.PENDING,
           paymentStatus: "PENDING",
           paymobTransactionId: "tx-1001",
+          totalAmount: "120.00",
+          customerName: "Jane Doe",
+          customerEmail: "jane@example.com",
+          shippingPhone: "+20123456789",
+          items: [],
+        },
+      ];
+      prisma.order.findMany = jest.fn().mockResolvedValue(mockOrders);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          success: true,
+          pending: false,
+          amount_cents: 12000,
+          currency: "EGP",
+          special_reference: "order-pending-1",
+        }),
+      } as any);
+
+      const result = await service.reconcilePayments(2);
+
+      expect(result.checkedCount).toBe(1);
+      expect(result.repairedCount).toBe(1);
+      expect(result.mismatchesCount).toBe(0);
+      expect(ordersService.markPaidInTransaction).toHaveBeenCalled();
+      expect(notifyMock).toHaveBeenCalledWith(
+        expect.objectContaining({ orderNumber: "RIV-1001" }),
+      );
+    });
+
+    it("sends order to manual review when Paymob transaction reference does NOT match order ID or number", async () => {
+      const { service, prisma } = createService();
+      const mockOrders = [
+        {
+          id: "order-pending-ref-mismatch",
+          orderNumber: "RIV-1009",
+          status: OrderStatus.PENDING,
+          paymentStatus: "PENDING",
+          paymobTransactionId: "tx-ref-mismatch",
           totalAmount: "120.00",
           items: [],
         },
@@ -417,15 +464,49 @@ describe("PaymobService", () => {
           pending: false,
           amount_cents: 12000,
           currency: "EGP",
+          special_reference: "completely-different-order-id",
         }),
       } as any);
 
       const result = await service.reconcilePayments(2);
 
       expect(result.checkedCount).toBe(1);
-      expect(result.repairedCount).toBe(1);
-      expect(result.mismatchesCount).toBe(0);
-      expect(ordersService.markPaidInTransaction).toHaveBeenCalled();
+      expect(result.repairedCount).toBe(0);
+      expect(result.manualReviewCount).toBe(1);
+      expect(result.mismatches[0].details).toContain("non-matching reference");
+    });
+
+    it("sends order to manual review when amount_cents or currency is missing or non-numeric", async () => {
+      const { service, prisma } = createService();
+      const mockOrders = [
+        {
+          id: "order-bad-amount",
+          orderNumber: "RIV-1010",
+          status: OrderStatus.PENDING,
+          paymentStatus: "PENDING",
+          paymobTransactionId: "tx-bad-amount",
+          totalAmount: "120.00",
+          items: [],
+        },
+      ];
+      prisma.order.findMany = jest.fn().mockResolvedValue(mockOrders);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          success: true,
+          pending: false,
+          amount_cents: "not-a-number",
+          currency: "EGP",
+          special_reference: "order-bad-amount",
+        }),
+      } as any);
+
+      const result = await service.reconcilePayments(2);
+
+      expect(result.repairedCount).toBe(0);
+      expect(result.manualReviewCount).toBe(1);
+      expect(result.mismatches[0].details).toContain("missing or invalid amount_cents");
     });
 
     it("does NOT auto-repair when there is an amount mismatch and records for manual review", async () => {
@@ -455,6 +536,7 @@ describe("PaymobService", () => {
           pending: false,
           amount_cents: 5000, // 5000 piasters mismatch!
           currency: "EGP",
+          special_reference: "order-amount-mismatch",
         }),
       } as any);
 
@@ -494,6 +576,7 @@ describe("PaymobService", () => {
           pending: false,
           amount_cents: 12000,
           currency: "USD",
+          special_reference: "order-currency-mismatch",
         }),
       } as any);
 
@@ -524,11 +607,15 @@ describe("PaymobService", () => {
       );
     });
 
-    it("repairs cancelled order if stock is available, re-reserving stock atomically", async () => {
+    it("repairs cancelled order if stock is available, re-reserving stock atomically and re-counting coupon", async () => {
       const txPrisma = {
         processedPaymobEvent: { create: jest.fn().mockResolvedValue({}) },
-        productVariant: { update: jest.fn().mockResolvedValue({}) },
-        order: { update: jest.fn().mockResolvedValue({}) },
+        productVariant: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        order: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        coupon: {
+          findUnique: jest.fn().mockResolvedValue({ id: "coupon-1", usageLimit: 10, usageCount: 5 }),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
       };
       const { service, prisma } = createService({
         $transaction: jest.fn((cb) => cb(txPrisma)),
@@ -540,6 +627,7 @@ describe("PaymobService", () => {
         status: OrderStatus.CANCELLED,
         paymentStatus: "PENDING",
         paymobTransactionId: "tx-1004",
+        couponId: "coupon-1",
         totalAmount: "100.00",
         items: [
           {
@@ -559,25 +647,81 @@ describe("PaymobService", () => {
           pending: false,
           amount_cents: 10000,
           currency: "EGP",
+          special_reference: "order-cancelled-stock-ok",
         }),
       } as any);
 
       const result = await service.reconcilePayments(2);
 
       expect(result.repairedCount).toBe(1);
-      expect(txPrisma.productVariant.update).toHaveBeenCalledWith({
-        where: { id: "var-1" },
+      expect(txPrisma.productVariant.updateMany).toHaveBeenCalledWith({
+        where: { id: "var-1", isAvailable: true, stock: { gte: 2 } },
         data: { stock: { decrement: 2 } },
       });
-      expect(txPrisma.order.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ status: OrderStatus.PAID }),
+      expect(txPrisma.coupon.updateMany).toHaveBeenCalledWith({
+        where: { id: "coupon-1", usageCount: { lt: 10 } },
+        data: { usageCount: { increment: 1 } },
+      });
+    });
+
+    it("rolls back cancelled order repair if ANY item variant has insufficient stock during in-transaction updateMany", async () => {
+      const txPrisma = {
+        order: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        productVariant: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) }, // Stock check failed!
+      };
+      const { service, prisma } = createService({
+        $transaction: jest.fn((cb) => cb(txPrisma)),
+        auditLog: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockResolvedValue({ id: "audit-1" }),
+        },
+      });
+
+      const cancelledOrderPartialStock = {
+        id: "order-cancelled-insufficient-stock",
+        orderNumber: "RIV-1005",
+        status: OrderStatus.CANCELLED,
+        paymentStatus: "PENDING",
+        paymobTransactionId: "tx-1005",
+        totalAmount: "100.00",
+        items: [
+          {
+            productVariantId: "var-1",
+            quantity: 10,
+            productVariant: { isAvailable: true, stock: 2 },
+          },
+        ],
+      };
+
+      prisma.order.findMany = jest.fn().mockResolvedValue([cancelledOrderPartialStock]);
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          success: true,
+          pending: false,
+          amount_cents: 10000,
+          currency: "EGP",
+          special_reference: "order-cancelled-insufficient-stock",
         }),
+      } as any);
+
+      const result = await service.reconcilePayments(2);
+
+      expect(result.repairedCount).toBe(0);
+      expect(result.manualReviewCount).toBe(1);
+      expect(result.mismatches[0].details).toContain(
+        "inventory is insufficient to re-reserve stock",
       );
     });
 
     it("flags cancelled order for manual review if stock is NOT available to re-reserve", async () => {
+      const txPrisma = {
+        order: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        productVariant: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      };
       const { service, prisma } = createService({
+        $transaction: jest.fn((cb) => cb(txPrisma)),
         auditLog: {
           findFirst: jest.fn().mockResolvedValue(null),
           create: jest.fn().mockResolvedValue({ id: "audit-1" }),
@@ -609,6 +753,7 @@ describe("PaymobService", () => {
           pending: false,
           amount_cents: 10000,
           currency: "EGP",
+          special_reference: "order-cancelled-no-stock",
         }),
       } as any);
 
