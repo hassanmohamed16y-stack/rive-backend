@@ -1,5 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
-import { OrderStatus, PaymentMethod, PaymentStatus } from "@prisma/client";
+import { OrderStatus, PaymentMethod } from "@prisma/client";
 import { PaymobService } from "./paymob.service";
 
 describe("PaymobService COD Integration", () => {

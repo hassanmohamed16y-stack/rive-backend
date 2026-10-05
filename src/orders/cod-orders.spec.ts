@@ -304,7 +304,7 @@ describe("OrdersService COD Support", () => {
         paymentStatus: PaymentStatus.PAID,
       });
 
-      const result = await service.markCodCollected("ord_cod_1", "admin_1");
+      await service.markCodCollected("ord_cod_1", "admin_1");
 
       expect(mockPrisma.order.update).toHaveBeenCalledWith({
         where: { id: "ord_cod_1" },
