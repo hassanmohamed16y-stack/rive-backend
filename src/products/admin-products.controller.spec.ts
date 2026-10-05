@@ -11,7 +11,7 @@ describe("AdminProductsController", () => {
     };
     const controller = new AdminProductsController(productsService as any);
 
-    await controller.findAll(ProductStatus.DRAFT, { page: 1, limit: 20 });
+    await controller.findAll({ status: ProductStatus.DRAFT, page: 1, limit: 20 });
     await expect(controller.findOne("product-1")).resolves.toMatchObject({
       id: "product-1",
       status: ProductStatus.DRAFT,

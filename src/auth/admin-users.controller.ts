@@ -21,8 +21,8 @@ import { Roles } from "./roles.decorator";
 import { RolesGuard } from "./roles.guard";
 import { AuthService } from "./auth.service";
 import { CreateAdminDto } from "./dto/create-admin.dto";
+import { AdminUsersQueryDto } from "./dto/admin-users-query.dto";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
-import { PaginationDto } from "../common/dto/pagination.dto";
 
 @ApiTags("admin users")
 @Controller("api/v1/admin/users")
@@ -48,12 +48,12 @@ export class AdminUsersController {
   @RequirePermission("users.manage")
   @ApiOperation({ summary: "List all users (Admin)" })
   @ApiResponse({ status: 200, description: "Paginated list of users returned." })
-  async findAll(
-    @Query() pagination: PaginationDto,
-    @Query("search") search?: string,
-    @Query("role") role?: string,
-  ) {
-    return this.authService.findAllUsers(pagination, search, role);
+  async findAll(@Query() query: AdminUsersQueryDto) {
+    return this.authService.findAllUsers(
+      { page: query.page, limit: query.limit },
+      query.search,
+      query.role,
+    );
   }
 
   @Get(":id")

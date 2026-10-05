@@ -7,6 +7,7 @@ import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { PaginationDto } from "../common/dto/pagination.dto";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
+import { AdminMetaConversationsQueryDto } from "./dto/admin-meta-conversations-query.dto";
 import { SendMetaMessageDto } from "./dto/send-meta-message.dto";
 import { MetaService } from "./meta.service";
 
@@ -22,15 +23,10 @@ export class AdminMetaController {
   @RequirePermission("customers.view")
   @ApiOperation({ summary: "Get social conversations (Facebook/Instagram) for Admin Dashboard" })
   @ApiResponse({ status: 200, description: "Paginated list of conversations returned." })
-  async getConversations(
-    @Query("platform") platform?: string,
-    @Query("status") status?: string,
-    @Query("search") search?: string,
-    @Query() pagination?: PaginationDto,
-  ) {
+  async getConversations(@Query() query: AdminMetaConversationsQueryDto) {
     return this.metaService.findAllConversations(
-      { platform, status, search },
-      { page: pagination?.page, limit: pagination?.limit },
+      { platform: query.platform, status: query.status, search: query.search },
+      { page: query.page, limit: query.limit },
     );
   }
 

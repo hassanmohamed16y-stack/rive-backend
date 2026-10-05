@@ -25,8 +25,8 @@ import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { RequirePermission } from "../auth/permissions.decorator";
-import { PaginationDto } from "../common/dto/pagination.dto";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
+import { AdminProductsQueryDto } from "./dto/admin-products-query.dto";
 import { CreateProductImageDto } from "./dto/create-product-image.dto";
 import { CreateProductVariantDto } from "./dto/create-product-variant.dto";
 import { ReorderProductsDto } from "./dto/reorder-products.dto";
@@ -67,13 +67,10 @@ export class AdminProductsController {
       },
     },
   })
-  async findAll(
-    @Query("status") status: ProductStatus | undefined,
-    @Query() pagination: PaginationDto,
-  ) {
+  async findAll(@Query() query: AdminProductsQueryDto) {
     return this.productsService.findAll(
-      { status },
-      { page: pagination.page, limit: pagination.limit },
+      { status: query.status },
+      { page: query.page, limit: query.limit },
       true,
     );
   }

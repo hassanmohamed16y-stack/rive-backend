@@ -2,7 +2,7 @@ import { Controller, Get, Param, Query } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { getPublicReadThrottleLimit } from "../common/utils/throttling";
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from "@nestjs/swagger";
-import { PaginationDto } from "../common/dto/pagination.dto";
+import { ListCollectionsQueryDto } from "./dto/list-collections-query.dto";
 import { CollectionsService } from "./collections.service";
 
 @ApiTags("collections")
@@ -16,14 +16,10 @@ export class CollectionsController {
   @ApiQuery({ name: "search", required: false, type: String })
   @ApiQuery({ name: "isFeatured", required: false, type: Boolean })
   @ApiResponse({ status: 200, description: "Paginated collections returned." })
-  async findAll(
-    @Query("search") search?: string,
-    @Query("isFeatured") isFeatured?: boolean,
-    @Query() pagination?: PaginationDto,
-  ) {
+  async findAll(@Query() query: ListCollectionsQueryDto) {
     return this.collectionsService.findAll(
-      { search, isFeatured },
-      { page: pagination?.page, limit: pagination?.limit },
+      { search: query.search, isFeatured: query.isFeatured },
+      { page: query.page, limit: query.limit },
     );
   }
 
