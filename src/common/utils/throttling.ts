@@ -13,3 +13,19 @@ export function getPublicReadThrottleLimit(): number {
   }
   return parsed;
 }
+
+export function getAdminThrottleLimit(): number {
+  const envVal = process.env.ADMIN_THROTTLE_LIMIT;
+  if (!envVal || envVal.trim() === "") {
+    return 120;
+  }
+  const trimmed = envVal.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return 120;
+  }
+  const parsed = parseInt(trimmed, 10);
+  if (isNaN(parsed) || parsed < 0) {
+    return 120;
+  }
+  return parsed;
+}

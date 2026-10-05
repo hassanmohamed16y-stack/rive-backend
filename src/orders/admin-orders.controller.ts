@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import {
   Body,
   Controller,
@@ -35,6 +37,7 @@ import { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
 import { OrdersService } from "./orders.service";
 
 @ApiTags("admin orders")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["api/admin/orders", "api/v1/admin/orders"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")

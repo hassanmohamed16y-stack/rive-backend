@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import {
   Controller,
   Get,
@@ -25,6 +27,7 @@ import { ExportPaymentsQueryDto } from "./dto/export-payments-query.dto";
 import { ExportService } from "./export.service";
 
 @ApiTags("admin export")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["api/admin/orders", "api/v1/admin/orders", "orders", "api/v1/orders"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")
@@ -54,6 +57,7 @@ export class OrdersExportController {
 }
 
 @ApiTags("admin export")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["api/admin/customers", "api/v1/admin/customers", "customers", "api/v1/customers"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")
@@ -83,6 +87,7 @@ export class CustomersExportController {
 }
 
 @ApiTags("admin export")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["api/admin/payments", "api/v1/admin/payments", "payments", "api/v1/payments"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")

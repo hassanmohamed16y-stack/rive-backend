@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import {
   BadRequestException,
   Controller,
@@ -29,6 +31,7 @@ import { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { ExcelService } from "./excel.service";
 
 @ApiTags("admin excel")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller("api/v1/admin/excel")
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")

@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import {
   Body,
   Controller,
@@ -25,6 +27,7 @@ import { UpdateExpenseDto } from "./dto/update-expense.dto";
 import { ExpensesService } from "./expenses.service";
 
 @ApiTags("admin expenses")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["api/admin/expenses", "api/v1/admin/expenses"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")

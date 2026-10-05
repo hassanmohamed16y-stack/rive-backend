@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -14,6 +16,7 @@ import { TestGoogleSheetsDto } from "./dto/test-google-sheets.dto";
 import { GoogleSheetsService } from "./google-sheets.service";
 
 @ApiTags("admin integrations")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["api/admin/integrations", "api/v1/admin/integrations"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")

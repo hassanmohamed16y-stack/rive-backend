@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import {
   Body,
   Controller,
@@ -27,6 +29,7 @@ import { ListCollectionsQueryDto } from "./dto/list-collections-query.dto";
 import { UpdateCollectionDto } from "./dto/update-collection.dto";
 
 @ApiTags("admin collections")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller("api/v1/admin/collections")
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")

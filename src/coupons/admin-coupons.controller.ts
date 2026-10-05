@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import {
   Body,
   Controller,
@@ -25,6 +27,7 @@ import { CreateCouponDto } from "./dto/create-coupon.dto";
 import { UpdateCouponDto } from "./dto/update-coupon.dto";
 
 @ApiTags("admin coupons")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller("api/v1/admin/coupons")
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")

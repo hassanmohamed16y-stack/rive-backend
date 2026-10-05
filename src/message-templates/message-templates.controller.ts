@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import {
   Body,
   Controller,
@@ -18,6 +20,7 @@ import { MessageTemplatesService } from "./message-templates.service";
 @ApiTags("message-templates")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["message-templates", "api/v1/message-templates", "api/v1/admin/message-templates"])
 export class MessageTemplatesController {
   constructor(private readonly messageTemplatesService: MessageTemplatesService) {}

@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import {
   Body,
   Controller,
@@ -20,6 +22,7 @@ import { ListDeletionRequestsQueryDto } from "./dto/list-deletion-requests-query
 import { RejectDeletionRequestDto } from "./dto/reject-deletion-request.dto";
 
 @ApiTags("admin data deletion requests")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["api/admin/data-deletion-requests", "api/v1/admin/data-deletion-requests"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")

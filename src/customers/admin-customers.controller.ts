@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import {
   Body,
   Controller,
@@ -28,6 +30,7 @@ import { GetCustomersQueryDto } from "./dto/get-customers-query.dto";
 import { SendCustomerEmailDto } from "./dto/send-customer-email.dto";
 
 @ApiTags("admin customers")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["api/admin/customers", "api/v1/admin/customers"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")

@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import {
   Body,
   Controller,
@@ -19,6 +21,7 @@ import { AdminWhatsAppService } from "./admin-whatsapp.service";
 import { SendWhatsAppReplyDto, WhatsAppPaginationQueryDto } from "./dto/whatsapp-reply.dto";
 
 @ApiTags("admin whatsapp")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["api/admin/whatsapp", "api/v1/admin/whatsapp"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")

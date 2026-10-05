@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import { Body, Controller, Get, Put, UseGuards } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -16,6 +18,7 @@ import { UpdateMaintenanceModeDto } from "./dto/update-maintenance-mode.dto";
 import { SettingsService } from "./settings.service";
 
 @ApiTags("admin settings")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["api/admin", "api/v1/admin"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @RequirePermission("settings.manage")
