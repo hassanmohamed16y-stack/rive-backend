@@ -1,10 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
+import { PaymentMethod } from "@prisma/client";
 import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
   IsEmail,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -91,6 +93,11 @@ export class CreateOrderDto {
   @IsString()
   @Length(1, 50)
   couponCode?: string;
+
+  @ApiPropertyOptional({ enum: PaymentMethod, example: PaymentMethod.ONLINE })
+  @IsOptional()
+  @IsEnum(PaymentMethod)
+  paymentMethod?: PaymentMethod;
 
   @ApiProperty({ type: [OrderItemDto], maxItems: 50 })
   @IsArray()

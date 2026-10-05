@@ -73,4 +73,23 @@ export class UpdateSiteSettingsDto {
   @IsOptional()
   @IsObject()
   businessHours?: Record<string, any>;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  codEnabled?: boolean;
+
+  @ApiPropertyOptional({ example: 25.0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  codFee?: number;
+
+  @ApiPropertyOptional({ example: 5000.0, nullable: true })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  codMaxAmount?: number | null;
 }

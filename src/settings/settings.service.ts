@@ -21,6 +21,9 @@ export class SettingsService {
           storeName: "RIVÉ",
           isMaintenanceMode: false,
           minimumOrderAmount: 0,
+          codEnabled: true,
+          codFee: 0,
+          codMaxAmount: null,
         },
       });
     }
@@ -51,6 +54,9 @@ export class SettingsService {
         isMaintenanceMode: dto.isMaintenanceMode ?? false,
         minimumOrderAmount: dto.minimumOrderAmount ?? 0,
         businessHours: dto.businessHours,
+        codEnabled: dto.codEnabled ?? true,
+        codFee: dto.codFee ?? 0,
+        codMaxAmount: dto.codMaxAmount ?? null,
       },
     });
 

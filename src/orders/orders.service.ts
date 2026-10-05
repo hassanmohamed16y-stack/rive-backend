@@ -6,10 +6,12 @@ import {
   Logger,
   NotFoundException,
   OnModuleInit,
+  Optional,
 } from "@nestjs/common";
-import { CouponType, OrderStatus, PaymentStatus, Prisma, ProductStatus } from "@prisma/client";
+import { CouponType, OrderStatus, PaymentMethod, PaymentStatus, Prisma, ProductStatus } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { AuditLogService } from "../audit-log/audit-log.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { isOrderOwnedByActor } from "../common/utils/order-ownership";
 import { isPrismaErrorCode } from "../common/utils/prisma-error";
 import {
@@ -64,6 +66,7 @@ export class OrdersService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
+    @Optional() private readonly notificationsService?: NotificationsService,
   ) {}
 
   async onModuleInit() {
@@ -138,12 +141,41 @@ export class OrdersService implements OnModuleInit {
       variantIds.add(item.productVariantId);
     }
 
+    const paymentMethod = dto.paymentMethod ?? PaymentMethod.ONLINE;
+    const isCod = paymentMethod === PaymentMethod.COD;
+
+    let sanitizedPhone: string | undefined;
+
+    if (isCod) {
+      if (!dto.shippingAddress || !dto.shippingAddress.trim()) {
+        throw new BadRequestException("Shipping address is required for COD orders");
+      }
+      if (!dto.shippingPhone || !dto.shippingPhone.trim()) {
+        throw new BadRequestException("Shipping phone is required for COD orders");
+      }
+      const strippedPhone = dto.shippingPhone.replace(/[\s-]/g, "");
+      const egPhoneRegex = /^(\+?20|0)?1[0125]\d{8}$/;
+      if (!egPhoneRegex.test(strippedPhone)) {
+        throw new BadRequestException("Invalid Egyptian phone number for COD order");
+      }
+      sanitizedPhone = strippedPhone;
+    }
+
     const guestAccessToken = userId
       ? undefined
       : this.generateGuestAccessToken();
-    const reservationExpiresAt = new Date(Date.now() + RESERVATION_DURATION_MS);
+    const reservationExpiresAt = isCod
+      ? null
+      : new Date(Date.now() + RESERVATION_DURATION_MS);
 
     const order = await this.prisma.$transaction(async (tx) => {
+      const siteSettings = await tx.siteSettings?.findUnique({
+        where: { id: "default" },
+      });
+
+      if (isCod && siteSettings && siteSettings.codEnabled === false) {
+        throw new BadRequestException("Cash on Delivery (COD) is currently disabled");
+      }
       const variants = await tx.productVariant.findMany({
         where: { id: { in: [...variantIds] } },
         include: { product: true },
@@ -198,9 +230,6 @@ export class OrdersService implements OnModuleInit {
         new Decimal(0),
       );
 
-      const siteSettings = await tx.siteSettings?.findUnique({
-        where: { id: "default" },
-      });
       if (
         siteSettings?.minimumOrderAmount &&
         new Decimal(siteSettings.minimumOrderAmount).greaterThan(0)
@@ -325,10 +354,31 @@ export class OrdersService implements OnModuleInit {
         }
       }
 
-      const totalAmount = Decimal.max(
+      const totalBeforeCodFee = Decimal.max(
         subtotal.minus(discount).plus(shippingFee),
         new Decimal(0),
       );
+
+      let codFee = new Decimal(0);
+      if (isCod) {
+        if (
+          siteSettings?.codMaxAmount &&
+          new Decimal(siteSettings.codMaxAmount).greaterThan(0)
+        ) {
+          const maxAmount = new Decimal(siteSettings.codMaxAmount);
+          if (totalBeforeCodFee.greaterThan(maxAmount)) {
+            throw new BadRequestException(
+              `Order total exceeds maximum allowed amount for COD (${maxAmount.toString()} EGP)`,
+            );
+          }
+        }
+
+        if (siteSettings?.codFee) {
+          codFee = new Decimal(siteSettings.codFee);
+        }
+      }
+
+      const totalAmount = totalBeforeCodFee.plus(codFee);
 
       return tx.order.create({
         data: {
@@ -338,6 +388,8 @@ export class OrdersService implements OnModuleInit {
           guestAccessToken,
           status: OrderStatus.PENDING,
           paymentStatus: PaymentStatus.PENDING,
+          paymentMethod,
+          codFee: codFee.toString(),
           subtotal: subtotal.toString(),
           discount: discount.toString(),
           shippingFee: shippingFee.toString(),
@@ -347,7 +399,7 @@ export class OrdersService implements OnModuleInit {
           shippingAddress: dto.shippingAddress,
           shippingCity: dto.shippingCity,
           shippingCountry: dto.shippingCountry,
-          shippingPhone: dto.shippingPhone,
+          shippingPhone: sanitizedPhone ?? dto.shippingPhone,
           shippingZipCode: dto.shippingZipCode,
           notes: dto.notes,
           reservationExpiresAt,
@@ -369,6 +421,23 @@ export class OrdersService implements OnModuleInit {
       }
       throw error;
     });
+
+    if (order.paymentMethod === PaymentMethod.COD) {
+      try {
+        await this.notificationsService?.notifyOrderCreated({
+          orderNumber: order.orderNumber,
+          totalAmount: order.totalAmount,
+          customerName: order.customerName || undefined,
+          customerEmail: order.customerEmail || undefined,
+          shippingPhone: order.shippingPhone || undefined,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Failed to send order created notification for COD order ${order.orderNumber}`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+    }
 
     return {
       ...order,
@@ -409,6 +478,50 @@ export class OrdersService implements OnModuleInit {
     return this.findOrderDetailsById(tx, orderId);
   }
 
+  async markCodCollected(orderId: string, actorUserId?: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({ where: { id: orderId } });
+      if (!order) {
+        throw new NotFoundException("Order not found");
+      }
+
+      if (order.paymentMethod !== PaymentMethod.COD) {
+        throw new BadRequestException("Order is not a COD order");
+      }
+
+      if (
+        order.status !== OrderStatus.SHIPPED &&
+        order.status !== OrderStatus.DELIVERED
+      ) {
+        throw new BadRequestException(
+          `COD collection can only be performed for orders in SHIPPED or DELIVERED status (current: ${order.status})`,
+        );
+      }
+
+      if (order.paymentStatus === PaymentStatus.PAID) {
+        return this.findOrderDetailsById(tx, orderId);
+      }
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          paymentStatus: PaymentStatus.PAID,
+          ...(actorUserId ? { updatedById: actorUserId } : {}),
+        },
+      });
+
+      await this.auditLogService.record({
+        userId: actorUserId,
+        action: "order.cod_collected",
+        entityType: "Order",
+        entityId: orderId,
+        changes: { paymentStatus: { from: order.paymentStatus, to: PaymentStatus.PAID } },
+      });
+
+      return this.findOrderDetailsById(tx, orderId);
+    });
+  }
+
   async transitionStatus(
     orderId: string,
     nextStatus: OrderStatus,
@@ -431,16 +544,28 @@ export class OrdersService implements OnModuleInit {
         nextStatus === OrderStatus.CANCELLED ||
         nextStatus === OrderStatus.EXPIRED
       ) {
-        // Cancelling and expiring a PENDING order follow the same reservation-release logic.
-        const released = await this.cancelPendingOrderInTransaction(
-          tx,
-          orderId,
-          nextStatus,
-          undefined,
-          actorUserId,
-        );
-        if (!released) {
-          throw new ConflictException("Order is no longer pending");
+        if (before.paymentMethod === PaymentMethod.COD) {
+          const cancelled = await this.cancelCodOrderInTransaction(
+            tx,
+            orderId,
+            nextStatus,
+            actorUserId,
+          );
+          if (!cancelled) {
+            throw new ConflictException("Order cannot be cancelled");
+          }
+        } else {
+          // Cancelling and expiring a PENDING order follow the same reservation-release logic.
+          const released = await this.cancelPendingOrderInTransaction(
+            tx,
+            orderId,
+            nextStatus,
+            undefined,
+            actorUserId,
+          );
+          if (!released) {
+            throw new ConflictException("Order is no longer pending");
+          }
         }
         after = await this.findOrderDetailsById(tx, orderId);
       } else if (nextStatus === OrderStatus.PAID) {
@@ -494,16 +619,33 @@ export class OrdersService implements OnModuleInit {
       if (!order) {
         throw new NotFoundException(`Order ${orderNumber} was not found`);
       }
-      if (order.status !== OrderStatus.PENDING) {
-        throw new ConflictException("Only pending orders can be cancelled");
+      let cancelled = false;
+      if (order.paymentMethod === PaymentMethod.COD) {
+        const cancellableStatuses: OrderStatus[] = [
+          OrderStatus.PENDING,
+          OrderStatus.CONFIRMED,
+          OrderStatus.PROCESSING,
+        ];
+        if (!cancellableStatuses.includes(order.status)) {
+          throw new ConflictException("Order cannot be cancelled in current status");
+        }
+        cancelled = await this.cancelCodOrderInTransaction(
+          tx,
+          order.id,
+          OrderStatus.CANCELLED,
+        );
+      } else {
+        if (order.status !== OrderStatus.PENDING) {
+          throw new ConflictException("Only pending orders can be cancelled");
+        }
+        cancelled = await this.cancelPendingOrderInTransaction(
+          tx,
+          order.id,
+          OrderStatus.CANCELLED,
+        );
       }
-      const cancelled = await this.cancelPendingOrderInTransaction(
-        tx,
-        order.id,
-        OrderStatus.CANCELLED,
-      );
       if (!cancelled) {
-        throw new ConflictException("Only pending orders can be cancelled");
+        throw new ConflictException("Order cannot be cancelled");
       }
       return this.findOrderDetailsById(tx, order.id);
     });
@@ -667,6 +809,55 @@ export class OrdersService implements OnModuleInit {
    * WHY: Using updateMany with status: PENDING ensures idempotent release — if concurrent requests
    * attempt cancellation, only the first call matches updated.count === 1 and restores inventory.
    */
+  async cancelCodOrderInTransaction(
+    tx: Prisma.TransactionClient,
+    orderId: string,
+    status: OrderStatus,
+    updatedById?: string,
+  ) {
+    const updated = await tx.order.updateMany({
+      where: {
+        id: orderId,
+        paymentMethod: PaymentMethod.COD,
+        status: { in: [OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.PROCESSING] },
+      },
+      data: {
+        status,
+        reservationExpiresAt: null,
+        ...(updatedById ? { updatedById } : {}),
+      },
+    });
+    if (updated.count === 0) return false;
+
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      select: { couponId: true },
+    });
+
+    if (order?.couponId) {
+      await tx.coupon.updateMany({
+        where: {
+          id: order.couponId,
+          usageCount: { gt: 0 },
+        },
+        data: {
+          usageCount: { decrement: 1 },
+        },
+      });
+    }
+
+    const items = await tx.orderItem.findMany({ where: { orderId } });
+    await Promise.all(
+      items.map((item) =>
+        tx.productVariant.update({
+          where: { id: item.productVariantId },
+          data: { stock: { increment: item.quantity } },
+        }),
+      ),
+    );
+    return true;
+  }
+
   async cancelPendingOrderInTransaction(
     tx: Prisma.TransactionClient,
     orderId: string,
