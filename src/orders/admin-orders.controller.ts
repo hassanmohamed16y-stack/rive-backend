@@ -109,6 +109,22 @@ export class AdminOrdersController {
     return this.ordersService.updateShipping(id, dto, req.user!.id);
   }
 
+  @Patch(":id/cod-collected")
+  @RequirePermission("orders.update_status")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Mark COD order payment as collected (PAID) (Admin)",
+  })
+  @ApiResponse({ status: 200, description: "COD payment marked as collected." })
+  @ApiResponse({ status: 400, description: "Order is not COD or not in SHIPPED/DELIVERED status." })
+  @ApiResponse({ status: 404, description: "Order not found." })
+  async markCodCollected(
+    @Param("id") id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.ordersService.markCodCollected(id, req.user!.id);
+  }
+
   @Post(":id/refund")
   @RequirePermission("orders.refund")
   @HttpCode(HttpStatus.OK)

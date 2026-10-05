@@ -12,7 +12,7 @@ import {
   ServiceUnavailableException,
   forwardRef,
 } from "@nestjs/common";
-import { OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
+import { OrderStatus, PaymentMethod, PaymentStatus, Prisma } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { createHmac } from "crypto";
 import { AuditLogService } from "../audit-log/audit-log.service";
@@ -97,6 +97,10 @@ export class PaymobService {
       throw new ForbiddenException(
         "You do not have permission to checkout this order",
       );
+    }
+
+    if (order.paymentMethod === PaymentMethod.COD) {
+      throw new BadRequestException("COD orders cannot be processed via Paymob");
     }
 
     if (
@@ -418,6 +422,30 @@ export class PaymobService {
           };
         }
 
+        const order = await tx.order.findUnique({
+          where: { id: orderId },
+          select: { paymentMethod: true },
+        });
+
+        if (order?.paymentMethod === PaymentMethod.COD) {
+          this.logger.warn(
+            `Paymob webhook received for COD order ${orderId}. Ignoring webhook.`,
+          );
+          await tx.auditLog.create({
+            data: {
+              action: "payment.paymob_webhook_ignored_cod",
+              entityType: "Order",
+              entityId: orderId,
+              changes: { transactionId, eventType },
+            },
+          });
+          return {
+            received: true,
+            orderId,
+            message: "Paymob webhook ignored for COD order",
+          };
+        }
+
         const isSuccess =
           (obj.success === true || String(obj.success) === "true") &&
           (obj.pending === false || String(obj.pending) === "false");
@@ -596,6 +624,7 @@ export class PaymobService {
 
     const where: Prisma.OrderWhereInput = {
       createdAt: { gte: sinceDate },
+      paymentMethod: { not: PaymentMethod.COD },
       OR: [
         { paymobTransactionId: { not: null } },
         { paymobIntentionId: { not: null } },
