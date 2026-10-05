@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -14,6 +16,7 @@ import { AuditLogService } from "./audit-log.service";
 import { GetAuditLogsDto } from "./dto/get-audit-logs.dto";
 
 @ApiTags("admin audit logs")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller([
   "api/v1/admin/audit-logs",
   "api/admin/audit-logs",

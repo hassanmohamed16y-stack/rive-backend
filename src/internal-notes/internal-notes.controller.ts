@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import {
   Body,
   Controller,
@@ -30,6 +32,7 @@ import { UpdateInternalNoteDto } from "./dto/update-internal-note.dto";
 import { InternalNotesService } from "./internal-notes.service";
 
 @ApiTags("admin internal notes")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller("api/v1/admin/internal-notes")
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")

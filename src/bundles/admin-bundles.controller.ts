@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import {
   Body,
   Controller,
@@ -25,6 +27,7 @@ import { CreateBundleDto } from "./dto/create-bundle.dto";
 import { UpdateBundleDto } from "./dto/update-bundle.dto";
 
 @ApiTags("admin bundles")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller("api/v1/admin/bundles")
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")

@@ -1,3 +1,5 @@
+import { getAdminThrottleLimit } from "../common/utils/throttling";
+import { Throttle } from "@nestjs/throttler";
 import {
   Body,
   Controller,
@@ -30,6 +32,7 @@ import { ToggleWorkflowDto } from "./dto/toggle-workflow.dto";
 import { UpdateTrustLevelDto } from "./dto/update-trust-level.dto";
 
 @ApiTags("automation")
+@Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["automation", "api/v1/automation", "api/v1/admin/automation"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @RequirePermission("automation.manage")
