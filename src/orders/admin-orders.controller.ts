@@ -26,9 +26,9 @@ import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { RequirePermission } from "../auth/permissions.decorator";
-import { PaginationDto } from "../common/dto/pagination.dto";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { PaymobService } from "../payment/paymob.service";
+import { AdminOrdersQueryDto } from "./dto/admin-orders-query.dto";
 import { RefundOrderDto } from "./dto/refund-order.dto";
 import { UpdateOrderShippingDto } from "./dto/update-order-shipping.dto";
 import { UpdateOrderStatusDto } from "./dto/update-order-status.dto";
@@ -62,11 +62,8 @@ export class AdminOrdersController {
       },
     },
   })
-  async findAll(
-    @Query("status") status: OrderStatus | undefined,
-    @Query() pagination: PaginationDto,
-  ) {
-    return this.ordersService.findAll({ status }, pagination);
+  async findAll(@Query() query: AdminOrdersQueryDto) {
+    return this.ordersService.findAll({ status: query.status }, query);
   }
 
   @Get(":id")

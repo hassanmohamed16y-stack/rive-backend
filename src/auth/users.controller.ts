@@ -21,8 +21,8 @@ import { RequirePermission } from "./permissions.decorator";
 import { UsersService } from "./users.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
+import { UsersQueryDto } from "./dto/users-query.dto";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
-import { PaginationDto } from "../common/dto/pagination.dto";
 
 @ApiTags("users")
 @Controller(["api/v1/users", "users"])
@@ -35,12 +35,12 @@ export class UsersController {
   @Get()
   @ApiOperation({ summary: "List all users with their role and status" })
   @ApiResponse({ status: 200, description: "Paginated list of users returned." })
-  async findAll(
-    @Query() pagination: PaginationDto,
-    @Query("search") search?: string,
-    @Query("roleId") roleId?: string,
-  ) {
-    return this.usersService.findAllUsers(pagination, search, roleId);
+  async findAll(@Query() query: UsersQueryDto) {
+    return this.usersService.findAllUsers(
+      { page: query.page, limit: query.limit },
+      query.search,
+      query.roleId,
+    );
   }
 
   @Post()

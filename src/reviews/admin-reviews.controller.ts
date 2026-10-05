@@ -17,8 +17,8 @@ import { RequirePermission } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
-import { PaginationDto } from "../common/dto/pagination.dto";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
+import { AdminReviewsQueryDto } from "./dto/admin-reviews-query.dto";
 import { ApproveReviewDto } from "./dto/approve-review.dto";
 import { ReviewsService } from "./reviews.service";
 
@@ -34,14 +34,10 @@ export class AdminReviewsController {
   @RequirePermission("products.view")
   @ApiOperation({ summary: "List reviews for moderation (Admin)" })
   @ApiQuery({ name: "isApproved", required: false, type: Boolean })
-  async findAll(
-    @Query("isApproved") isApproved?: string,
-    @Query() pagination?: PaginationDto,
-  ) {
-    const approvedFilter = isApproved !== undefined ? isApproved === "true" : undefined;
-    return this.reviewsService.findAllAdmin(approvedFilter, {
-      page: pagination?.page,
-      limit: pagination?.limit,
+  async findAll(@Query() query: AdminReviewsQueryDto) {
+    return this.reviewsService.findAllAdmin(query.isApproved, {
+      page: query.page,
+      limit: query.limit,
     });
   }
 

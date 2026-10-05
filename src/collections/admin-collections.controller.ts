@@ -20,10 +20,10 @@ import { RequirePermission } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
-import { PaginationDto } from "../common/dto/pagination.dto";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { CollectionsService } from "./collections.service";
 import { CreateCollectionDto } from "./dto/create-collection.dto";
+import { ListCollectionsQueryDto } from "./dto/list-collections-query.dto";
 import { UpdateCollectionDto } from "./dto/update-collection.dto";
 
 @ApiTags("admin collections")
@@ -37,14 +37,10 @@ export class AdminCollectionsController {
   @Get()
   @RequirePermission("products.view")
   @ApiOperation({ summary: "List collections (Admin)" })
-  async findAll(
-    @Query("search") search?: string,
-    @Query("isFeatured") isFeatured?: boolean,
-    @Query() pagination?: PaginationDto,
-  ) {
+  async findAll(@Query() query: ListCollectionsQueryDto) {
     return this.collectionsService.findAll(
-      { search, isFeatured },
-      { page: pagination?.page, limit: pagination?.limit },
+      { search: query.search, isFeatured: query.isFeatured },
+      { page: query.page, limit: query.limit },
     );
   }
 
