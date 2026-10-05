@@ -535,11 +535,69 @@ export class OrdersService implements OnModuleInit {
   }
 
   async findAll(
-    filters: { status?: OrderStatus },
+    filters: {
+      status?: OrderStatus;
+      paymentStatus?: PaymentStatus;
+      search?: string;
+      startDate?: string;
+      endDate?: string;
+    },
     pagination: PaginationInput,
   ) {
     const { page, limit, skip, take } = resolvePagination(pagination);
-    const where = filters.status ? { status: filters.status } : {};
+    const where: Prisma.OrderWhereInput = {};
+
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    if (filters.paymentStatus) {
+      where.paymentStatus = filters.paymentStatus;
+    }
+
+    if (filters.search) {
+      const searchTrimmed = filters.search.trim();
+      if (searchTrimmed) {
+        where.OR = [
+          { orderNumber: { contains: searchTrimmed, mode: "insensitive" } },
+          { customerName: { contains: searchTrimmed, mode: "insensitive" } },
+          { customerEmail: { contains: searchTrimmed, mode: "insensitive" } },
+        ];
+      }
+    }
+
+    if (filters.startDate || filters.endDate) {
+      const createdAtWhere: Prisma.DateTimeFilter = {};
+      if (filters.startDate) {
+        const start = new Date(filters.startDate);
+        if (isNaN(start.getTime())) {
+          throw new BadRequestException("Invalid startDate parameter");
+        }
+        createdAtWhere.gte = start;
+      }
+
+      if (filters.endDate) {
+        const end = new Date(filters.endDate);
+        if (isNaN(end.getTime())) {
+          throw new BadRequestException("Invalid endDate parameter");
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(filters.endDate.trim())) {
+          end.setUTCHours(23, 59, 59, 999);
+        }
+        createdAtWhere.lte = end;
+      }
+
+      if (
+        createdAtWhere.gte &&
+        createdAtWhere.lte &&
+        createdAtWhere.gte > createdAtWhere.lte
+      ) {
+        throw new BadRequestException("startDate must not be later than endDate");
+      }
+
+      where.createdAt = createdAtWhere;
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.order.findMany({
         where,

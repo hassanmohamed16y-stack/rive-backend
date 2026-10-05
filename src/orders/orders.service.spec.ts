@@ -3,7 +3,7 @@ import {
   ConflictException,
   NotFoundException,
 } from "@nestjs/common";
-import { CouponType, OrderStatus, ProductStatus } from "@prisma/client";
+import { CouponType, OrderStatus, PaymentStatus, ProductStatus } from "@prisma/client";
 import { OrdersService } from "./orders.service";
 
 const dto = {
@@ -340,6 +340,178 @@ describe("OrdersService inventory reservations", () => {
     await expect(
       service.cancelByOrderNumber("RIV-1000-ABC"),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+});
+
+describe("OrdersService.findAll filtering", () => {
+  it("returns orders without filters preserving default behavior", async () => {
+    const context = transactionPrisma();
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    await service.findAll({}, { page: 1, limit: 10 });
+
+    expect(context.prisma.order.findMany).toHaveBeenCalledWith({
+      where: {},
+      include: expect.any(Object),
+      orderBy: { createdAt: "desc" },
+      skip: 0,
+      take: 10,
+    });
+  });
+
+  it("filters orders by status alone", async () => {
+    const context = transactionPrisma();
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    await service.findAll({ status: OrderStatus.CONFIRMED }, { page: 1, limit: 10 });
+
+    expect(context.prisma.order.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { status: OrderStatus.CONFIRMED },
+      }),
+    );
+  });
+
+  it("filters orders by paymentStatus alone", async () => {
+    const context = transactionPrisma();
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    await service.findAll({ paymentStatus: PaymentStatus.PAID }, { page: 1, limit: 10 });
+
+    expect(context.prisma.order.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { paymentStatus: PaymentStatus.PAID },
+      }),
+    );
+  });
+
+  it("filters orders by search matching orderNumber, customerName, or customerEmail (case-insensitive)", async () => {
+    const context = transactionPrisma();
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    // Test lowercase query
+    await service.findAll({ search: "aisha" }, { page: 1, limit: 10 });
+    expect(context.prisma.order.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          OR: [
+            { orderNumber: { contains: "aisha", mode: "insensitive" } },
+            { customerName: { contains: "aisha", mode: "insensitive" } },
+            { customerEmail: { contains: "aisha", mode: "insensitive" } },
+          ],
+        },
+      }),
+    );
+
+    // Test uppercase query
+    await service.findAll({ search: "RIV-1000" }, { page: 1, limit: 10 });
+    expect(context.prisma.order.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          OR: [
+            { orderNumber: { contains: "RIV-1000", mode: "insensitive" } },
+            { customerName: { contains: "RIV-1000", mode: "insensitive" } },
+            { customerEmail: { contains: "RIV-1000", mode: "insensitive" } },
+          ],
+        },
+      }),
+    );
+  });
+
+  it("filters orders by startDate and endDate range", async () => {
+    const context = transactionPrisma();
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    await service.findAll(
+      { startDate: "2026-01-01", endDate: "2026-01-31" },
+      { page: 1, limit: 10 },
+    );
+
+    const expectedStart = new Date("2026-01-01");
+    const expectedEnd = new Date("2026-01-31");
+    expectedEnd.setUTCHours(23, 59, 59, 999);
+
+    expect(context.prisma.order.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          createdAt: {
+            gte: expectedStart,
+            lte: expectedEnd,
+          },
+        },
+      }),
+    );
+  });
+
+  it("throws BadRequestException if startDate is later than endDate", async () => {
+    const context = transactionPrisma();
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    await expect(
+      service.findAll(
+        { startDate: "2026-05-10", endDate: "2026-05-01" },
+        { page: 1, limit: 10 },
+      ),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it("combines status, paymentStatus, search, and date filters", async () => {
+    const context = transactionPrisma();
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    await service.findAll(
+      {
+        status: OrderStatus.CONFIRMED,
+        paymentStatus: PaymentStatus.PAID,
+        search: "Aisha",
+        startDate: "2026-01-01",
+        endDate: "2026-01-31",
+      },
+      { page: 1, limit: 10 },
+    );
+
+    const expectedStart = new Date("2026-01-01");
+    const expectedEnd = new Date("2026-01-31");
+    expectedEnd.setUTCHours(23, 59, 59, 999);
+
+    expect(context.prisma.order.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          status: OrderStatus.CONFIRMED,
+          paymentStatus: PaymentStatus.PAID,
+          OR: [
+            { orderNumber: { contains: "Aisha", mode: "insensitive" } },
+            { customerName: { contains: "Aisha", mode: "insensitive" } },
+            { customerEmail: { contains: "Aisha", mode: "insensitive" } },
+          ],
+          createdAt: {
+            gte: expectedStart,
+            lte: expectedEnd,
+          },
+        },
+      }),
+    );
   });
 });
 

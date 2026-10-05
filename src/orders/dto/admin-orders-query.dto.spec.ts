@@ -1,5 +1,5 @@
 import { BadRequestException, ValidationPipe } from "@nestjs/common";
-import { OrderStatus } from "@prisma/client";
+import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { AdminOrdersQueryDto } from "./admin-orders-query.dto";
 import { AdminOrdersController } from "../admin-orders.controller";
 
@@ -42,10 +42,78 @@ describe("AdminOrdersQueryDto & AdminOrdersController", () => {
         ),
       ).rejects.toThrow(BadRequestException);
     });
+
+    it("accepts valid paymentStatus enum values", async () => {
+      const result = await pipe.transform(
+        { paymentStatus: "PAID" },
+        { type: "query", metatype: AdminOrdersQueryDto },
+      );
+      expect(result.paymentStatus).toBe(PaymentStatus.PAID);
+    });
+
+    it("rejects an invalid paymentStatus enum value", async () => {
+      await expect(
+        pipe.transform(
+          { paymentStatus: "INVALID_PAYMENT_STATUS" },
+          { type: "query", metatype: AdminOrdersQueryDto },
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("trims search term and treats whitespace string as undefined", async () => {
+      const resultWithText = await pipe.transform(
+        { search: "  RIV-1234  " },
+        { type: "query", metatype: AdminOrdersQueryDto },
+      );
+      expect(resultWithText.search).toBe("RIV-1234");
+
+      const resultEmpty = await pipe.transform(
+        { search: "   " },
+        { type: "query", metatype: AdminOrdersQueryDto },
+      );
+      expect(resultEmpty.search).toBeUndefined();
+    });
+
+    it("rejects search string longer than 100 characters", async () => {
+      const longSearch = "a".repeat(101);
+      await expect(
+        pipe.transform(
+          { search: longSearch },
+          { type: "query", metatype: AdminOrdersQueryDto },
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("accepts valid ISO date strings for startDate and endDate", async () => {
+      const result = await pipe.transform(
+        { startDate: "2026-01-01", endDate: "2026-01-31" },
+        { type: "query", metatype: AdminOrdersQueryDto },
+      );
+      expect(result.startDate).toBe("2026-01-01");
+      expect(result.endDate).toBe("2026-01-31");
+    });
+
+    it("rejects invalid date string formats", async () => {
+      await expect(
+        pipe.transform(
+          { startDate: "not-a-valid-date" },
+          { type: "query", metatype: AdminOrdersQueryDto },
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("rejects when startDate is later than endDate with 400 Bad Request", async () => {
+      await expect(
+        pipe.transform(
+          { startDate: "2026-05-10", endDate: "2026-05-01" },
+          { type: "query", metatype: AdminOrdersQueryDto },
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 
   describe("AdminOrdersController.findAll delegation", () => {
-    it("verifies the filter reaches ordersService.findAll", async () => {
+    it("verifies all filter fields reach ordersService.findAll", async () => {
       const ordersService = {
         findAll: jest.fn().mockResolvedValue({ data: [], meta: {} }),
       };
@@ -56,16 +124,17 @@ describe("AdminOrdersQueryDto & AdminOrdersController", () => {
 
       const queryDto: AdminOrdersQueryDto = {
         status: OrderStatus.SHIPPED,
+        paymentStatus: PaymentStatus.PAID,
+        search: "john",
+        startDate: "2026-01-01",
+        endDate: "2026-01-31",
         page: 1,
         limit: 10,
       };
 
       await controller.findAll(queryDto);
 
-      expect(ordersService.findAll).toHaveBeenCalledWith(
-        { status: OrderStatus.SHIPPED },
-        queryDto,
-      );
+      expect(ordersService.findAll).toHaveBeenCalledWith(queryDto, queryDto);
     });
   });
 });

@@ -20,7 +20,7 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
-import { OrderStatus } from "@prisma/client";
+import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
@@ -49,9 +49,14 @@ export class AdminOrdersController {
   @Get()
   @RequirePermission("orders.view")
   @ApiOperation({
-    summary: "List all orders with status filtering and pagination (Admin)",
+    summary:
+      "List all orders with status, payment status, search, date filtering and pagination (Admin)",
   })
   @ApiQuery({ name: "status", required: false, enum: OrderStatus })
+  @ApiQuery({ name: "paymentStatus", required: false, enum: PaymentStatus })
+  @ApiQuery({ name: "search", required: false, type: String })
+  @ApiQuery({ name: "startDate", required: false, type: String })
+  @ApiQuery({ name: "endDate", required: false, type: String })
   @ApiResponse({
     status: 200,
     description: "Paginated orders returned.",
@@ -63,7 +68,7 @@ export class AdminOrdersController {
     },
   })
   async findAll(@Query() query: AdminOrdersQueryDto) {
-    return this.ordersService.findAll({ status: query.status }, query);
+    return this.ordersService.findAll(query, query);
   }
 
   @Get(":id")
