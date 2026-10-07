@@ -10,6 +10,7 @@ const dto = {
   customerName: "Aisha Rahman",
   customerEmail: "aisha@example.com",
   shippingCity: "Cairo",
+  shippingPhone: "01000000000",
   items: [{ productVariantId: "variant-1", quantity: 1 }],
 };
 

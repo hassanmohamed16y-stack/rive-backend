@@ -8,12 +8,18 @@ import {
   OnModuleInit,
   Optional,
 } from "@nestjs/common";
+import { ThrottlerException } from "@nestjs/throttler";
 import { CouponType, OrderStatus, PaymentMethod, PaymentStatus, Prisma, ProductStatus } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { AuditLogService } from "../audit-log/audit-log.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { isOrderOwnedByActor } from "../common/utils/order-ownership";
 import { isPrismaErrorCode } from "../common/utils/prisma-error";
+import { timingSafeStringEqual } from "../common/utils/timing-safe-compare";
+import {
+  maskPhoneLast3,
+  normalizeEgyptianPhone,
+} from "../common/utils/phone-normalization";
 import {
   buildPaginationMeta,
   PaginationInput,
@@ -21,6 +27,7 @@ import {
 } from "../common/utils/pagination";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
+import { TrackOrderDto } from "./dto/track-order.dto";
 import { UpdateOrderShippingDto } from "./dto/update-order-shipping.dto";
 
 const RESERVATION_DURATION_MS = 30 * 60 * 1000;
@@ -62,12 +69,30 @@ const orderInclude = {
 @Injectable()
 export class OrdersService implements OnModuleInit {
   private readonly logger = new Logger(OrdersService.name);
+  private readonly orderTrackRateMap = new Map<string, number[]>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
     @Optional() private readonly notificationsService?: NotificationsService,
   ) {}
+
+  private checkOrderTrackRateLimit(orderNumber: string): void {
+    const now = Date.now();
+    const windowMs = 60_000;
+    const maxAttempts = 3;
+
+    const timestamps = (this.orderTrackRateMap.get(orderNumber) || []).filter(
+      (ts) => now - ts < windowMs,
+    );
+
+    if (timestamps.length >= maxAttempts) {
+      throw new ThrottlerException("Too Many Requests");
+    }
+
+    timestamps.push(now);
+    this.orderTrackRateMap.set(orderNumber, timestamps);
+  }
 
   async onModuleInit() {
     // Expire any reservations that lapsed while the process was offline. Ongoing expiry is
@@ -144,21 +169,18 @@ export class OrdersService implements OnModuleInit {
     const paymentMethod = dto.paymentMethod ?? PaymentMethod.ONLINE;
     const isCod = paymentMethod === PaymentMethod.COD;
 
-    let sanitizedPhone: string | undefined;
+    if (!dto.shippingPhone || !dto.shippingPhone.trim()) {
+      throw new BadRequestException("Shipping phone is required");
+    }
+    const sanitizedPhone = normalizeEgyptianPhone(dto.shippingPhone);
+    if (!sanitizedPhone) {
+      throw new BadRequestException("Invalid Egyptian phone number");
+    }
 
     if (isCod) {
       if (!dto.shippingAddress || !dto.shippingAddress.trim()) {
         throw new BadRequestException("Shipping address is required for COD orders");
       }
-      if (!dto.shippingPhone || !dto.shippingPhone.trim()) {
-        throw new BadRequestException("Shipping phone is required for COD orders");
-      }
-      const strippedPhone = dto.shippingPhone.replace(/[\s-]/g, "");
-      const egPhoneRegex = /^(\+?20|0)?1[0125]\d{8}$/;
-      if (!egPhoneRegex.test(strippedPhone)) {
-        throw new BadRequestException("Invalid Egyptian phone number for COD order");
-      }
-      sanitizedPhone = strippedPhone;
     }
 
     const guestAccessToken = userId
@@ -399,7 +421,7 @@ export class OrdersService implements OnModuleInit {
           shippingAddress: dto.shippingAddress,
           shippingCity: dto.shippingCity,
           shippingCountry: dto.shippingCountry,
-          shippingPhone: sanitizedPhone ?? dto.shippingPhone,
+          shippingPhone: sanitizedPhone,
           shippingZipCode: dto.shippingZipCode,
           notes: dto.notes,
           reservationExpiresAt,
@@ -920,6 +942,75 @@ export class OrdersService implements OnModuleInit {
    * cannot distinguish "order does not exist" from "order exists but you
    * don't own it" — preventing order-existence enumeration.
    */
+  async trackOrder(dto: TrackOrderDto) {
+    this.checkOrderTrackRateLimit(dto.orderNumber);
+
+    const normalizedInputPhone = normalizeEgyptianPhone(dto.phone);
+
+    const order = await this.prisma.order.findUnique({
+      where: { orderNumber: dto.orderNumber },
+      include: orderInclude,
+    });
+
+    const normalizedOrderPhone = order?.shippingPhone
+      ? normalizeEgyptianPhone(order.shippingPhone)
+      : null;
+
+    // Dummy compare target ensures timingSafeStringEqual is executed unconditionally
+    // even if order is missing or has no shippingPhone, preventing timing side-channel leakage.
+    const compareTargetPhone = normalizedOrderPhone ?? "+201000000000";
+    const phoneMatches =
+      normalizedInputPhone !== null &&
+      timingSafeStringEqual(
+        normalizedInputPhone,
+        compareTargetPhone,
+      );
+
+    const isMatch = Boolean(order && normalizedOrderPhone && phoneMatches);
+
+    if (!order || !isMatch) {
+      await this.auditLogService
+        .record({
+          action: "order.track_failed",
+          entityType: "Order",
+          entityId: dto.orderNumber,
+          changes: { phoneLast3: maskPhoneLast3(dto.phone) },
+        })
+        .catch((err) => {
+          this.logger.error("Failed to log order track audit", err);
+        });
+
+      this.logger.warn(
+        `Failed order tracking attempt for orderNumber: ${dto.orderNumber}, phone ending with: ${maskPhoneLast3(dto.phone)}`,
+      );
+
+      throw new NotFoundException("Order not found");
+    }
+
+    return {
+      orderNumber: order.orderNumber,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
+      createdAt: order.createdAt,
+      totalAmount: order.totalAmount,
+      shippingFee: order.shippingFee,
+      codFee: order.codFee,
+      carrier: order.carrier,
+      trackingNumber: order.trackingNumber,
+      trackingUrl: order.trackingUrl,
+      shippingCity: order.shippingCity,
+      items: order.items.map((item) => ({
+        productName: item.productVariant?.product?.name ?? "",
+        size: item.productVariant?.size ?? null,
+        quantity: item.quantity,
+        price: item.unitPrice,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+      })),
+    };
+  }
+
   async findOne(
     orderNumber: string,
     actor?: { userId?: string; role?: string; guestAccessToken?: string },

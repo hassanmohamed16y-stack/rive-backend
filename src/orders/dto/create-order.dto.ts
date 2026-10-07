@@ -64,11 +64,11 @@ export class CreateOrderDto {
   @Length(1, 100)
   shippingCountry?: string;
 
-  @ApiPropertyOptional({ example: "+201000000000", maxLength: 30 })
-  @IsOptional()
+  @ApiProperty({ example: "+201000000000", maxLength: 30 })
   @IsString()
+  @IsNotEmpty()
   @Length(1, 30)
-  shippingPhone?: string;
+  shippingPhone!: string;
 
   @ApiPropertyOptional({ example: "11511", maxLength: 20 })
   @IsOptional()

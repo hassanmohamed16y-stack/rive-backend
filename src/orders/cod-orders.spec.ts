@@ -104,7 +104,7 @@ describe("OrdersService COD Support", () => {
         discount: "0",
         shippingFee: "20",
         totalAmount: "135", // 100 + 20 + 15
-        shippingPhone: "01012345678",
+        shippingPhone: "+201012345678",
         reservationExpiresAt: null,
       };
 
@@ -119,7 +119,7 @@ describe("OrdersService COD Support", () => {
             codFee: "15",
             totalAmount: "135",
             reservationExpiresAt: null,
-            shippingPhone: "01012345678",
+            shippingPhone: "+201012345678",
           }),
         }),
       );
