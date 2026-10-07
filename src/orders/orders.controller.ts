@@ -18,6 +18,7 @@ import {
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { CreateOrderDto } from "./dto/create-order.dto";
+import { TrackOrderDto } from "./dto/track-order.dto";
 import { OrdersService } from "./orders.service";
 
 @ApiTags("orders")
@@ -45,6 +46,23 @@ export class OrdersController {
       role: req.user?.role,
       guestAccessToken: this.getGuestAccessToken(req),
     });
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post("track")
+  @ApiOperation({
+    summary: "Track guest order status by order number and shipping phone",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Order tracking details retrieved successfully",
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Order tracking info not found or invalid phone number",
+  })
+  async track(@Body() dto: TrackOrderDto) {
+    return this.ordersService.trackOrder(dto);
   }
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })

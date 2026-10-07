@@ -85,6 +85,7 @@ describeWithDatabase("OrdersService PostgreSQL concurrency", () => {
       customerName: "Test Customer",
       customerEmail: "concurrency@example.com",
       shippingCity: zone.cityLabel,
+      shippingPhone: "01000000000",
       items: [{ productVariantId: variantId, quantity: 1 }],
     };
 
