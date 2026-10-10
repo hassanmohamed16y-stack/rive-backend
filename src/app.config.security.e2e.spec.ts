@@ -1,4 +1,4 @@
-import { INestApplication } from "@nestjs/common";
+import { INestApplication, Logger } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { configureApp } from "./app.config";
@@ -34,12 +34,19 @@ describe("configureApp security gates (Swagger docs & CORS)", () => {
       await request(app.getHttpServer()).get("/api/docs").expect(404);
     });
 
-    it("rejects requests from http://localhost:3000 via CORS", async () => {
+    it("rejects requests from http://localhost:3000 via CORS and logs warning", async () => {
+      const warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+
       const response = await request(app.getHttpServer())
         .get("/api/v1/health")
         .set("Origin", "http://localhost:3000");
 
       expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/^CORS rejected origin: http:\/\/localhost:3000 \| allowed:/),
+      );
+
+      warnSpy.mockRestore();
     });
   });
 
