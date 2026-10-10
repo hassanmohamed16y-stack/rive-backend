@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   INestApplication,
+  Logger,
   ValidationPipe,
 } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
@@ -61,12 +62,17 @@ export function configureApp(app: INestApplication) {
     ? Array.from(new Set([...configuredOrigins, ...developmentOrigins]))
     : Array.from(new Set(configuredOrigins));
 
+  const logger = new Logger("CORS");
+
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
+      logger.warn(
+        `CORS rejected origin: ${origin} | allowed: ${allowedOrigins.join(", ")}`,
+      );
       callback(new ForbiddenException("CORS policy violation"), false);
     },
     credentials: true,
