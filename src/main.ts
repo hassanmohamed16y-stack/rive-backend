@@ -39,11 +39,22 @@ export async function createApp(): Promise<INestApplication> {
   return app;
 }
 
+let cachedServer: any;
+
+export default async function handler(req: any, res: any) {
+  if (!cachedServer) {
+    const app = await createApp();
+    await app.init();
+    cachedServer = app.getHttpAdapter().getInstance();
+  }
+  return cachedServer(req, res);
+}
+
 async function bootstrap() {
   const app = await createApp();
   await app.listen(process.env.PORT ?? 3000);
 }
 
-if (require.main === module) {
+if (!process.env.VERCEL && require.main === module) {
   void bootstrap();
 }
