@@ -67,6 +67,13 @@ export class UpdateSiteSettingsDto {
   @Min(0)
   minimumOrderAmount?: number;
 
+  @ApiPropertyOptional({ example: 500.0, nullable: true })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  freeShippingThreshold?: number | null;
+
   @ApiPropertyOptional({
     example: { sunday: { open: "09:00", close: "22:00" } },
   })
