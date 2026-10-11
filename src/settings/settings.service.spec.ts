@@ -65,6 +65,7 @@ describe("SettingsService", () => {
       phone: "+201000000000",
       isMaintenanceMode: true,
       minimumOrderAmount: 150,
+      freeShippingThreshold: 500,
     };
     prisma.siteSettings.upsert.mockResolvedValue(updatedMock);
 
@@ -73,10 +74,42 @@ describe("SettingsService", () => {
       phone: "+201000000000",
       isMaintenanceMode: true,
       minimumOrderAmount: 150,
+      freeShippingThreshold: 500,
     });
 
-    expect(prisma.siteSettings.upsert).toHaveBeenCalled();
+    expect(prisma.siteSettings.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "default" },
+        update: expect.objectContaining({
+          freeShippingThreshold: 500,
+        }),
+      }),
+    );
     expect(result.storeName).toBe("RIVÉ Luxury");
+    expect(result.freeShippingThreshold).toBe(500);
+  });
+
+  it("allows setting freeShippingThreshold to null", async () => {
+    const updatedMock = {
+      id: "default",
+      storeName: "RIVÉ",
+      freeShippingThreshold: null,
+    };
+    prisma.siteSettings.upsert.mockResolvedValue(updatedMock);
+
+    const result = await service.updateSiteSettings({
+      freeShippingThreshold: null,
+    });
+
+    expect(prisma.siteSettings.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "default" },
+        update: expect.objectContaining({
+          freeShippingThreshold: null,
+        }),
+      }),
+    );
+    expect(result.freeShippingThreshold).toBeNull();
   });
 
   it("updates maintenance mode in database", async () => {
