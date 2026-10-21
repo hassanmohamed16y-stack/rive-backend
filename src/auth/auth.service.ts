@@ -24,6 +24,7 @@ import {
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { CreateAdminDto } from "./dto/create-admin.dto";
 import { LoginDto } from "./dto/login.dto";
+import { normalizeUsername } from "./username.util";
 import { RegisterDto } from "./dto/register.dto";
 import { TwoFactorDisableDto } from "./dto/two-factor-disable.dto";
 import { TwoFactorEnableDto } from "./dto/two-factor-enable.dto";
@@ -228,7 +229,10 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const identifier = (dto.identifier ?? dto.email ?? "").trim().toLowerCase();
+    const rawIdentifier = (dto.identifier ?? dto.email ?? "").trim();
+    const identifier = rawIdentifier.includes("@")
+      ? rawIdentifier.toLowerCase()
+      : normalizeUsername(rawIdentifier);
     if (!identifier) {
       throw new BadRequestException("Email or username is required");
     }

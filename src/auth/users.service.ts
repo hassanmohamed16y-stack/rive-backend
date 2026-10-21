@@ -13,7 +13,9 @@ import {
   buildPaginationMeta,
   resolvePagination,
 } from "../common/utils/pagination";
+import { randomUUID } from "crypto";
 import { CreateUserDto } from "./dto/create-user.dto";
+import { normalizeUsername } from "./username.util";
 import { UpdateUserDto } from "./dto/update-user.dto";
 
 @Injectable()
@@ -78,14 +80,16 @@ export class UsersService {
   }
 
   async createUser(dto: CreateUserDto, performingUserId: string) {
-    const username = dto.username?.trim().toLowerCase() || undefined;
+    const username = normalizeUsername(dto.username) || undefined;
     if (!dto.email && !username) {
       throw new BadRequestException("Either an email or a username is required");
     }
 
     // Staff created with a username only get an internal placeholder address
     // (".invalid" is reserved and can never receive mail or collide with a real one).
-    const email = (dto.email?.trim() || `${username}@staff.rive.invalid`).toLowerCase();
+    const email = (
+      dto.email?.trim() || `${randomUUID()}@staff.rive.invalid`
+    ).toLowerCase();
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
