@@ -56,7 +56,7 @@ export class BannersController {
   @Get("admin")
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
-  @RequirePermission("settings.manage")
+  @RequirePermission("content.manage")
   @ApiBearerAuth()
   @ApiOperation({
     summary: "Get all banners for dashboard management (Admin)",
@@ -74,7 +74,7 @@ export class BannersController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
-  @RequirePermission("settings.manage")
+  @RequirePermission("content.manage")
   @ApiBearerAuth()
   @UseInterceptors(
     FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024 } }),
@@ -96,7 +96,7 @@ export class BannersController {
   @Patch(":id")
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
-  @RequirePermission("settings.manage")
+  @RequirePermission("content.manage")
   @ApiBearerAuth()
   @UseInterceptors(
     FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024 } }),
@@ -120,7 +120,7 @@ export class BannersController {
   @Delete(":id")
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
-  @RequirePermission("settings.manage")
+  @RequirePermission("content.manage")
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Hard-delete a banner (Admin)" })

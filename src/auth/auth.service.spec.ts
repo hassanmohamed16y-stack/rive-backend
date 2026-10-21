@@ -148,6 +148,46 @@ describe("AuthService", () => {
     });
   });
 
+  it("logs in with a username (case-insensitive) instead of an email", async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue({ ...baseUser, username: "cashier1" });
+    prisma.refreshToken.create.mockResolvedValue({ id: "refresh-1" });
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+    const result = (await service.login({
+      identifier: "Cashier1",
+      password: "StrongPassword123!",
+    })) as { accessToken: string };
+
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { username: "cashier1" },
+    });
+    expect(result).toHaveProperty("accessToken");
+  });
+
+  it("still looks the user up by email when the identifier contains @", async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue(baseUser);
+    prisma.refreshToken.create.mockResolvedValue({ id: "refresh-1" });
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+    await service.login({
+      identifier: "Aisha@Example.com",
+      password: "StrongPassword123!",
+    });
+
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { email: "aisha@example.com" },
+    });
+  });
+
+  it("rejects login when neither email nor username is given", async () => {
+    const { service } = createService();
+    await expect(service.login({ password: "x" })).rejects.toThrow(
+      "Email or username is required",
+    );
+  });
+
   it("rejects login for blocked accounts", async () => {
     const { service, prisma } = createService();
     prisma.user.findUnique.mockResolvedValue({

@@ -31,7 +31,7 @@ import { ExpensesService } from "./expenses.service";
 @Controller(["api/admin/expenses", "api/v1/admin/expenses"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")
-@RequirePermission("settings.manage")
+@RequirePermission("expenses.manage")
 @ApiBearerAuth()
 export class ExpensesController {
   constructor(private readonly expensesService: ExpensesService) {}
