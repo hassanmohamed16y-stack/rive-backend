@@ -165,6 +165,19 @@ describe("AuthService", () => {
     expect(result).toHaveProperty("accessToken");
   });
 
+  it("matches a username written with extra spaces and different case", async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue({ ...baseUser, username: "hassan mohamed" });
+    prisma.refreshToken.create.mockResolvedValue({ id: "refresh-1" });
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+    await service.login({ identifier: "  Hassan   MOHAMED ", password: "x" });
+
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: { username: "hassan mohamed" },
+    });
+  });
+
   it("still looks the user up by email when the identifier contains @", async () => {
     const { service, prisma } = createService();
     prisma.user.findUnique.mockResolvedValue(baseUser);

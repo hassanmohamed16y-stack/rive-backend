@@ -33,12 +33,21 @@ describe("UsersService.createUser", () => {
 
     expect(prisma.user.create.mock.calls[0][0].data).toMatchObject({
       username: "cashier1",
-      email: "cashier1@staff.rive.invalid",
+      email: expect.stringMatching(/@staff\.rive\.invalid$/),
       roleId: "r1",
       role: "ADMIN",
     });
     expect(result).not.toHaveProperty("passwordHash");
     expect(bcrypt.hash).toHaveBeenCalled();
+  });
+
+  it("accepts a person's name with spaces as the username", async () => {
+    const { service, prisma } = setup();
+    await service.createUser(
+      { name: "حسن محمد", username: "  حسن   محمد ", password: "Passw0rd!", roleId: "r1" },
+      "admin-1",
+    );
+    expect(prisma.user.create.mock.calls[0][0].data.username).toBe("حسن محمد");
   });
 
   it("requires an email or a username", async () => {

@@ -27,15 +27,15 @@ export class CreateUserDto {
   @ApiPropertyOptional({
     example: "cashier1",
     description:
-      "Sign-in name (3-32 chars: letters, numbers, dot, dash, underscore). Optional when an email is provided.",
+      "Sign-in name, can be the person's name (2-40 chars: letters, numbers, spaces, dot, dash, underscore). Optional when an email is provided.",
   })
   @IsOptional()
   @IsString()
-  @MinLength(3)
-  @MaxLength(32)
-  @Matches(/^[\p{L}\p{N}._-]+$/u, {
+  @MinLength(2)
+  @MaxLength(40)
+  @Matches(/^[\p{L}\p{N}][\p{L}\p{N}._ -]*$/u, {
     message:
-      "Username may only contain letters, numbers, dot, dash and underscore.",
+      "Username may only contain letters, numbers, spaces, dot, dash and underscore.",
   })
   username?: string;
 
