@@ -22,6 +22,11 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
     { key: "users.manage", label: "إدارة المستخدمين" },
     { key: "lists.manage", label: "إدارة القوائم" },
     { key: "automation.manage", label: "إدارة الأتمتة" },
+    { key: "stats.view", label: "عرض الإحصائيات" },
+    { key: "coupons.manage", label: "إدارة الكوبونات" },
+    { key: "content.manage", label: "إدارة المحتوى (البانرات والصفحات)" },
+    { key: "expenses.manage", label: "إدارة المصروفات" },
+    { key: "suppliers.manage", label: "إدارة الموردين" },
   ];
 
   const permissionMap = new Map<string, string>();
@@ -49,12 +54,18 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
         "orders.update_status",
         "customers.view",
         "products.view",
+        "stats.view",
       ],
     },
     {
       name: "support",
       label: "دعم فني",
-      permissionKeys: ["orders.view", "customers.view", "customers.update"],
+      permissionKeys: [
+        "orders.view",
+        "customers.view",
+        "customers.update",
+        "stats.view",
+      ],
     },
   ];
 

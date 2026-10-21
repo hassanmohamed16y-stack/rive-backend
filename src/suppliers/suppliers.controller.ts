@@ -31,7 +31,7 @@ import { SuppliersService } from "./suppliers.service";
 @Controller(["api/admin/suppliers", "api/v1/admin/suppliers"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")
-@RequirePermission("settings.manage")
+@RequirePermission("suppliers.manage")
 @ApiBearerAuth()
 export class SuppliersController {
   constructor(private readonly suppliersService: SuppliersService) {}

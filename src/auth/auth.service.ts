@@ -228,9 +228,15 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const normalizedEmail = dto.email.toLowerCase();
+    const identifier = (dto.identifier ?? dto.email ?? "").trim().toLowerCase();
+    if (!identifier) {
+      throw new BadRequestException("Email or username is required");
+    }
+    // Usernames can never contain "@", so the two lookups cannot be confused.
     const user = await this.prisma.user.findUnique({
-      where: { email: normalizedEmail },
+      where: identifier.includes("@")
+        ? { email: identifier }
+        : { username: identifier },
     });
 
     if (!user) {

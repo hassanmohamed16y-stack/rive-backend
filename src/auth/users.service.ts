@@ -46,6 +46,7 @@ export class UsersService {
             OR: [
               { fullName: { contains: search, mode: "insensitive" } },
               { email: { contains: search, mode: "insensitive" } },
+              { username: { contains: search, mode: "insensitive" } },
             ],
           }
         : {}),
@@ -77,12 +78,30 @@ export class UsersService {
   }
 
   async createUser(dto: CreateUserDto, performingUserId: string) {
+    const username = dto.username?.trim().toLowerCase() || undefined;
+    if (!dto.email && !username) {
+      throw new BadRequestException("Either an email or a username is required");
+    }
+
+    // Staff created with a username only get an internal placeholder address
+    // (".invalid" is reserved and can never receive mail or collide with a real one).
+    const email = (dto.email?.trim() || `${username}@staff.rive.invalid`).toLowerCase();
+
     const existingUser = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase() },
+      where: { email },
     });
 
     if (existingUser) {
       throw new ConflictException("User with this email already exists");
+    }
+
+    if (username) {
+      const existingUsername = await this.prisma.user.findUnique({
+        where: { username },
+      });
+      if (existingUsername) {
+        throw new ConflictException("User with this username already exists");
+      }
     }
 
     if (dto.roleId) {
@@ -99,7 +118,8 @@ export class UsersService {
     const user = await this.prisma.user.create({
       data: {
         fullName: dto.name.trim(),
-        email: dto.email.toLowerCase(),
+        email,
+        username,
         passwordHash: hashedPassword,
         role: dto.roleId ? "ADMIN" : "CUSTOMER",
         roleId: dto.roleId,
@@ -121,7 +141,7 @@ export class UsersService {
       action: "user.created",
       entityType: "User",
       entityId: user.id,
-      changes: { email: user.email, roleId: user.roleId },
+      changes: { email: user.email, username: user.username, roleId: user.roleId },
     });
 
     return this.sanitizeUser(user);
