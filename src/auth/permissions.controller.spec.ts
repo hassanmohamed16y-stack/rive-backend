@@ -12,12 +12,14 @@ describe("PermissionsService Tests", () => {
         findUnique: jest.fn(),
         findMany: jest.fn(),
         create: jest.fn(),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       role: {
         findUnique: jest.fn(),
       },
       rolePermission: {
         create: jest.fn().mockResolvedValue({}),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
     };
     auditLogMock = {
@@ -87,5 +89,42 @@ describe("PermissionsService Tests", () => {
     expect(result.products.length).toBe(1);
     expect(result.orders[0].key).toBe("orders.refund");
     expect(result.orders[1].key).toBe("orders.view");
+  });
+
+  it("creates missing built-in permissions (and grants them to full_admin) when the table is empty", async () => {
+    prismaMock.permission.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: "p1" }, { id: "p2" }])
+      .mockResolvedValueOnce([
+        { id: "p1", key: "orders.view", label: "عرض الطلبات", createdAt: new Date() },
+      ]);
+    prismaMock.role.findUnique.mockResolvedValue({ id: "fa", name: "full_admin" });
+
+    const result = await service.findAllPermissionsGrouped();
+
+    const created = prismaMock.permission.createMany.mock.calls[0][0];
+    expect(created.skipDuplicates).toBe(true);
+    expect(created.data.map((d: any) => d.key)).toEqual(
+      expect.arrayContaining(["orders.view", "stats.view", "suppliers.manage"]),
+    );
+    expect(prismaMock.rolePermission.createMany).toHaveBeenCalledWith({
+      data: [
+        { roleId: "fa", permissionId: "p1" },
+        { roleId: "fa", permissionId: "p2" },
+      ],
+      skipDuplicates: true,
+    });
+    expect(result.orders).toHaveLength(1);
+  });
+
+  it("does not write anything when all built-in permissions already exist", async () => {
+    const { DEFAULT_PERMISSIONS } = await import("./default-permissions");
+    prismaMock.permission.findMany.mockResolvedValue(
+      DEFAULT_PERMISSIONS.map((p, i) => ({ id: String(i), ...p, createdAt: new Date() })),
+    );
+
+    await service.findAllPermissionsGrouped();
+
+    expect(prismaMock.permission.createMany).not.toHaveBeenCalled();
   });
 });
