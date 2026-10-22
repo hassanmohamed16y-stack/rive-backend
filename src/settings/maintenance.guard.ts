@@ -4,6 +4,8 @@ import {
   Injectable,
   ServiceUnavailableException,
 } from "@nestjs/common";
+import { verify } from "jsonwebtoken";
+import { JWT_ALGORITHM, resolveJwtSecret } from "../auth/jwt-secret.util";
 import { SettingsService } from "./settings.service";
 
 @Injectable()
@@ -26,6 +28,11 @@ export class MaintenanceGuard implements CanActivate {
       return true;
     }
 
+    // Signed-in admins/staff keep full access so the dashboard works while the storefront is closed
+    if (this.isStaffRequest(request)) {
+      return true;
+    }
+
     const { maintenanceMode } = await this.settingsService.getMaintenanceMode();
 
     if (maintenanceMode) {
@@ -33,5 +40,23 @@ export class MaintenanceGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  private isStaffRequest(request: {
+    headers?: Record<string, string | string[] | undefined>;
+  }): boolean {
+    const header = request.headers?.authorization;
+    const value = Array.isArray(header) ? header[0] : header;
+    if (!value || !/^Bearer\s+/i.test(value)) {
+      return false;
+    }
+    try {
+      const payload = verify(value.replace(/^Bearer\s+/i, "").trim(), resolveJwtSecret(), {
+        algorithms: [JWT_ALGORITHM],
+      }) as { role?: string; purpose?: string };
+      return payload.role === "ADMIN" && (!payload.purpose || payload.purpose === "access");
+    } catch {
+      return false;
+    }
   }
 }
