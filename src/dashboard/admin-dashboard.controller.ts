@@ -69,9 +69,9 @@ export class AdminDashboardController {
 
   @Get("sales-report")
   @RequirePermission("stats.view")
-  @ApiOperation({ summary: "Get consolidated sales report" })
-  async getSalesReport() {
-    return this.dashboardService.getSalesReport();
+  @ApiOperation({ summary: "Get consolidated sales report with a daily chart over N days (default 30)" })
+  async getSalesReport(@Query("days") days?: number) {
+    return this.dashboardService.getSalesReport(days ? Number(days) : undefined);
   }
 
   @Get("sales-by-category")
