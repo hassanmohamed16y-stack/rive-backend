@@ -136,19 +136,65 @@ export class AdminDashboardService {
     });
   }
 
-  async getSalesReport() {
-    const overview = await this.getOverviewStats();
-    const orderStatusStats = await this.getOrderStatusStatistics();
-    const paymentStatusStats = await this.getPaymentStatusStatistics();
-    const topProducts = await this.getTopProducts(10);
+  async getSalesReport(days = 30) {
+    const periodDays = Number.isFinite(days) && days >= 1 ? Math.min(Math.floor(days), 365) : 30;
+    const [overview, orderStatusStats, paymentStatusStats, topProducts, chartData] =
+      await Promise.all([
+        this.getOverviewStats(),
+        this.getOrderStatusStatistics(),
+        this.getPaymentStatusStatistics(),
+        this.getTopProducts(10),
+        this.getDailySales(periodDays),
+      ]);
 
     return {
       overview,
       orderStatusStats,
       paymentStatusStats,
       topProducts,
+      days: periodDays,
+      chartData,
+      totalRevenue: chartData.reduce((sum, d) => sum + d.sales, 0),
+      orderCount: chartData.reduce((sum, d) => sum + d.orders, 0),
       generatedAt: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Daily buckets (Africa/Cairo calendar days) for the last `days` days, zero-filled.
+   * `sales` = paid orders' total, `orders` = non-cancelled orders created that day.
+   */
+  async getDailySales(days: number) {
+    const dayKey = (d: Date) =>
+      new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo" }).format(d);
+
+    const now = new Date();
+    const buckets = new Map<string, { date: string; sales: number; orders: number }>();
+    for (let i = days - 1; i >= 0; i--) {
+      const key = dayKey(new Date(now.getTime() - i * 24 * 60 * 60 * 1000));
+      buckets.set(key, { date: key, sales: 0, orders: 0 });
+    }
+
+    const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    const orders = await this.prisma.order.findMany({
+      where: { createdAt: { gte: since }, status: { not: "CANCELLED" } },
+      select: { createdAt: true, totalAmount: true, paymentStatus: true },
+    });
+
+    for (const order of orders) {
+      const bucket = buckets.get(dayKey(order.createdAt));
+      if (!bucket) continue;
+      bucket.orders += 1;
+      if (order.paymentStatus === "PAID") {
+        const amount = order.totalAmount as unknown;
+        bucket.sales +=
+          amount && typeof (amount as { toNumber?: unknown }).toNumber === "function"
+            ? (amount as { toNumber: () => number }).toNumber()
+            : Number(amount ?? 0);
+      }
+    }
+
+    return [...buckets.values()];
   }
 
   async getSalesByCategory(days?: number) {
