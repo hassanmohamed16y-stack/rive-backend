@@ -40,6 +40,16 @@ describe("MaintenanceGuard", () => {
     expect(settingsService.getMaintenanceMode).not.toHaveBeenCalled();
   });
 
+  it("allows internal cron routes when maintenance mode is active", async () => {
+    settingsService.getMaintenanceMode.mockResolvedValue({ maintenanceMode: true });
+
+    const context = createMockContext("/api/v1/internal/expire-reservations");
+    const allowed = await guard.canActivate(context);
+
+    expect(allowed).toBe(true);
+    expect(settingsService.getMaintenanceMode).not.toHaveBeenCalled();
+  });
+
   it("allows health check routes when maintenance mode is active", async () => {
     settingsService.getMaintenanceMode.mockResolvedValue({ maintenanceMode: true });
 

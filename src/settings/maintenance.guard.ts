@@ -14,9 +14,11 @@ export class MaintenanceGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const url = (request.originalUrl || request.url || request.path || "").toLowerCase();
 
-    // Exempt admin routes, health check routes, API docs, and auth routes
+    // Exempt admin routes, health check routes, API docs, auth routes and internal
+    // scheduler endpoints (cron jobs must keep running while the storefront is closed)
     if (
       url.includes("/admin") ||
+      url.includes("/api/v1/internal/") ||
       url.includes("/health") ||
       url.includes("/api/docs") ||
       url.includes("/auth")
