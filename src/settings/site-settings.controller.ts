@@ -30,7 +30,7 @@ export class SiteSettingsController {
 
   @Get("site")
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-  @RequirePermission("settings.manage")
+  @RequirePermission("settings.view")
   @Roles("ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Get site settings (Admin)" })
@@ -41,7 +41,7 @@ export class SiteSettingsController {
 
   @Patch("site")
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-  @RequirePermission("settings.manage")
+  @RequirePermission("settings.edit")
   @Roles("ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Update site settings (Admin)" })

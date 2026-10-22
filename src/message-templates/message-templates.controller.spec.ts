@@ -28,7 +28,7 @@ describe("MessageTemplatesController", () => {
       .useValue({
         canActivate: (context: ExecutionContext) => {
           const req = context.switchToHttp().getRequest();
-          req.user = { id: "admin-1", role: "ADMIN", permissions: ["settings.manage"] };
+          req.user = { id: "admin-1", role: "ADMIN", permissions: ["settings.edit"] };
           return true;
         },
       })

@@ -30,7 +30,7 @@ export class UploadController {
   @Post("upload/image")
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
-  @RequirePermission("products.edit")
+  @RequirePermission("media.upload")
   @ApiBearerAuth()
   @UseInterceptors(
     FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024 } }),

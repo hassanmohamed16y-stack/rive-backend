@@ -1,5 +1,6 @@
 import { ConflictException } from "@nestjs/common";
 import { PermissionsService } from "./permissions.service";
+import { PERMISSION_CATALOG } from "./permission-catalog";
 
 describe("PermissionsService Tests", () => {
   let service: PermissionsService;
@@ -13,6 +14,7 @@ describe("PermissionsService Tests", () => {
         findMany: jest.fn(),
         create: jest.fn(),
         createMany: jest.fn().mockResolvedValue({ count: 0 }),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       role: {
         findUnique: jest.fn(),
@@ -20,6 +22,8 @@ describe("PermissionsService Tests", () => {
       rolePermission: {
         create: jest.fn().mockResolvedValue({}),
         createMany: jest.fn().mockResolvedValue({ count: 0 }),
+        findMany: jest.fn().mockResolvedValue([]),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
     };
     auditLogMock = {
@@ -73,58 +77,132 @@ describe("PermissionsService Tests", () => {
     ).rejects.toThrow(ConflictException);
   });
 
-  it("returns permissions grouped by department", async () => {
-    const mockDate = new Date();
+  const catalogRows = () =>
+    PERMISSION_CATALOG.map((p, i) => ({
+      id: `id-${i}`,
+      key: p.key,
+      label: p.label,
+      createdAt: new Date(),
+    }));
+
+  it("returns permissions grouped by catalog group in catalog order", async () => {
+    prismaMock.permission.findMany.mockResolvedValue(catalogRows());
+
+    const result = await service.findAllPermissionsGrouped();
+
+    expect(Object.keys(result)[0]).toBe("الإحصائيات");
+    expect(result["الطلبات"].map((p) => p.key)).toEqual([
+      "orders.view",
+      "orders.update_status",
+      "orders.refund",
+      "orders.notes",
+      "orders.export",
+    ]);
+    expect(prismaMock.permission.createMany).not.toHaveBeenCalled();
+  });
+
+  it("puts custom (non-catalog) permissions under a general group", async () => {
     prismaMock.permission.findMany.mockResolvedValue([
-      { id: "1", key: "customers.view", label: "عرض العملاء", createdAt: mockDate },
-      { id: "2", key: "orders.refund", label: "استرداد الأموال", createdAt: mockDate },
-      { id: "3", key: "orders.view", label: "عرض الطلبات", createdAt: mockDate },
-      { id: "4", key: "products.edit", label: "تعديل المنتجات", createdAt: mockDate },
+      ...catalogRows(),
+      { id: "x", key: "custom.thing", label: "مخصصة", createdAt: new Date() },
     ]);
 
     const result = await service.findAllPermissionsGrouped();
 
-    expect(result.orders.length).toBe(2);
-    expect(result.customers.length).toBe(1);
-    expect(result.products.length).toBe(1);
-    expect(result.orders[0].key).toBe("orders.refund");
-    expect(result.orders[1].key).toBe("orders.view");
+    expect(result["عام"]).toHaveLength(1);
   });
 
-  it("creates missing built-in permissions (and grants them to full_admin) when the table is empty", async () => {
+  it("creates the whole catalog and grants it to full_admin when the table is empty", async () => {
     prismaMock.permission.findMany
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ id: "p1" }, { id: "p2" }])
-      .mockResolvedValueOnce([
-        { id: "p1", key: "orders.view", label: "عرض الطلبات", createdAt: new Date() },
-      ]);
+      .mockResolvedValueOnce([]) // initial list (empty table)
+      .mockResolvedValueOnce(catalogRows()) // sync: all ids after create
+      .mockResolvedValue(catalogRows()); // reload for the response
     prismaMock.role.findUnique.mockResolvedValue({ id: "fa", name: "full_admin" });
-
-    const result = await service.findAllPermissionsGrouped();
-
-    const created = prismaMock.permission.createMany.mock.calls[0][0];
-    expect(created.skipDuplicates).toBe(true);
-    expect(created.data.map((d: any) => d.key)).toEqual(
-      expect.arrayContaining(["orders.view", "stats.view", "suppliers.manage"]),
-    );
-    expect(prismaMock.rolePermission.createMany).toHaveBeenCalledWith({
-      data: [
-        { roleId: "fa", permissionId: "p1" },
-        { roleId: "fa", permissionId: "p2" },
-      ],
-      skipDuplicates: true,
-    });
-    expect(result.orders).toHaveLength(1);
-  });
-
-  it("does not write anything when all built-in permissions already exist", async () => {
-    const { DEFAULT_PERMISSIONS } = await import("./default-permissions");
-    prismaMock.permission.findMany.mockResolvedValue(
-      DEFAULT_PERMISSIONS.map((p, i) => ({ id: String(i), ...p, createdAt: new Date() })),
-    );
 
     await service.findAllPermissionsGrouped();
 
+    const created = prismaMock.permission.createMany.mock.calls[0][0];
+    expect(created.skipDuplicates).toBe(true);
+    expect(created.data).toHaveLength(PERMISSION_CATALOG.length);
+    const grant = prismaMock.rolePermission.createMany.mock.calls.at(-1)[0];
+    expect(grant.data).toHaveLength(PERMISSION_CATALOG.length);
+    expect(grant.data.every((d: any) => d.roleId === "fa")).toBe(true);
+  });
+
+  it("does nothing when every catalog permission already exists", async () => {
+    prismaMock.permission.findMany.mockResolvedValue(catalogRows());
+
+    const changed = await service.syncPermissionCatalog();
+
+    expect(changed).toBe(false);
     expect(prismaMock.permission.createMany).not.toHaveBeenCalled();
+    expect(prismaMock.rolePermission.createMany).not.toHaveBeenCalled();
+  });
+
+  describe("migrating roles from the old coarse permissions", () => {
+    const legacy = (key: string) => ({ id: `old-${key}`, key });
+
+    it("expands legacy permissions for the roles that hold them, then deletes the legacy rows", async () => {
+      const rows = catalogRows();
+      prismaMock.permission.findMany
+        .mockResolvedValueOnce([legacy("content.manage"), legacy("products.edit"), { id: "ov", key: "orders.view" }])
+        .mockResolvedValueOnce([...rows, legacy("content.manage"), legacy("products.edit")]);
+      prismaMock.rolePermission.findMany.mockResolvedValue([
+        { roleId: "r-content", permission: { key: "content.manage" } },
+      ]);
+      prismaMock.role.findUnique.mockResolvedValue(null);
+
+      await service.syncPermissionCatalog();
+
+      const grants = prismaMock.rolePermission.createMany.mock.calls[0][0].data;
+      const grantedKeys = grants.map((g: any) => rows.find((r) => r.id === g.permissionId)?.key);
+      expect(grants.every((g: any) => g.roleId === "r-content")).toBe(true);
+      expect(grantedKeys).toEqual(
+        expect.arrayContaining(["banners.view", "banners.create", "banners.edit", "banners.delete", "pages.edit", "media.upload"]),
+      );
+      // a content.manage role must NOT gain product or coupon access
+      expect(grantedKeys).not.toContain("products.create");
+      expect(grantedKeys).not.toContain("coupons.view");
+      expect(prismaMock.rolePermission.deleteMany).toHaveBeenCalledWith({
+        where: { permissionId: { in: ["old-content.manage"] } },
+      });
+      expect(prismaMock.permission.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ["old-content.manage"] } },
+      });
+    });
+
+    it("gives roles that kept products.view / orders.view their related permissions", async () => {
+      const rows = catalogRows().filter((r) => r.key !== "reviews.view" && r.key !== "orders.export");
+      const reviews = { id: "rv", key: "reviews.view" };
+      prismaMock.permission.findMany
+        .mockResolvedValueOnce([...rows.map((r) => ({ id: r.id, key: r.key }))])
+        .mockResolvedValueOnce([...rows.map((r) => ({ id: r.id, key: r.key })), reviews, { id: "oe", key: "orders.export" }]);
+      prismaMock.rolePermission.findMany.mockResolvedValue([
+        { roleId: "r-view", permission: { key: "products.view" } },
+        { roleId: "r-view", permission: { key: "orders.view" } },
+      ]);
+      prismaMock.role.findUnique.mockResolvedValue(null);
+
+      await service.syncPermissionCatalog();
+
+      const grants = prismaMock.rolePermission.createMany.mock.calls[0][0].data;
+      expect(grants.map((g: any) => g.permissionId)).toEqual(expect.arrayContaining(["rv", "oe"]));
+    });
+
+    it("does not re-grant related read permissions once the split has already happened", async () => {
+      const rows = catalogRows().filter((r) => r.key !== "coupons.delete");
+      prismaMock.permission.findMany
+        .mockResolvedValueOnce(rows.map((r) => ({ id: r.id, key: r.key })))
+        .mockResolvedValueOnce(catalogRows().map((r) => ({ id: r.id, key: r.key })));
+      prismaMock.role.findUnique.mockResolvedValue(null);
+
+      await service.syncPermissionCatalog();
+
+      // only the single missing key is created; no role migration queries at all
+      expect(prismaMock.rolePermission.findMany).not.toHaveBeenCalled();
+      expect(prismaMock.permission.createMany.mock.calls[0][0].data).toEqual([
+        expect.objectContaining({ key: "coupons.delete" }),
+      ]);
+    });
   });
 });

@@ -35,12 +35,12 @@ import { UpdateTrustLevelDto } from "./dto/update-trust-level.dto";
 @Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["automation", "api/v1/automation", "api/v1/admin/automation"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-@RequirePermission("automation.manage")
 @Roles("ADMIN")
 @ApiBearerAuth()
 export class AutomationController {
   constructor(private readonly automationService: AutomationService) {}
 
+  @RequirePermission("automation.view")
   @Get("workflows")
   @ApiOperation({ summary: "List all automation workflows with their status" })
   @ApiResponse({ status: 200, description: "Workflows retrieved successfully." })
@@ -48,6 +48,7 @@ export class AutomationController {
     return this.automationService.getWorkflows();
   }
 
+  @RequirePermission("automation.edit")
   @Patch("workflows/:id/toggle")
   @ApiOperation({ summary: "Toggle workflow active state" })
   @ApiResponse({ status: 200, description: "Workflow active state updated." })
@@ -60,6 +61,7 @@ export class AutomationController {
     return this.automationService.toggleWorkflow(id, req.user!.id, dto);
   }
 
+  @RequirePermission("automation.edit")
   @Patch("workflows/:id/trust-level")
   @ApiOperation({ summary: "Change workflow trust level" })
   @ApiResponse({ status: 200, description: "Workflow trust level updated." })
@@ -76,6 +78,7 @@ export class AutomationController {
     );
   }
 
+  @RequirePermission("automation.view")
   @Get("runs")
   @ApiOperation({ summary: "Get recent run logs (paginated, optionally filtered by workflowId)" })
   @ApiResponse({ status: 200, description: "Run logs retrieved successfully." })
@@ -83,6 +86,7 @@ export class AutomationController {
     return this.automationService.getRuns(query);
   }
 
+  @RequirePermission("automation.view")
   @Get("pending-approvals")
   @ApiOperation({ summary: "List pending approvals" })
   @ApiResponse({ status: 200, description: "Pending approvals retrieved successfully." })
@@ -90,6 +94,7 @@ export class AutomationController {
     return this.automationService.getPendingApprovals(query);
   }
 
+  @RequirePermission("automation.edit")
   @Post("pending-approvals/:id/approve")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Approve a pending approval" })
@@ -103,6 +108,7 @@ export class AutomationController {
     return this.automationService.approvePendingApproval(id, req.user!.id);
   }
 
+  @RequirePermission("automation.edit")
   @Post("pending-approvals/:id/reject")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Reject a pending approval" })

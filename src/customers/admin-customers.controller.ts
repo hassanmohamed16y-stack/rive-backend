@@ -90,7 +90,7 @@ export class AdminCustomersController {
   }
 
   @Patch(":id/block")
-  @RequirePermission("customers.update")
+  @RequirePermission("customers.edit")
   @ApiOperation({ summary: "Block a customer account (Admin)" })
   @ApiResponse({ status: 200, description: "Customer blocked successfully." })
   @ApiResponse({ status: 400, description: "Admin or staff accounts cannot be blocked." })
@@ -103,7 +103,7 @@ export class AdminCustomersController {
   }
 
   @Patch(":id/unblock")
-  @RequirePermission("customers.update")
+  @RequirePermission("customers.edit")
   @ApiOperation({ summary: "Unblock a customer account (Admin)" })
   @ApiResponse({ status: 200, description: "Customer unblocked successfully." })
   @ApiResponse({ status: 400, description: "Admin or staff accounts cannot be unblocked." })
@@ -116,7 +116,7 @@ export class AdminCustomersController {
   }
 
   @Delete(":id")
-  @RequirePermission("customers.update")
+  @RequirePermission("customers.delete")
   @ApiOperation({ summary: "Delete or anonymize customer account (Admin)" })
   @ApiResponse({ status: 200, description: "Customer deleted/anonymized successfully." })
   @ApiResponse({ status: 400, description: "Admin or staff accounts cannot be deleted." })
@@ -129,7 +129,7 @@ export class AdminCustomersController {
   }
 
   @Post(":id/email")
-  @RequirePermission("customers.update")
+  @RequirePermission("customers.edit")
   @ApiOperation({ summary: "Send email to customer (Admin)" })
   @ApiResponse({ status: 200, description: "Email sent successfully." })
   @ApiResponse({ status: 400, description: "Customer has no email or was anonymized." })

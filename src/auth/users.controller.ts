@@ -27,11 +27,11 @@ import { AuthenticatedRequest } from "../common/types/authenticated-request";
 @ApiTags("users")
 @Controller(["api/v1/users", "users"])
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermission("users.manage")
 @ApiBearerAuth()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @RequirePermission("users.view")
   @Get()
   @ApiOperation({ summary: "List all users with their role and status" })
   @ApiResponse({ status: 200, description: "Paginated list of users returned." })
@@ -43,6 +43,7 @@ export class UsersController {
     );
   }
 
+  @RequirePermission("users.create")
   @Post()
   @ApiOperation({ summary: "Create a new user" })
   @ApiResponse({ status: 201, description: "User created successfully." })
@@ -54,6 +55,7 @@ export class UsersController {
     return this.usersService.createUser(dto, req.user!.id);
   }
 
+  @RequirePermission("users.edit")
   @Patch(":id")
   @ApiOperation({ summary: "Update user details, role, or active status" })
   @ApiResponse({ status: 200, description: "User updated successfully." })
@@ -67,6 +69,7 @@ export class UsersController {
     return this.usersService.updateUser(id, dto, req.user!);
   }
 
+  @RequirePermission("users.edit")
   @Patch(":id/disable")
   @ApiOperation({ summary: "Soft-disable a user (isActive = false)" })
   @ApiResponse({ status: 200, description: "User soft-disabled successfully." })

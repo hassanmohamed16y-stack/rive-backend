@@ -20,7 +20,7 @@ export class AdminCartSessionsController {
   constructor(private readonly cartSessionsService: CartSessionsService) {}
 
   @Get("abandoned")
-  @RequirePermission("customers.view")
+  @RequirePermission("abandoned_carts.view")
   @ApiOperation({ summary: "List abandoned carts (Admin)" })
   async getAbandoned(@Query() query: AbandonedCartsQueryDto) {
     const mins = query.inactivityMinutes ?? 30;

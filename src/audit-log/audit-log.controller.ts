@@ -29,7 +29,7 @@ export class AuditLogController {
   constructor(private readonly auditLogService: AuditLogService) {}
 
   @Get()
-  @RequirePermission("users.manage")
+  @RequirePermission("audit.view")
   @ApiOperation({
     summary:
       "Get activity audit logs with filtering by user, action, entity, and date range (Admin)",

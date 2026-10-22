@@ -30,7 +30,7 @@ export class AdminWhatsAppController {
   constructor(private readonly adminWhatsAppService: AdminWhatsAppService) {}
 
   @Get("conversations")
-  @RequirePermission("customers.view")
+  @RequirePermission("conversations.view")
   @ApiOperation({ summary: "Get paginated list of WhatsApp conversations (Admin)" })
   @ApiResponse({ status: 200, description: "Paginated list of conversations returned." })
   @ApiResponse({ status: 403, description: "Insufficient permissions." })
@@ -39,7 +39,7 @@ export class AdminWhatsAppController {
   }
 
   @Get("conversations/:conversationKey/messages")
-  @RequirePermission("customers.view")
+  @RequirePermission("conversations.view")
   @ApiOperation({ summary: "Get message history for a WhatsApp conversation (Admin)" })
   @ApiResponse({ status: 200, description: "Conversation message history returned." })
   @ApiResponse({ status: 404, description: "Conversation not found or invalid key." })
@@ -52,7 +52,7 @@ export class AdminWhatsAppController {
   }
 
   @Post("conversations/:conversationKey/messages")
-  @RequirePermission("customers.update")
+  @RequirePermission("conversations.reply")
   @ApiOperation({ summary: "Send a free-text reply in a WhatsApp conversation (Admin)" })
   @ApiResponse({ status: 201, description: "Reply sent successfully." })
   @ApiResponse({ status: 400, description: "24-hour window expired or invalid body." })

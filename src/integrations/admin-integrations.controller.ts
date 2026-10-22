@@ -25,7 +25,7 @@ export class AdminIntegrationsController {
   constructor(private readonly googleSheetsService: GoogleSheetsService) {}
 
   @Post("google-sheets/test")
-  @RequirePermission("settings.manage")
+  @RequirePermission("settings.edit")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Send a test row to Google Sheets via Service Account (Admin)" })
   @ApiResponse({ status: 200, description: "Test row appended successfully." })
@@ -35,7 +35,7 @@ export class AdminIntegrationsController {
   }
 
   @Post("google-sheets/export/orders")
-  @RequirePermission("orders.view")
+  @RequirePermission("orders.export")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Export orders to Google Sheets" })
   async exportOrders() {
@@ -43,7 +43,7 @@ export class AdminIntegrationsController {
   }
 
   @Post("google-sheets/export/customers")
-  @RequirePermission("customers.view")
+  @RequirePermission("customers.export")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Export customers to Google Sheets" })
   async exportCustomers() {
@@ -51,7 +51,7 @@ export class AdminIntegrationsController {
   }
 
   @Post("google-sheets/export/products")
-  @RequirePermission("products.view")
+  @RequirePermission("products.export")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Export products to Google Sheets" })
   async exportProducts() {
@@ -59,7 +59,7 @@ export class AdminIntegrationsController {
   }
 
   @Post("google-sheets/export/inventory")
-  @RequirePermission("products.view")
+  @RequirePermission("products.export")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Export inventory to Google Sheets" })
   async exportInventory() {
@@ -67,7 +67,7 @@ export class AdminIntegrationsController {
   }
 
   @Post("google-sheets/export/sales-report")
-  @RequirePermission("orders.view")
+  @RequirePermission("orders.export")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Export sales report to Google Sheets" })
   async exportSalesReport() {

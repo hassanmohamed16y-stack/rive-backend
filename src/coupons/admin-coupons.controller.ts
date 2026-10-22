@@ -36,7 +36,7 @@ export class AdminCouponsController {
   constructor(private readonly couponsService: CouponsService) {}
 
   @Post()
-  @RequirePermission("coupons.manage")
+  @RequirePermission("coupons.create")
   @ApiOperation({ summary: "Create a discount coupon (Admin)" })
   @ApiResponse({ status: 201, description: "Coupon created successfully." })
   async create(
@@ -47,21 +47,21 @@ export class AdminCouponsController {
   }
 
   @Get()
-  @RequirePermission("coupons.manage")
+  @RequirePermission("coupons.view")
   @ApiOperation({ summary: "List all discount coupons (Admin)" })
   async findAll(@Query() pagination: PaginationDto) {
     return this.couponsService.findAll({ page: pagination.page, limit: pagination.limit });
   }
 
   @Get(":id")
-  @RequirePermission("coupons.manage")
+  @RequirePermission("coupons.view")
   @ApiOperation({ summary: "Get a discount coupon by id (Admin)" })
   async findOne(@Param("id") id: string) {
     return this.couponsService.findOne(id);
   }
 
   @Patch(":id")
-  @RequirePermission("coupons.manage")
+  @RequirePermission("coupons.edit")
   @ApiOperation({ summary: "Update or toggle a discount coupon (Admin)" })
   async update(
     @Param("id") id: string,
@@ -72,7 +72,7 @@ export class AdminCouponsController {
   }
 
   @Delete(":id")
-  @RequirePermission("coupons.manage")
+  @RequirePermission("coupons.delete")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Delete a discount coupon (Admin)" })
   async remove(

@@ -36,7 +36,7 @@ export class OrdersExportController {
   constructor(private readonly exportService: ExportService) {}
 
   @Get("export")
-  @RequirePermission("orders.view")
+  @RequirePermission("orders.export")
   @ApiOperation({ summary: "Export orders in CSV or PDF format (Admin)" })
   @ApiResponse({ status: 200, description: "Export file generated successfully." })
   @ApiResponse({ status: 400, description: "Invalid format or date parameters." })
@@ -66,7 +66,7 @@ export class CustomersExportController {
   constructor(private readonly exportService: ExportService) {}
 
   @Get("export")
-  @RequirePermission("customers.view")
+  @RequirePermission("customers.export")
   @ApiOperation({ summary: "Export customers in CSV or PDF format (Admin)" })
   @ApiResponse({ status: 200, description: "Export file generated successfully." })
   @ApiResponse({ status: 400, description: "Invalid format or date parameters." })
@@ -96,7 +96,7 @@ export class PaymentsExportController {
   constructor(private readonly exportService: ExportService) {}
 
   @Get("export")
-  @RequirePermission("orders.view")
+  @RequirePermission("orders.export")
   @ApiOperation({ summary: "Export payments in CSV or PDF format (Admin)" })
   @ApiResponse({ status: 200, description: "Export file generated successfully." })
   @ApiResponse({ status: 400, description: "Invalid format or date parameters." })

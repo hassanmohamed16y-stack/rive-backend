@@ -23,7 +23,7 @@ export class AdminMetaController {
   constructor(private readonly metaService: MetaService) {}
 
   @Get("conversations")
-  @RequirePermission("customers.view")
+  @RequirePermission("conversations.view")
   @ApiOperation({ summary: "Get social conversations (Facebook/Instagram) for Admin Dashboard" })
   @ApiResponse({ status: 200, description: "Paginated list of conversations returned." })
   async getConversations(@Query() query: AdminMetaConversationsQueryDto) {
@@ -34,7 +34,7 @@ export class AdminMetaController {
   }
 
   @Get("conversations/:id/messages")
-  @RequirePermission("customers.view")
+  @RequirePermission("conversations.view")
   @ApiOperation({ summary: "Get messages for a conversation" })
   @ApiResponse({ status: 200, description: "Conversation messages returned." })
   async getMessages(
@@ -48,7 +48,7 @@ export class AdminMetaController {
   }
 
   @Post("conversations/:id/messages")
-  @RequirePermission("customers.update")
+  @RequirePermission("conversations.reply")
   @ApiOperation({ summary: "Reply to a Facebook Messenger or Instagram conversation" })
   @ApiResponse({ status: 201, description: "Reply message sent and stored." })
   async sendReply(

@@ -40,7 +40,7 @@ export class ExcelController {
   constructor(private readonly excelService: ExcelService) {}
 
   @Get("export/products")
-  @RequirePermission("products.view")
+  @RequirePermission("products.export")
   @ApiOperation({ summary: "Export products and variants as Excel file (.xlsx)" })
   async exportProducts(@Res() res: Response) {
     const buffer = await this.excelService.exportProducts();
@@ -56,7 +56,7 @@ export class ExcelController {
   }
 
   @Get("export/orders")
-  @RequirePermission("orders.view")
+  @RequirePermission("orders.export")
   @ApiOperation({ summary: "Export orders as Excel file (.xlsx)" })
   async exportOrders(@Res() res: Response) {
     const buffer = await this.excelService.exportOrders();
@@ -72,7 +72,7 @@ export class ExcelController {
   }
 
   @Get("export/customers")
-  @RequirePermission("customers.view")
+  @RequirePermission("customers.export")
   @ApiOperation({ summary: "Export customers as Excel file (.xlsx)" })
   async exportCustomers(@Res() res: Response) {
     const buffer = await this.excelService.exportCustomers();
@@ -88,7 +88,7 @@ export class ExcelController {
   }
 
   @Post("import/products")
-  @RequirePermission("products.edit")
+  @RequirePermission("products.import")
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor("file"))
   @ApiConsumes("multipart/form-data")
@@ -105,7 +105,7 @@ export class ExcelController {
   }
 
   @Post("import/inventory")
-  @RequirePermission("products.edit")
+  @RequirePermission("products.import")
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor("file"))
   @ApiConsumes("multipart/form-data")

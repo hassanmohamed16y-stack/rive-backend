@@ -31,11 +31,11 @@ import { ExpensesService } from "./expenses.service";
 @Controller(["api/admin/expenses", "api/v1/admin/expenses"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")
-@RequirePermission("expenses.manage")
 @ApiBearerAuth()
 export class ExpensesController {
   constructor(private readonly expensesService: ExpensesService) {}
 
+  @RequirePermission("expenses.create")
   @Post()
   @ApiOperation({ summary: "Create an operational expense (Admin)" })
   @ApiResponse({ status: 201, description: "Expense created." })
@@ -43,6 +43,7 @@ export class ExpensesController {
     return this.expensesService.create(dto, req.user!.id);
   }
 
+  @RequirePermission("expenses.view")
   @Get()
   @ApiOperation({ summary: "List operational expenses (Admin)" })
   @ApiResponse({ status: 200, description: "Paginated list of expenses." })
@@ -50,6 +51,7 @@ export class ExpensesController {
     return this.expensesService.findAll(query);
   }
 
+  @RequirePermission("expenses.view")
   @Get("monthly-total")
   @ApiOperation({ summary: "Get monthly total of operational expenses (Admin)" })
   @ApiResponse({ status: 200, description: "Monthly total summary." })
@@ -63,6 +65,7 @@ export class ExpensesController {
     );
   }
 
+  @RequirePermission("expenses.view")
   @Get(":id")
   @ApiOperation({ summary: "Get expense by ID (Admin)" })
   @ApiResponse({ status: 200, description: "Expense found." })
@@ -71,6 +74,7 @@ export class ExpensesController {
     return this.expensesService.findOne(id);
   }
 
+  @RequirePermission("expenses.edit")
   @Patch(":id")
   @ApiOperation({ summary: "Update expense (Admin)" })
   @ApiResponse({ status: 200, description: "Expense updated." })
@@ -83,6 +87,7 @@ export class ExpensesController {
     return this.expensesService.update(id, dto, req.user!.id);
   }
 
+  @RequirePermission("expenses.delete")
   @Delete(":id")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Delete expense (Admin)" })

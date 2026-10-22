@@ -21,12 +21,12 @@ import { SettingsService } from "./settings.service";
 @Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["api/admin", "api/v1/admin"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-@RequirePermission("settings.manage")
 @Roles("ADMIN")
 @ApiBearerAuth()
 export class AdminSettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
+  @RequirePermission("settings.view")
   @Get("maintenance-mode")
   @ApiOperation({ summary: "Get current maintenance mode status (Admin)" })
   @ApiResponse({ status: 200, description: "Maintenance mode status returned." })
@@ -34,6 +34,7 @@ export class AdminSettingsController {
     return this.settingsService.getMaintenanceMode();
   }
 
+  @RequirePermission("settings.edit")
   @Put("maintenance-mode")
   @ApiOperation({ summary: "Update maintenance mode status (Admin)" })
   @ApiResponse({ status: 200, description: "Maintenance mode status updated." })
@@ -41,6 +42,7 @@ export class AdminSettingsController {
     return this.settingsService.setMaintenanceMode(dto.maintenanceMode);
   }
 
+  @RequirePermission("settings.view")
   @Get("settings/enforce-2fa")
   @ApiOperation({ summary: "Get global 2FA enforcement status (Admin)" })
   @ApiResponse({ status: 200, description: "Enforce 2FA status returned." })
@@ -48,6 +50,7 @@ export class AdminSettingsController {
     return this.settingsService.getEnforce2FA();
   }
 
+  @RequirePermission("settings.edit")
   @Put("settings/enforce-2fa")
   @ApiOperation({ summary: "Update global 2FA enforcement status (Admin)" })
   @ApiResponse({ status: 200, description: "Enforce 2FA status updated." })
@@ -55,6 +58,7 @@ export class AdminSettingsController {
     return this.settingsService.setEnforce2FA(dto.enforce2FAGlobally);
   }
 
+  @RequirePermission("settings.view")
   @Get("settings/alerts")
   @ApiOperation({ summary: "Get alert settings (Admin)" })
   @ApiResponse({ status: 200, description: "Alert settings returned." })
@@ -62,6 +66,7 @@ export class AdminSettingsController {
     return this.settingsService.getAlertSettings();
   }
 
+  @RequirePermission("settings.edit")
   @Put("settings/alerts")
   @ApiOperation({ summary: "Update alert settings (Admin)" })
   @ApiResponse({ status: 200, description: "Alert settings updated." })

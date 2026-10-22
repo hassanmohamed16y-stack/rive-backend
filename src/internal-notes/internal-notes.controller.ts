@@ -41,7 +41,7 @@ export class InternalNotesController {
   constructor(private readonly internalNotesService: InternalNotesService) {}
 
   @Post()
-  @RequirePermission("orders.update_status")
+  @RequirePermission("orders.notes")
   @ApiOperation({ summary: "Create an internal note for an order or customer (Admin)" })
   @ApiResponse({ status: 201, description: "Internal note created successfully." })
   async create(
@@ -74,7 +74,7 @@ export class InternalNotesController {
   }
 
   @Patch(":id")
-  @RequirePermission("orders.update_status")
+  @RequirePermission("orders.notes")
   @ApiOperation({ summary: "Update an internal note (Admin)" })
   @ApiResponse({ status: 200, description: "Internal note updated." })
   @ApiResponse({ status: 404, description: "Internal note not found." })
@@ -87,7 +87,7 @@ export class InternalNotesController {
   }
 
   @Delete(":id")
-  @RequirePermission("orders.update_status")
+  @RequirePermission("orders.notes")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Delete an internal note (Admin)" })
   @ApiResponse({ status: 200, description: "Internal note deleted." })
