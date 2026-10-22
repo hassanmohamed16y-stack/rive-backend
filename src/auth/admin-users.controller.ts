@@ -36,7 +36,7 @@ export class AdminUsersController {
   constructor(private readonly authService: AuthService) {}
 
   @Post()
-  @RequirePermission("users.manage")
+  @RequirePermission("users.create")
   @ApiOperation({ summary: "Create a new Admin or Staff account (Admin)" })
   @ApiResponse({ status: 201, description: "Admin user created successfully." })
   @ApiResponse({ status: 409, description: "User already exists." })
@@ -48,7 +48,7 @@ export class AdminUsersController {
   }
 
   @Get()
-  @RequirePermission("users.manage")
+  @RequirePermission("users.view")
   @ApiOperation({ summary: "List all users (Admin)" })
   @ApiResponse({ status: 200, description: "Paginated list of users returned." })
   async findAll(@Query() query: AdminUsersQueryDto) {
@@ -60,7 +60,7 @@ export class AdminUsersController {
   }
 
   @Get(":id")
-  @RequirePermission("users.manage")
+  @RequirePermission("users.view")
   @ApiOperation({ summary: "Get user details by ID (Admin)" })
   @ApiResponse({ status: 200, description: "User details returned." })
   @ApiResponse({ status: 404, description: "User not found." })

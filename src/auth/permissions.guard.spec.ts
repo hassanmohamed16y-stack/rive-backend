@@ -42,7 +42,7 @@ describe("PermissionsGuard & UsersService Security Tests", () => {
 
     it("denies access when user lacks required permission", () => {
       const reflector = {
-        getAllAndOverride: jest.fn().mockReturnValue(["users.manage"]),
+        getAllAndOverride: jest.fn().mockReturnValue(["users.create"]),
       } as any;
       const guard = new PermissionsGuard(reflector);
 

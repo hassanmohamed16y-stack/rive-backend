@@ -193,17 +193,17 @@ describe("AdminCustomersController", () => {
       expect(permissionsGuard.canActivate(context)).toBe(true);
     });
 
-    it("allows user with customers.update permission", () => {
+    it("allows user with customers.edit permission", () => {
       const context = createMockContext({
         id: "staff-1",
         roleName: "support",
-        permissions: ["customers.update"],
+        permissions: ["customers.edit"],
       });
 
       expect(permissionsGuard.canActivate(context)).toBe(true);
     });
 
-    it("denies (throws ForbiddenException) for user without customers.update permission", () => {
+    it("denies (throws ForbiddenException) for user without customers.edit permission", () => {
       const context = createMockContext({
         id: "staff-2",
         roleName: "support",

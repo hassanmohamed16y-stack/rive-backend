@@ -34,7 +34,7 @@ export class AdminReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
   @Get()
-  @RequirePermission("products.view")
+  @RequirePermission("reviews.view")
   @ApiOperation({ summary: "List reviews for moderation (Admin)" })
   @ApiQuery({ name: "isApproved", required: false, type: Boolean })
   async findAll(@Query() query: AdminReviewsQueryDto) {
@@ -45,7 +45,7 @@ export class AdminReviewsController {
   }
 
   @Patch(":id/approve")
-  @RequirePermission("products.edit")
+  @RequirePermission("reviews.edit")
   @ApiOperation({ summary: "Approve or reject a review (Admin)" })
   async setApproval(
     @Param("id") id: string,
@@ -56,7 +56,7 @@ export class AdminReviewsController {
   }
 
   @Delete(":id")
-  @RequirePermission("products.edit")
+  @RequirePermission("reviews.delete")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Delete a review (Admin)" })
   async remove(

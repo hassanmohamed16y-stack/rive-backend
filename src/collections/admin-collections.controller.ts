@@ -38,7 +38,7 @@ export class AdminCollectionsController {
   constructor(private readonly collectionsService: CollectionsService) {}
 
   @Get()
-  @RequirePermission("products.view")
+  @RequirePermission("collections.view")
   @ApiOperation({ summary: "List collections (Admin)" })
   async findAll(@Query() query: ListCollectionsQueryDto) {
     return this.collectionsService.findAll(
@@ -48,14 +48,14 @@ export class AdminCollectionsController {
   }
 
   @Get(":id")
-  @RequirePermission("products.view")
+  @RequirePermission("collections.view")
   @ApiOperation({ summary: "Get collection by ID (Admin)" })
   async findOne(@Param("id") id: string) {
     return this.collectionsService.findById(id);
   }
 
   @Post()
-  @RequirePermission("products.edit")
+  @RequirePermission("collections.create")
   @ApiOperation({ summary: "Create a new collection (Admin)" })
   async create(
     @Body() dto: CreateCollectionDto,
@@ -65,7 +65,7 @@ export class AdminCollectionsController {
   }
 
   @Patch(":id")
-  @RequirePermission("products.edit")
+  @RequirePermission("collections.edit")
   @ApiOperation({ summary: "Update a collection (Admin)" })
   async update(
     @Param("id") id: string,
@@ -76,14 +76,14 @@ export class AdminCollectionsController {
   }
 
   @Delete(":id")
-  @RequirePermission("products.edit")
+  @RequirePermission("collections.delete")
   @ApiOperation({ summary: "Delete a collection (Admin)" })
   async delete(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.collectionsService.delete(id, req.user!.id);
   }
 
   @Post(":id/products/:productId")
-  @RequirePermission("products.edit")
+  @RequirePermission("collections.edit")
   @ApiOperation({ summary: "Add a product to a collection (Admin)" })
   async addProduct(
     @Param("id") collectionId: string,
@@ -98,7 +98,7 @@ export class AdminCollectionsController {
   }
 
   @Delete(":id/products/:productId")
-  @RequirePermission("products.edit")
+  @RequirePermission("collections.edit")
   @ApiOperation({ summary: "Remove a product from a collection (Admin)" })
   async removeProduct(
     @Param("id") collectionId: string,

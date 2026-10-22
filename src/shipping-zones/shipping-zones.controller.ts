@@ -50,7 +50,7 @@ export class ShippingZonesController {
   @Get("admin")
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
-  @RequirePermission("lists.manage")
+  @RequirePermission("zones.view")
   @ApiBearerAuth()
   @ApiOperation({
     summary:
@@ -69,7 +69,7 @@ export class ShippingZonesController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
-  @RequirePermission("lists.manage")
+  @RequirePermission("zones.create")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create a new shipping zone (Admin)" })
   @ApiResponse({
@@ -93,7 +93,7 @@ export class ShippingZonesController {
   @Patch(":id")
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
-  @RequirePermission("lists.manage")
+  @RequirePermission("zones.edit")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Update an existing shipping zone (Admin)" })
   @ApiResponse({
@@ -118,7 +118,7 @@ export class ShippingZonesController {
   @Patch(":id/deactivate")
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
-  @RequirePermission("lists.manage")
+  @RequirePermission("zones.edit")
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({

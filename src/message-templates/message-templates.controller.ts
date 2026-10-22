@@ -26,7 +26,7 @@ export class MessageTemplatesController {
   constructor(private readonly messageTemplatesService: MessageTemplatesService) {}
 
   @Get()
-  @RequirePermission("settings.manage")
+  @RequirePermission("templates.view")
   @ApiOperation({ summary: "List all notification message templates" })
   @ApiResponse({ status: 200, description: "Message templates retrieved successfully." })
   async findAll() {
@@ -34,7 +34,7 @@ export class MessageTemplatesController {
   }
 
   @Patch(":id")
-  @RequirePermission("settings.manage")
+  @RequirePermission("templates.edit")
   @ApiOperation({ summary: "Update a notification message template" })
   @ApiResponse({ status: 200, description: "Message template updated successfully." })
   async update(

@@ -26,11 +26,11 @@ import { RejectDeletionRequestDto } from "./dto/reject-deletion-request.dto";
 @Controller(["api/admin/data-deletion-requests", "api/v1/admin/data-deletion-requests"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")
-@RequirePermission("users.manage")
 @ApiBearerAuth()
 export class AdminDataDeletionRequestsController {
   constructor(private readonly customersService: CustomersService) {}
 
+  @RequirePermission("customers.approve")
   @Get()
   @ApiOperation({ summary: "List data deletion requests (Admin)" })
   @ApiResponse({ status: 200, description: "Paginated data deletion requests." })
@@ -38,6 +38,7 @@ export class AdminDataDeletionRequestsController {
     return this.customersService.findDeletionRequests(query);
   }
 
+  @RequirePermission("customers.approve")
   @Patch(":id/approve")
   @ApiOperation({ summary: "Approve data deletion request & anonymize customer (Admin)" })
   @ApiResponse({ status: 200, description: "Request approved and customer anonymized." })
@@ -46,6 +47,7 @@ export class AdminDataDeletionRequestsController {
     return this.customersService.approveDeletionRequest(id, req.user!.id);
   }
 
+  @RequirePermission("customers.approve")
   @Patch(":id/reject")
   @ApiOperation({ summary: "Reject data deletion request (Admin)" })
   @ApiResponse({ status: 200, description: "Request rejected." })

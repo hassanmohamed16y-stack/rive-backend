@@ -2,14 +2,23 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
+  OnModuleInit,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditLogService } from "../audit-log/audit-log.service";
 import { CreatePermissionDto } from "./dto/create-permission.dto";
-import { DEFAULT_PERMISSIONS } from "./default-permissions";
+import {
+  LEGACY_EXTRA_GRANTS,
+  LEGACY_PERMISSION_MAP,
+  PERMISSION_CATALOG,
+  groupOfPermission,
+} from "./permission-catalog";
 
 @Injectable()
-export class PermissionsService {
+export class PermissionsService implements OnModuleInit {
+  private readonly logger = new Logger(PermissionsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
@@ -65,49 +74,110 @@ export class PermissionsService {
     return permission;
   }
 
-  /**
-   * Makes sure every built-in permission exists (production databases that were never
-   * seeded would otherwise show an empty permissions list and no role could be edited).
-   * New rows are also granted to the full_admin role, if it exists.
-   */
-  private async ensureDefaultPermissions(existingKeys: Set<string>) {
-    const missing = DEFAULT_PERMISSIONS.filter((p) => !existingKeys.has(p.key));
-    if (missing.length === 0) return false;
+  async onModuleInit() {
+    try {
+      await this.syncPermissionCatalog();
+    } catch (error) {
+      // Never block boot: the catalog is also synced lazily when the permissions list is opened.
+      this.logger.warn(`Permission catalog sync failed: ${(error as Error).message}`);
+    }
+  }
 
-    await this.prisma.permission.createMany({
-      data: missing.map((p) => ({ key: p.key, label: p.label })),
-      skipDuplicates: true,
+  /**
+   * Makes sure every permission in PERMISSION_CATALOG exists, grants all of them to full_admin,
+   * and (once) converts roles that still hold the old coarse permissions (e.g. products.edit,
+   * content.manage) to the equivalent fine-grained ones so nobody gains or loses access.
+   * Returns true when anything was written.
+   */
+  async syncPermissionCatalog(
+    knownPermissions?: Array<{ id: string; key: string }>,
+  ): Promise<boolean> {
+    const existing =
+      knownPermissions ??
+      (await this.prisma.permission.findMany({ select: { id: true, key: true } }));
+    const keys = new Set(existing.map((p) => p.key));
+    const missing = PERMISSION_CATALOG.filter((p) => !keys.has(p.key));
+    const legacyRows = existing.filter((p) => p.key in LEGACY_PERMISSION_MAP);
+    // "reviews.view" only exists once the split has happened; before that, roles holding the
+    // unchanged keys orders.view / products.view also need their new related permissions.
+    const preSplit = !keys.has("reviews.view");
+
+    if (missing.length === 0 && legacyRows.length === 0) return false;
+
+    if (missing.length > 0) {
+      await this.prisma.permission.createMany({
+        data: missing.map((p) => ({ key: p.key, label: p.label })),
+        skipDuplicates: true,
+      });
+    }
+
+    const all = await this.prisma.permission.findMany({
+      select: { id: true, key: true },
     });
+    const idByKey = new Map<string, string>(all.map((p) => [p.key, p.id] as [string, string]));
+
+    if (legacyRows.length > 0 || preSplit) {
+      const sourceKeys = [
+        ...Object.keys(LEGACY_PERMISSION_MAP),
+        ...(preSplit ? Object.keys(LEGACY_EXTRA_GRANTS) : []),
+      ];
+      const holders = await this.prisma.rolePermission.findMany({
+        where: { permission: { key: { in: sourceKeys } } },
+        select: { roleId: true, permission: { select: { key: true } } },
+      });
+      const grants: Array<{ roleId: string; permissionId: string }> = [];
+      for (const holder of holders) {
+        const oldKey = holder.permission.key;
+        const targets = [
+          ...(LEGACY_PERMISSION_MAP[oldKey] ?? []),
+          ...(preSplit ? LEGACY_EXTRA_GRANTS[oldKey] ?? [] : []),
+        ];
+        for (const target of targets) {
+          const permissionId = idByKey.get(target);
+          if (permissionId) grants.push({ roleId: holder.roleId, permissionId });
+        }
+      }
+      if (grants.length > 0) {
+        await this.prisma.rolePermission.createMany({ data: grants, skipDuplicates: true });
+      }
+    }
 
     const fullAdminRole = await this.prisma.role.findUnique({
       where: { name: "full_admin" },
     });
     if (fullAdminRole) {
-      const created = await this.prisma.permission.findMany({
-        where: { key: { in: missing.map((p) => p.key) } },
-        select: { id: true },
-      });
       await this.prisma.rolePermission.createMany({
-        data: created.map((p) => ({
-          roleId: fullAdminRole.id,
-          permissionId: p.id,
-        })),
+        data: PERMISSION_CATALOG.map((p) => idByKey.get(p.key))
+          .filter((id): id is string => Boolean(id))
+          .map((permissionId) => ({ roleId: fullAdminRole.id, permissionId })),
         skipDuplicates: true,
       });
     }
+
+    if (legacyRows.length > 0) {
+      const legacyIds = legacyRows.map((p) => p.id);
+      await this.prisma.rolePermission.deleteMany({
+        where: { permissionId: { in: legacyIds } },
+      });
+      await this.prisma.permission.deleteMany({ where: { id: { in: legacyIds } } });
+    }
+
     return true;
   }
 
   async findAllPermissionsGrouped() {
-    let permissions = await this.prisma.permission.findMany({
-      orderBy: { key: "asc" },
-    });
+    let permissions = await this.prisma.permission.findMany();
 
-    if (await this.ensureDefaultPermissions(new Set(permissions.map((p) => p.key)))) {
-      permissions = await this.prisma.permission.findMany({
-        orderBy: { key: "asc" },
-      });
+    if (await this.syncPermissionCatalog(permissions)) {
+      permissions = await this.prisma.permission.findMany();
     }
+
+    const order = new Map(PERMISSION_CATALOG.map((p, i) => [p.key, i]));
+    permissions.sort(
+      (a, b) =>
+        (order.get(a.key) ?? Number.MAX_SAFE_INTEGER) -
+          (order.get(b.key) ?? Number.MAX_SAFE_INTEGER) || a.key.localeCompare(b.key),
+    );
 
     const grouped: Record<
       string,
@@ -115,15 +185,8 @@ export class PermissionsService {
     > = {};
 
     for (const perm of permissions) {
-      const department = perm.key.includes(".")
-        ? perm.key.split(".")[0]
-        : "general";
-
-      if (!grouped[department]) {
-        grouped[department] = [];
-      }
-
-      grouped[department].push({
+      const department = groupOfPermission(perm.key);
+      (grouped[department] ??= []).push({
         id: perm.id,
         key: perm.key,
         label: perm.label,

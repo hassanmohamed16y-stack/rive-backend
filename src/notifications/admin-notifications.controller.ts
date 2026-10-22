@@ -22,7 +22,6 @@ import { WhatsAppService } from "./whatsapp.service";
 @Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["api/admin/notifications", "api/v1/admin/notifications"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-@RequirePermission("settings.manage")
 @Roles("ADMIN")
 @ApiBearerAuth()
 export class AdminNotificationsController {
@@ -32,6 +31,7 @@ export class AdminNotificationsController {
     private readonly settingsService: SettingsService,
   ) {}
 
+  @RequirePermission("settings.edit")
   @Post("whatsapp/test")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Send a test WhatsApp message using Meta Cloud API (Admin)" })
@@ -41,6 +41,7 @@ export class AdminNotificationsController {
     return this.whatsAppService.sendTestMessage(dto.recipientPhoneNumber, dto.message);
   }
 
+  @RequirePermission("settings.edit")
   @Post("test-alert")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Send a test alert email (Admin)" })

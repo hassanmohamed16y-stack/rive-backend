@@ -31,11 +31,11 @@ import { SuppliersService } from "./suppliers.service";
 @Controller(["api/admin/suppliers", "api/v1/admin/suppliers"])
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Roles("ADMIN")
-@RequirePermission("suppliers.manage")
 @ApiBearerAuth()
 export class SuppliersController {
   constructor(private readonly suppliersService: SuppliersService) {}
 
+  @RequirePermission("suppliers.create")
   @Post()
   @ApiOperation({ summary: "Create a supplier (Admin)" })
   @ApiResponse({ status: 201, description: "Supplier created." })
@@ -43,6 +43,7 @@ export class SuppliersController {
     return this.suppliersService.create(dto, req.user!.id);
   }
 
+  @RequirePermission("suppliers.view")
   @Get()
   @ApiOperation({ summary: "List suppliers (Admin)" })
   @ApiResponse({ status: 200, description: "Paginated list of suppliers." })
@@ -50,6 +51,7 @@ export class SuppliersController {
     return this.suppliersService.findAll(query);
   }
 
+  @RequirePermission("suppliers.view")
   @Get(":id")
   @ApiOperation({ summary: "Get supplier by ID (Admin)" })
   @ApiResponse({ status: 200, description: "Supplier found." })
@@ -58,6 +60,7 @@ export class SuppliersController {
     return this.suppliersService.findOne(id);
   }
 
+  @RequirePermission("suppliers.edit")
   @Patch(":id")
   @ApiOperation({ summary: "Update supplier (Admin)" })
   @ApiResponse({ status: 200, description: "Supplier updated." })
@@ -70,6 +73,7 @@ export class SuppliersController {
     return this.suppliersService.update(id, dto, req.user!.id);
   }
 
+  @RequirePermission("suppliers.delete")
   @Delete(":id")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Soft delete supplier (Admin)" })

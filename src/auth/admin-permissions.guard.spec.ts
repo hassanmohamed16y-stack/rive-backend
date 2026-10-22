@@ -36,9 +36,9 @@ describe("Admin Permissions Guard Enforcement Unit Tests", () => {
       ["orders.refund"],
       ["orders.update_status"],
       ["products.view"],
-      ["settings.manage"],
+      ["settings.edit"],
       ["customers.view"],
-      ["users.manage"],
+      ["users.create"],
       ["orders.view"],
     ];
 
@@ -59,8 +59,8 @@ describe("Admin Permissions Guard Enforcement Unit Tests", () => {
     const forbiddenRoutes = [
       ["products.edit"],
       ["orders.refund"],
-      ["settings.manage"],
-      ["users.manage"],
+      ["settings.edit"],
+      ["users.create"],
       ["orders.update_status"],
     ];
 

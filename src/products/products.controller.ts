@@ -114,7 +114,7 @@ export class ProductsController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
-  @RequirePermission("products.edit")
+  @RequirePermission("products.create")
   @ApiBearerAuth()
   @ApiOperation({ summary: "Create a product with variants and images" })
   @ApiResponse({ status: 201, description: "Product created successfully." })
@@ -156,7 +156,7 @@ export class ProductsController {
   @Delete(":id")
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Roles("ADMIN")
-  @RequirePermission("products.edit")
+  @RequirePermission("products.delete")
   @ApiBearerAuth()
   @ApiOperation({
     summary: "Soft delete a product by setting deletedAt without altering status (Admin)",

@@ -7,27 +7,11 @@ import {
   WorkflowTrustLevel,
 } from "@prisma/client";
 import * as bcrypt from "bcrypt";
+import { PERMISSION_CATALOG } from "../src/auth/permission-catalog";
 
 export async function seedDatabase(prisma: PrismaClient): Promise<void> {
   // Seed permissions
-  const permissionsData = [
-    { key: "orders.view", label: "عرض الطلبات" },
-    { key: "orders.update_status", label: "تحديث حالة الطلب" },
-    { key: "orders.refund", label: "استرداد الأموال" },
-    { key: "customers.view", label: "عرض العملاء" },
-    { key: "customers.update", label: "تحديث بيانات العملاء" },
-    { key: "products.view", label: "عرض المنتجات" },
-    { key: "products.edit", label: "تعديل المنتجات" },
-    { key: "settings.manage", label: "إدارة الإعدادات" },
-    { key: "users.manage", label: "إدارة المستخدمين" },
-    { key: "lists.manage", label: "إدارة القوائم" },
-    { key: "automation.manage", label: "إدارة الأتمتة" },
-    { key: "stats.view", label: "عرض الإحصائيات" },
-    { key: "coupons.manage", label: "إدارة الكوبونات" },
-    { key: "content.manage", label: "إدارة المحتوى (البانرات والصفحات)" },
-    { key: "expenses.manage", label: "إدارة المصروفات" },
-    { key: "suppliers.manage", label: "إدارة الموردين" },
-  ];
+  const permissionsData = PERMISSION_CATALOG.map(({ key, label }) => ({ key, label }));
 
   const permissionMap = new Map<string, string>();
   for (const perm of permissionsData) {
@@ -52,6 +36,7 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
       permissionKeys: [
         "orders.view",
         "orders.update_status",
+        "orders.notes",
         "customers.view",
         "products.view",
         "stats.view",
@@ -63,7 +48,9 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
       permissionKeys: [
         "orders.view",
         "customers.view",
-        "customers.update",
+        "customers.edit",
+        "conversations.view",
+        "conversations.reply",
         "stats.view",
       ],
     },
