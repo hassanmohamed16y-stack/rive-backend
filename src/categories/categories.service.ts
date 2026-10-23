@@ -15,6 +15,13 @@ import {
 import { isPrismaErrorCode } from "../common/utils/prisma-error";
 import { CreateCategoryDto } from "./dto/create-category.dto";
 
+/** FK violation from a Prisma query (P2003) or from raw SQL (P2010 / 23503). */
+function isForeignKeyViolation(error: unknown): boolean {
+  if (isPrismaErrorCode(error, "P2003")) return true;
+  const meta = (error as { meta?: { code?: string } } | null)?.meta;
+  return isPrismaErrorCode(error, "P2010") && meta?.code === "23503";
+}
+
 @Injectable()
 export class CategoriesService {
   constructor(
@@ -173,9 +180,10 @@ export class CategoriesService {
               "Cannot delete a category that has products",
             );
           }
-          await tx.product.deleteMany({
-            where: { categoryId: id, deletedAt: { not: null } },
-          });
+          // Raw SQL on purpose: the Prisma soft-delete middleware turns
+          // product.deleteMany into another soft delete, which would leave
+          // the rows (and the foreign key) in place.
+          await tx.$executeRaw`DELETE FROM "Product" WHERE "categoryId" = ${id} AND "deletedAt" IS NOT NULL`;
         }
 
         const category = await tx.category.delete({ where: { id } });
@@ -195,7 +203,7 @@ export class CategoriesService {
       });
       return category;
     } catch (error) {
-      if (isPrismaErrorCode(error, "P2003")) {
+      if (isForeignKeyViolation(error)) {
         throw new ConflictException(
           "Cannot delete a category that has products",
         );

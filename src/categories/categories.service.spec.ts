@@ -23,8 +23,8 @@ describe("CategoriesService", () => {
       product: {
         count: jest.fn().mockResolvedValue(0),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
-        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
+      $executeRaw: jest.fn().mockResolvedValue(0),
       $transaction: jest.fn(),
     };
     prisma.$transaction.mockImplementation((cb: any) => cb(prisma));
@@ -83,7 +83,7 @@ describe("CategoriesService", () => {
       expect(prisma.product.count).toHaveBeenCalledWith({
         where: { categoryId: "category-1", deletedAt: null },
       });
-      expect(prisma.product.deleteMany).not.toHaveBeenCalled();
+      expect(prisma.$executeRaw).not.toHaveBeenCalled();
       expect(prisma.category.delete).not.toHaveBeenCalled();
     });
 
@@ -93,9 +93,13 @@ describe("CategoriesService", () => {
 
       await service.remove("category-1", "admin-1");
 
-      expect(prisma.product.deleteMany).toHaveBeenCalledWith({
-        where: { categoryId: "category-1", deletedAt: { not: null } },
-      });
+      // hard delete via raw SQL so the soft-delete middleware can't intercept it
+      expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+      const [sqlParts, categoryId] = prisma.$executeRaw.mock.calls[0];
+      expect(sqlParts.join("?")).toBe(
+        'DELETE FROM "Product" WHERE "categoryId" = ? AND "deletedAt" IS NOT NULL',
+      );
+      expect(categoryId).toBe("category-1");
       expect(prisma.category.delete).toHaveBeenCalledWith({
         where: { id: "category-1" },
       });
@@ -109,7 +113,10 @@ describe("CategoriesService", () => {
 
     it("keeps the category when hidden products have order history", async () => {
       const { service, prisma } = createService();
-      prisma.product.deleteMany.mockRejectedValue({ code: "P2003" });
+      prisma.$executeRaw.mockRejectedValue({
+        code: "P2010",
+        meta: { code: "23503" },
+      });
 
       await expect(service.remove("category-1")).rejects.toBeInstanceOf(
         ConflictException,
