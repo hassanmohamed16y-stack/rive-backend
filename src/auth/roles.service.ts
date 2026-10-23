@@ -23,6 +23,7 @@ export class RolesService {
       name: role.name,
       label: role.label,
       createdAt: role.createdAt,
+      ...(role._count ? { userCount: role._count.users } : {}),
       permissions: role.permissions
         ? role.permissions.map((p: any) => ({
             id: p.permission.id,
@@ -37,6 +38,7 @@ export class RolesService {
   async findAllRoles() {
     const roles = await this.prisma.role.findMany({
       include: {
+        _count: { select: { users: { where: { deletedAt: null } } } },
         permissions: {
           include: {
             permission: true,

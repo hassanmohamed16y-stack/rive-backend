@@ -151,6 +151,39 @@ describe("CategoriesService", () => {
       );
     });
 
+    it("force-deletes the category together with all of its products", async () => {
+      const { service, prisma, auditLogService } = createService();
+      prisma.product.count.mockResolvedValue(4);
+      prisma.category.delete.mockResolvedValue({ id: "category-1" });
+
+      await service.remove("category-1", "admin-1", undefined, true);
+
+      expect(prisma.product.count).not.toHaveBeenCalled();
+      const [sqlParts, categoryId] = prisma.$executeRaw.mock.calls[0];
+      expect(sqlParts.join("?")).toBe(
+        'DELETE FROM "Product" WHERE "categoryId" = ?',
+      );
+      expect(categoryId).toBe("category-1");
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          changes: expect.objectContaining({ deletedWithProducts: true }),
+        }),
+      );
+    });
+
+    it("explains when a forced delete is blocked by products with orders", async () => {
+      const { service, prisma } = createService();
+      prisma.$executeRaw.mockRejectedValue({
+        code: "P2010",
+        meta: { code: "23503" },
+      });
+
+      await expect(
+        service.remove("category-1", "admin-1", undefined, true),
+      ).rejects.toThrow("Category products have orders");
+      expect(prisma.category.delete).not.toHaveBeenCalled();
+    });
+
     it("rejects moving products into the category being deleted", async () => {
       const { service, prisma } = createService();
 

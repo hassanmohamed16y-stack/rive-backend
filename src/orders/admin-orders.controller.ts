@@ -3,6 +3,7 @@ import { Throttle } from "@nestjs/throttler";
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -138,5 +139,17 @@ export class AdminOrdersController {
     @Body() dto: RefundOrderDto,
   ) {
     return this.paymobService.refundTransaction(id, dto?.amount);
+  }
+
+  @Delete(":id")
+  @RequirePermission("orders.delete")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Permanently delete an order; stock it still holds is returned (Admin)",
+  })
+  @ApiResponse({ status: 200, description: "Order deleted." })
+  @ApiResponse({ status: 404, description: "Order not found." })
+  async remove(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
+    return this.ordersService.deleteOrderPermanently(id, req.user!.id);
   }
 }

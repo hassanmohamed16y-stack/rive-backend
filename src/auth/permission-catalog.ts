@@ -21,6 +21,7 @@ export const PERMISSION_CATALOG: ReadonlyArray<PermissionDef> = [
     ["orders.refund", "استرداد الأموال"],
     ["orders.notes", "إضافة وتعديل وحذف ملاحظات الطلب"],
     ["orders.export", "تصدير الطلبات"],
+    ["orders.delete", "حذف طلب نهائيًا"],
   ]),
   ...g("العملاء", [
     ["customers.view", "عرض العملاء"],
