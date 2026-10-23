@@ -100,9 +100,11 @@ export const PERMISSION_CATALOG: ReadonlyArray<PermissionDef> = [
     ["zones.view", "عرض مناطق الشحن"],
     ["zones.create", "إضافة منطقة شحن"],
     ["zones.edit", "تعديل منطقة شحن وتعطيلها"],
+    ["zones.delete", "حذف منطقة شحن نهائيًا"],
     ["lists.view", "عرض القوائم"],
     ["lists.create", "إضافة عنصر لقائمة"],
     ["lists.edit", "تعديل عنصر قائمة وتعطيله"],
+    ["lists.delete", "حذف عنصر قائمة نهائيًا"],
   ]),
   ...g("الأتمتة", [
     ["automation.view", "عرض الأتمتة وسجل التشغيل"],

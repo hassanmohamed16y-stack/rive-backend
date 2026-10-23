@@ -157,4 +157,26 @@ export class SystemListsService {
       throw error;
     }
   }
+
+  /** Permanently delete a ListItem (Admin). */
+  async removeItem(id: string, actorUserId?: string) {
+    try {
+      const item = await this.prisma.listItem.delete({ where: { id } });
+
+      await this.auditLogService.record({
+        userId: actorUserId,
+        action: "system_list_item.delete",
+        entityType: "ListItem",
+        entityId: item.id,
+        changes: { deleted: true, key: item.key },
+      });
+
+      return { id: item.id, deleted: true };
+    } catch (error) {
+      if (isPrismaErrorCode(error, "P2025")) {
+        throw new NotFoundException(`ListItem ${id} was not found`);
+      }
+      throw error;
+    }
+  }
 }

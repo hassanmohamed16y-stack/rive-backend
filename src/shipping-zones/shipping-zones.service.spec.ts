@@ -5,6 +5,7 @@ describe("ShippingZonesService", () => {
   function createService() {
     const prisma = {
       shippingZone: {
+        delete: jest.fn(),
         findMany: jest.fn().mockResolvedValue([
           {
             id: "sz-1",
@@ -190,6 +191,32 @@ describe("ShippingZonesService", () => {
       await expect(
         service.deactivate("invalid-id"),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe("remove", () => {
+    it("permanently deletes a zone and records an audit log", async () => {
+      const { service, prisma, auditLogService } = createService();
+      prisma.shippingZone.delete.mockResolvedValue({ id: "sz-1", cityLabel: "القاهرة" });
+
+      const result = await service.remove("sz-1", "admin-user-1");
+
+      expect(result).toEqual({ id: "sz-1", deleted: true });
+      expect(prisma.shippingZone.delete).toHaveBeenCalledWith({ where: { id: "sz-1" } });
+      expect(auditLogService.record).toHaveBeenCalledWith({
+        userId: "admin-user-1",
+        action: "shipping_zone.delete",
+        entityType: "ShippingZone",
+        entityId: "sz-1",
+        changes: { deleted: true, cityLabel: "القاهرة" },
+      });
+    });
+
+    it("throws NotFoundException when zone is not found (P2025)", async () => {
+      const { service, prisma } = createService();
+      prisma.shippingZone.delete.mockRejectedValue({ code: "P2025" });
+
+      await expect(service.remove("invalid-id")).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

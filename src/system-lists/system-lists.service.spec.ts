@@ -17,6 +17,7 @@ describe("SystemListsService", () => {
         findUnique: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+        delete: jest.fn(),
       },
     };
     const auditLogService = { record: jest.fn().mockResolvedValue(undefined) };
@@ -208,6 +209,32 @@ describe("SystemListsService", () => {
       await expect(
         service.deactivateItem("invalid-id"),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe("removeItem", () => {
+    it("permanently deletes an item and records an audit log", async () => {
+      const { service, prisma, auditLogService } = createService();
+      prisma.listItem.delete.mockResolvedValue({ id: "item-1", key: "clothing" });
+
+      const result = await service.removeItem("item-1", "admin-user-1");
+
+      expect(result).toEqual({ id: "item-1", deleted: true });
+      expect(prisma.listItem.delete).toHaveBeenCalledWith({ where: { id: "item-1" } });
+      expect(auditLogService.record).toHaveBeenCalledWith({
+        userId: "admin-user-1",
+        action: "system_list_item.delete",
+        entityType: "ListItem",
+        entityId: "item-1",
+        changes: { deleted: true, key: "clothing" },
+      });
+    });
+
+    it("throws NotFoundException when item is not found (P2025)", async () => {
+      const { service, prisma } = createService();
+      prisma.listItem.delete.mockRejectedValue({ code: "P2025" });
+
+      await expect(service.removeItem("invalid-id")).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

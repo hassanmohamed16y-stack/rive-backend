@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -139,5 +140,20 @@ export class SystemListsController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.systemListsService.deactivateItem(id, req.user?.id);
+  }
+
+  @Delete("items/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles("ADMIN")
+  @RequirePermission("lists.delete")
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Permanently delete a ListItem (Admin)" })
+  @ApiResponse({ status: 200, description: "ListItem deleted." })
+  @ApiResponse({ status: 401, description: "Unauthorized." })
+  @ApiResponse({ status: 403, description: "Forbidden." })
+  @ApiResponse({ status: 404, description: "ListItem not found." })
+  async removeItem(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
+    return this.systemListsService.removeItem(id, req.user?.id);
   }
 }
