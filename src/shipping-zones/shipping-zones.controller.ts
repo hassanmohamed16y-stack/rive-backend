@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -137,5 +138,20 @@ export class ShippingZonesController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.shippingZonesService.deactivate(id, req.user?.id);
+  }
+
+  @Delete(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles("ADMIN")
+  @RequirePermission("zones.delete")
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Permanently delete a shipping zone (Admin)" })
+  @ApiResponse({ status: 200, description: "Shipping zone deleted." })
+  @ApiResponse({ status: 401, description: "Unauthorized." })
+  @ApiResponse({ status: 403, description: "Forbidden." })
+  @ApiResponse({ status: 404, description: "Shipping zone not found." })
+  async remove(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
+    return this.shippingZonesService.remove(id, req.user?.id);
   }
 }

@@ -150,4 +150,31 @@ export class ShippingZonesService {
 
     return zone;
   }
+
+  /**
+   * Permanently delete a shipping zone (Admin).
+   * Orders store the city as plain text (no foreign key), so deleting a zone
+   * never affects historical orders.
+   */
+  async remove(id: string, actorUserId?: string) {
+    let zone;
+    try {
+      zone = await this.prisma.shippingZone.delete({ where: { id } });
+    } catch (error) {
+      if (isPrismaErrorCode(error, "P2025")) {
+        throw new NotFoundException(`Shipping zone ${id} was not found`);
+      }
+      throw error;
+    }
+
+    await this.auditLogService.record({
+      userId: actorUserId,
+      action: "shipping_zone.delete",
+      entityType: "ShippingZone",
+      entityId: zone.id,
+      changes: { deleted: true, cityLabel: zone.cityLabel },
+    });
+
+    return { id: zone.id, deleted: true };
+  }
 }
