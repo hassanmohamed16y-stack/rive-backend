@@ -214,6 +214,7 @@ export class OrdersService implements OnModuleInit {
         }
         if (
           !variant.isAvailable ||
+          Boolean(variant.product.deletedAt) ||
           variant.product.status !== ProductStatus.ACTIVE
         ) {
           throw new BadRequestException(
