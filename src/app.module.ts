@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { resolveDefaultThrottleLimit } from "./common/utils/throttling";
 import { AuditLogModule } from "./audit-log/audit-log.module";
 import { AuthModule } from "./auth/auth.module";
 import { CategoriesModule } from "./categories/categories.module";
@@ -50,7 +51,8 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // 1 minute in milliseconds
-        limit: 10, // Default: 10 requests per minute
+        // 10/min for public routes, admin limit for routes that need ADMIN
+        limit: resolveDefaultThrottleLimit,
       },
     ]),
     PrismaModule,
