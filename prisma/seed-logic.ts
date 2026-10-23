@@ -9,7 +9,20 @@ import {
 import * as bcrypt from "bcrypt";
 import { PERMISSION_CATALOG } from "../src/auth/permission-catalog";
 
+/**
+ * True when the database has never been seeded (no roles yet), or when
+ * SEED_FORCE=true is set. Default/demo data is only written on a first run,
+ * so things the store owner deleted or edited (roles, shipping zones,
+ * categories, lists, templates...) are not brought back by later runs.
+ */
+export async function isFirstSeedRun(prisma: PrismaClient): Promise<boolean> {
+  if (process.env.SEED_FORCE === "true") return true;
+  return (await prisma.role.count()) === 0;
+}
+
 export async function seedDatabase(prisma: PrismaClient): Promise<void> {
+  const firstRun = await isFirstSeedRun(prisma);
+
   // Seed permissions
   const permissionsData = PERMISSION_CATALOG.map(({ key, label }) => ({ key, label }));
 
@@ -57,7 +70,9 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
   ];
 
   const roleMap = new Map<string, string>();
-  for (const roleDef of rolesData) {
+  // After the first run only full_admin is kept in sync (it must hold the whole
+  // catalog); other roles belong to the store owner and are left untouched.
+  for (const roleDef of rolesData.filter((r) => firstRun || r.name === "full_admin")) {
     const role = await prisma.role.upsert({
       where: { name: roleDef.name },
       update: { label: roleDef.label },
@@ -89,6 +104,22 @@ export async function seedDatabase(prisma: PrismaClient): Promise<void> {
   }
 
   const fullAdminRoleId = roleMap.get("full_admin");
+
+  if (!firstRun) {
+    // Only repair an existing default admin that lost its role; never create
+    // accounts (with known passwords) or re-insert demo data on an existing DB.
+    const existing = await prisma.user.findUnique({ where: { email: "admin@rive.com" } });
+    if (existing && !existing.roleId && fullAdminRoleId) {
+      await prisma.user.update({
+        where: { id: existing.id },
+        data: { roleId: fullAdminRoleId, role: UserRole.ADMIN },
+      });
+    }
+    console.log(
+      "[Seed] Existing database detected: permissions synced, default data skipped (set SEED_FORCE=true to reseed).",
+    );
+    return;
+  }
 
   // The admin user is only created or migrated here, never resetting passwordHash
   const existingAdmin = await prisma.user.findUnique({
