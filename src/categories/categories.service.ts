@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -132,15 +133,65 @@ export class CategoriesService {
     }
   }
 
-  async remove(id: string, actorUserId?: string) {
+  /**
+   * Deletes a category.
+   * - With `moveToId`: all of its products (also hidden ones) are moved there first.
+   * - Without it: the category must have no live products. Products that were
+   *   already deleted (hidden) are purged with it, unless they have order
+   *   history, in which case the category stays and a conflict is returned.
+   */
+  async remove(id: string, actorUserId?: string, moveToId?: string) {
+    if (moveToId && moveToId === id) {
+      throw new BadRequestException(
+        "Choose a different category to move the products to",
+      );
+    }
+
     try {
-      const category = await this.prisma.category.delete({ where: { id } });
+      const { category, moved } = await this.prisma.$transaction(async (tx) => {
+        let moved = 0;
+
+        if (moveToId) {
+          const target = await tx.category.findUnique({
+            where: { id: moveToId },
+            select: { id: true },
+          });
+          if (!target) {
+            throw new NotFoundException(`Category ${moveToId} was not found`);
+          }
+          const result = await tx.product.updateMany({
+            where: { categoryId: id },
+            data: { categoryId: moveToId },
+          });
+          moved = result.count;
+        } else {
+          const live = await tx.product.count({
+            where: { categoryId: id, deletedAt: null },
+          });
+          if (live > 0) {
+            throw new ConflictException(
+              "Cannot delete a category that has products",
+            );
+          }
+          await tx.product.deleteMany({
+            where: { categoryId: id, deletedAt: { not: null } },
+          });
+        }
+
+        const category = await tx.category.delete({ where: { id } });
+        return { category, moved };
+      });
+
       await this.auditLogService.record({
         userId: actorUserId,
         action: "category.delete",
         entityType: "Category",
         entityId: category.id,
-        changes: { deleted: true },
+        changes: {
+          deleted: true,
+          movedProducts: moved,
+          ...(moveToId ? { moveToCategoryId: moveToId } : {}),
+        },
       });
       return category;
     } catch (error) {
