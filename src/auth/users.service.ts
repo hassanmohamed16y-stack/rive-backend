@@ -18,6 +18,15 @@ import { CreateUserDto } from "./dto/create-user.dto";
 import { normalizeUsername } from "./username.util";
 import { UpdateUserDto } from "./dto/update-user.dto";
 
+/** Staff accounts: admins, or anyone holding a dashboard role. Customers are excluded. */
+const STAFF_ONLY: Prisma.UserWhereInput = {
+  OR: [{ role: "ADMIN" }, { roleId: { not: null } }],
+};
+
+function isStaffAccount(user: { role?: string | null; roleId?: string | null }): boolean {
+  return user.role === "ADMIN" || Boolean(user.roleId);
+}
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -42,16 +51,21 @@ export class UsersService {
   ) {
     const { page, limit, skip, take } = resolvePagination(pagination);
     const where: Prisma.UserWhereInput = {
-      ...(roleId ? { roleId } : {}),
-      ...(search
-        ? {
-            OR: [
-              { fullName: { contains: search, mode: "insensitive" } },
-              { email: { contains: search, mode: "insensitive" } },
-              { username: { contains: search, mode: "insensitive" } },
-            ],
-          }
-        : {}),
+      AND: [
+        STAFF_ONLY,
+        ...(roleId ? [{ roleId }] : []),
+        ...(search
+          ? [
+              {
+                OR: [
+                  { fullName: { contains: search, mode: "insensitive" as const } },
+                  { email: { contains: search, mode: "insensitive" as const } },
+                  { username: { contains: search, mode: "insensitive" as const } },
+                ],
+              },
+            ]
+          : []),
+      ],
     };
 
     const [users, total] = await Promise.all([
@@ -161,7 +175,7 @@ export class UsersService {
       include: { roleRecord: true },
     });
 
-    if (!targetUser) {
+    if (!targetUser || !isStaffAccount(targetUser)) {
       throw new NotFoundException(`User with ID ${targetUserId} not found`);
     }
 
@@ -230,7 +244,7 @@ export class UsersService {
       include: { roleRecord: true },
     });
 
-    if (!targetUser) {
+    if (!targetUser || !isStaffAccount(targetUser)) {
       throw new NotFoundException(`User with ID ${targetUserId} not found`);
     }
 
@@ -240,7 +254,8 @@ export class UsersService {
 
     const updatedUser = await this.prisma.user.update({
       where: { id: targetUserId },
-      data: { isActive: false, deletedAt: new Date() },
+      // Keep the account visible (not soft-deleted) so it can be re-activated later.
+      data: { isActive: false },
       include: {
         roleRecord: {
           select: {
@@ -257,7 +272,7 @@ export class UsersService {
       action: "user.disabled",
       entityType: "User",
       entityId: updatedUser.id,
-      changes: { isActive: false, deletedAt: updatedUser.deletedAt },
+      changes: { isActive: false },
     });
 
     return this.sanitizeUser(updatedUser);
@@ -272,7 +287,7 @@ export class UsersService {
       include: { roleRecord: true },
     });
 
-    if (!targetUser) {
+    if (!targetUser || !isStaffAccount(targetUser)) {
       throw new NotFoundException(`User with ID ${targetUserId} not found`);
     }
 

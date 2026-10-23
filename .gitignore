@@ -13,3 +13,6 @@ coverage/
 .cursor/
 .copilot/
 memory-bank/
+
+# Python packages downloaded locally
+*.whl

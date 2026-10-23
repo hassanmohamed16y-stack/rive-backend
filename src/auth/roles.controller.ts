@@ -23,10 +23,13 @@ import { CreateRoleDto } from "./dto/create-role.dto";
 import { UpdateRoleDto } from "./dto/update-role.dto";
 import { SetRolePermissionsDto } from "./dto/set-role-permissions.dto";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
+import { Roles } from "./roles.decorator";
+import { RolesGuard } from "./roles.guard";
 
 @ApiTags("roles")
 @Controller(["api/v1/roles", "roles"])
-@UseGuards(JwtAuthGuard, FullAdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, FullAdminGuard)
+@Roles("ADMIN")
 @ApiBearerAuth()
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}

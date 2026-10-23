@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Prisma, ProductStatus } from "@prisma/client";
 import { AuditLogService } from "../audit-log/audit-log.service";
 import {
   buildPaginationMeta,
@@ -13,6 +13,12 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateCollectionDto } from "./dto/create-collection.dto";
 import { UpdateCollectionDto } from "./dto/update-collection.dto";
+
+/** Products a shopper may see: not deleted and published/active. */
+const PUBLIC_PRODUCT: Prisma.ProductWhereInput = {
+  deletedAt: null,
+  status: { in: [ProductStatus.ACTIVE, ProductStatus.PUBLISHED] },
+};
 
 @Injectable()
 export class CollectionsService {
@@ -24,6 +30,7 @@ export class CollectionsService {
   async findAll(
     filters: { search?: string; isFeatured?: boolean },
     pagination: PaginationInput,
+    publicView = false,
   ) {
     const { page, limit, skip, take } = resolvePagination(pagination);
     const where: Prisma.CollectionWhereInput = {
@@ -45,7 +52,7 @@ export class CollectionsService {
         where,
         include: {
           products: {
-            where: { product: { deletedAt: null } },
+            where: { product: publicView ? PUBLIC_PRODUCT : { deletedAt: null } },
             include: {
               product: {
                 include: {
@@ -74,7 +81,7 @@ export class CollectionsService {
       where: { slug },
       include: {
         products: {
-          where: { product: { deletedAt: null } },
+          where: { product: PUBLIC_PRODUCT },
           include: {
             product: {
               include: {

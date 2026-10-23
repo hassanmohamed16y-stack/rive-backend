@@ -32,6 +32,29 @@ describe("CollectionsService", () => {
     service = new CollectionsService(prisma as any, auditLogService as any);
   });
 
+  it("public views only include live, published products; admin view keeps drafts", async () => {
+    const publicFilter = {
+      deletedAt: null,
+      status: { in: ["ACTIVE", "PUBLISHED"] },
+    };
+
+    await service.findAll({}, { page: 1, limit: 10 }, true);
+    expect(prisma.collection.findMany.mock.calls[0][0].include.products.where).toEqual({
+      product: publicFilter,
+    });
+
+    await service.findAll({}, { page: 1, limit: 10 });
+    expect(prisma.collection.findMany.mock.calls[1][0].include.products.where).toEqual({
+      product: { deletedAt: null },
+    });
+
+    prisma.collection.findUnique.mockResolvedValue({ id: "c1", products: [] });
+    await service.findOneBySlug("summer");
+    expect(prisma.collection.findUnique.mock.calls[0][0].include.products.where).toEqual({
+      product: publicFilter,
+    });
+  });
+
   it("lists collections with pagination", async () => {
     prisma.collection.findMany.mockResolvedValue([
       { id: "col-1", name: "Summer Collection", slug: "summer-collection" },

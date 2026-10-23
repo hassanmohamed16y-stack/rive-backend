@@ -20,6 +20,7 @@ export class CollectionsController {
     return this.collectionsService.findAll(
       { search: query.search, isFeatured: query.isFeatured },
       { page: query.page, limit: query.limit },
+      true,
     );
   }
 
