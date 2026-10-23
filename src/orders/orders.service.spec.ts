@@ -258,6 +258,19 @@ describe("OrdersService inventory reservations", () => {
     expect(context.variant.stock).toBe(0);
   });
 
+  it("rejects a variant whose product was deleted (stale cart)", async () => {
+    const context = transactionPrisma(5);
+    (context.variant.product as any).deletedAt = new Date();
+    const service = new OrdersService(
+      context.prisma as any,
+      context.auditLogService as any,
+    );
+
+    await expect(service.create(dto)).rejects.toThrow("unavailable");
+    expect(context.tx.productVariant.updateMany).not.toHaveBeenCalled();
+    expect(context.tx.order.create).not.toHaveBeenCalled();
+  });
+
   it("rejects duplicate variants before reserving stock", async () => {
     const context = transactionPrisma();
     const service = new OrdersService(

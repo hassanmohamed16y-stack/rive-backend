@@ -19,7 +19,9 @@ export class AdminDashboardService {
       this.prisma.user.count({ where: { role: "CUSTOMER" } }),
       this.prisma.product.count({ where: { status: "ACTIVE" } }),
       this.prisma.order.count({ where: { status: "PENDING" } }),
-      this.prisma.productVariant.count({ where: { stock: { lte: 5 } } }),
+      this.prisma.productVariant.count({
+        where: { stock: { lte: 5 }, product: { deletedAt: null } },
+      }),
       this.prisma.order.aggregate({
         where: { paymentStatus: "PAID" },
         _sum: { totalAmount: true },
@@ -81,7 +83,7 @@ export class AdminDashboardService {
 
   async getLowStockProducts(threshold = 5) {
     return this.prisma.productVariant.findMany({
-      where: { stock: { lte: threshold } },
+      where: { stock: { lte: threshold }, product: { deletedAt: null } },
       include: { product: true },
       orderBy: { stock: "asc" },
     });

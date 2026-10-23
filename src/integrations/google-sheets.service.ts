@@ -132,6 +132,7 @@ export class GoogleSheetsService {
 
   async exportInventory() {
     const variants = await this.prisma.productVariant.findMany({
+      where: { product: { deletedAt: null } },
       include: { product: true },
       orderBy: { stock: "asc" },
     });

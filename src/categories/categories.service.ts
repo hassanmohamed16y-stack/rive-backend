@@ -43,7 +43,7 @@ export class CategoriesService {
         where,
         include: {
           _count: {
-            select: { products: true },
+            select: { products: { where: { deletedAt: null } } },
           },
         },
         orderBy: { createdAt: "desc" },
@@ -95,7 +95,7 @@ export class CategoriesService {
     const category = await this.prisma.category.findUnique({
       where: { slug },
       include: {
-        _count: { select: { products: true } },
+        _count: { select: { products: { where: { deletedAt: null } } } },
       },
     });
 

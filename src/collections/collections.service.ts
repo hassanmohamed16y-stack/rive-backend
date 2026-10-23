@@ -45,6 +45,7 @@ export class CollectionsService {
         where,
         include: {
           products: {
+            where: { product: { deletedAt: null } },
             include: {
               product: {
                 include: {
@@ -73,6 +74,7 @@ export class CollectionsService {
       where: { slug },
       include: {
         products: {
+          where: { product: { deletedAt: null } },
           include: {
             product: {
               include: {
@@ -98,6 +100,7 @@ export class CollectionsService {
       where: { id },
       include: {
         products: {
+          where: { product: { deletedAt: null } },
           include: {
             product: {
               include: {
