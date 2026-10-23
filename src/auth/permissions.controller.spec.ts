@@ -97,6 +97,7 @@ describe("PermissionsService Tests", () => {
       "orders.refund",
       "orders.notes",
       "orders.export",
+      "orders.delete",
     ]);
     expect(prismaMock.permission.createMany).not.toHaveBeenCalled();
   });

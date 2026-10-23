@@ -147,7 +147,12 @@ export class CategoriesService {
    *   already deleted (hidden) are purged with it, unless they have order
    *   history, in which case the category stays and a conflict is returned.
    */
-  async remove(id: string, actorUserId?: string, moveToId?: string) {
+  async remove(
+    id: string,
+    actorUserId?: string,
+    moveToId?: string,
+    force = false,
+  ) {
     if (moveToId && moveToId === id) {
       throw new BadRequestException(
         "Choose a different category to move the products to",
@@ -171,6 +176,12 @@ export class CategoriesService {
             data: { categoryId: moveToId },
           });
           moved = result.count;
+        } else if (force) {
+          // Delete the category together with all of its products (live and
+          // hidden). Products that have orders still block this (FK), so no
+          // order history is ever lost.
+          moved = 0;
+          await tx.$executeRaw`DELETE FROM "Product" WHERE "categoryId" = ${id}`;
         } else {
           const live = await tx.product.count({
             where: { categoryId: id, deletedAt: null },
@@ -199,13 +210,16 @@ export class CategoriesService {
           deleted: true,
           movedProducts: moved,
           ...(moveToId ? { moveToCategoryId: moveToId } : {}),
+          ...(force && !moveToId ? { deletedWithProducts: true } : {}),
         },
       });
       return category;
     } catch (error) {
       if (isForeignKeyViolation(error)) {
         throw new ConflictException(
-          "Cannot delete a category that has products",
+          force
+            ? "Category products have orders"
+            : "Cannot delete a category that has products",
         );
       }
       if (isPrismaErrorCode(error, "P2025"))

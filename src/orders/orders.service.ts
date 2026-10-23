@@ -66,6 +66,14 @@ const orderInclude = {
   },
 } satisfies Prisma.OrderInclude;
 
+/** Statuses in which the order's items are still deducted from stock and not shipped. */
+const ORDER_STATUSES_HOLDING_STOCK: OrderStatus[] = [
+  OrderStatus.PENDING,
+  OrderStatus.CONFIRMED,
+  OrderStatus.PROCESSING,
+  OrderStatus.PAID,
+];
+
 @Injectable()
 export class OrdersService implements OnModuleInit {
   private readonly logger = new Logger(OrdersService.name);
@@ -823,6 +831,66 @@ export class OrdersService implements OnModuleInit {
     });
 
     return updatedOrder;
+  }
+
+  /**
+   * Permanently deletes an order (e.g. a test order). Stock the order still
+   * holds (not cancelled/expired and not yet shipped) is returned first, and a
+   * coupon use is released. Items and status history are removed by cascade.
+   * Raw SQL is used because the soft-delete middleware would otherwise turn
+   * the delete into an update and keep the rows.
+   */
+  async deleteOrderPermanently(id: string, actorUserId?: string) {
+    const order = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.order.findFirst({
+        where: { id },
+        select: {
+          id: true,
+          orderNumber: true,
+          status: true,
+          couponId: true,
+          totalAmount: true,
+        },
+      });
+      if (!existing) {
+        throw new NotFoundException(`Order ${id} was not found`);
+      }
+
+      if (ORDER_STATUSES_HOLDING_STOCK.includes(existing.status)) {
+        const items = await tx.orderItem.findMany({ where: { orderId: id } });
+        for (const item of items) {
+          await tx.productVariant.updateMany({
+            where: { id: item.productVariantId },
+            data: { stock: { increment: item.quantity } },
+          });
+        }
+        if (existing.couponId) {
+          await tx.coupon.updateMany({
+            where: { id: existing.couponId, usageCount: { gt: 0 } },
+            data: { usageCount: { decrement: 1 } },
+          });
+        }
+      }
+
+      await tx.$executeRaw`DELETE FROM "Order" WHERE "id" = ${id}`;
+      return existing;
+    });
+
+    await this.auditLogService.record({
+      userId: actorUserId,
+      action: "order.delete",
+      entityType: "Order",
+      entityId: order.id,
+      changes: {
+        deleted: true,
+        orderNumber: order.orderNumber,
+        status: order.status,
+        totalAmount: order.totalAmount?.toString(),
+        stockReturned: ORDER_STATUSES_HOLDING_STOCK.includes(order.status),
+      },
+    });
+
+    return { id: order.id, deleted: true };
   }
 
   /**

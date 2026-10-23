@@ -144,11 +144,24 @@ export class CategoriesController {
     description:
       "Move the category's products to this category before deleting",
   })
+  @ApiQuery({
+    name: "force",
+    required: false,
+    type: Boolean,
+    description:
+      "Delete the category with all of its products (blocked if any product has orders)",
+  })
   async remove(
     @Param("id") id: string,
     @Req() req: AuthenticatedRequest,
     @Query("moveTo") moveTo?: string,
+    @Query("force") force?: string,
   ) {
-    return this.categoriesService.remove(id, req.user!.id, moveTo || undefined);
+    return this.categoriesService.remove(
+      id,
+      req.user!.id,
+      moveTo || undefined,
+      force === "true",
+    );
   }
 }
