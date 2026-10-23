@@ -121,8 +121,22 @@ describe("CategoriesController", () => {
       expect(categoriesService.remove).toHaveBeenCalledWith(
         "cat-2",
         "admin-123",
+        undefined,
       );
       expect(res).toEqual({ message: "Category deleted successfully" });
+    });
+
+    it("passes the moveTo category through to the service", async () => {
+      const req = { user: { id: "admin-123", role: "ADMIN" } } as any;
+      categoriesService.remove.mockResolvedValue({ id: "cat-2" } as any);
+
+      await controller.remove("cat-2", req, "cat-9");
+
+      expect(categoriesService.remove).toHaveBeenCalledWith(
+        "cat-2",
+        "admin-123",
+        "cat-9",
+      );
     });
   });
 });

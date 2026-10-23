@@ -137,7 +137,18 @@ export class CategoriesController {
     status: 409,
     description: "Category has products and cannot be deleted.",
   })
-  async remove(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
-    return this.categoriesService.remove(id, req.user!.id);
+  @ApiQuery({
+    name: "moveTo",
+    required: false,
+    type: String,
+    description:
+      "Move the category's products to this category before deleting",
+  })
+  async remove(
+    @Param("id") id: string,
+    @Req() req: AuthenticatedRequest,
+    @Query("moveTo") moveTo?: string,
+  ) {
+    return this.categoriesService.remove(id, req.user!.id, moveTo || undefined);
   }
 }
