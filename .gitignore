@@ -20,3 +20,4 @@ memory-bank/
 # Self-host deploy secrets and database backups
 deploy/.env
 deploy/backups/
+deploy/rclone/

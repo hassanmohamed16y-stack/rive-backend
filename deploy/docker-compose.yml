@@ -70,6 +70,7 @@ services:
       dockerfile: ../rive-backend/deploy/dockerfiles/store.Dockerfile
       args:
         NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
+        NEXT_PUBLIC_SEND_UTM: ${NEXT_PUBLIC_SEND_UTM:-true}
     environment:
       NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
     depends_on:
@@ -152,14 +153,18 @@ services:
     image: postgres:17-alpine
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD}
+      # اختياري: مكان خارج السيرفر زي b2:rive-backups (شوف README، خطوة النسخ الاحتياطي).
+      BACKUP_RCLONE_REMOTE: ${BACKUP_RCLONE_REMOTE:-}
     volumes:
       - ./backups:/backups
+      - ./rclone:/root/.config/rclone
       - ./backup.sh:/usr/local/bin/backup.sh:ro
     command:
       - sh
       - -c
       - |
-        echo "30 3 * * * PGPASSWORD='$$PGPASSWORD' sh /usr/local/bin/backup.sh >> /backups/backup.log 2>&1" > /etc/crontabs/root
+        apk add --no-cache rclone >/dev/null 2>&1 || echo "rclone install failed: off-server copy disabled"
+        echo "30 3 * * * PGPASSWORD='$$PGPASSWORD' BACKUP_RCLONE_REMOTE='$$BACKUP_RCLONE_REMOTE' sh /usr/local/bin/backup.sh >> /backups/backup.log 2>&1" > /etc/crontabs/root
         chmod 600 /etc/crontabs/root
         exec crond -f -l 8
     depends_on:

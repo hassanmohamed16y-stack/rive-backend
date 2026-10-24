@@ -57,6 +57,24 @@ bash /opt/rive/rive-backend/deploy/import-db.sh 'postgres://USER:PASS@HOST:5432/
 - Paymob (callback)
 - WhatsApp / Meta (webhook + verify token)
 
+## 9) نسخة احتياطية خارج السيرفر (مهم)
+النسخة اليومية على السيرفر نفسه لوحدها مش كفاية: لو السيرفر اتمسح بتضيع معاه. اربطها بمكان خارجي مرة واحدة (مثلًا Backblaze B2، فيه 10 جيجا مجانًا):
+1. اعمل حساب B2 وBucket خاص (Private) اسمه مثلًا `rive-backups`، وبعدها App Key جديد وانسخ `keyID` و`applicationKey`.
+2. على السيرفر:
+   ```
+   cd /opt/rive/rive-backend/deploy
+   mkdir -p rclone
+   docker compose run --rm --entrypoint sh backup -c "apk add --no-cache rclone >/dev/null && rclone config"
+   ```
+   اختار `n` (New remote)، الاسم `b2`، النوع `Backblaze B2`، وحط `keyID` و`applicationKey`.
+3. فعّل الرفع:
+   ```
+   echo 'BACKUP_RCLONE_REMOTE=b2:rive-backups' >> .env
+   docker compose up -d backup
+   docker compose exec backup sh /usr/local/bin/backup.sh
+   ```
+   لازم تلاقي السطر `off-server copy ok`. (ملف `deploy/rclone` فيه مفاتيحك، مش بيترفع على GitHub.)
+
 ## بعد كده
 - **تحديث بعد أي تعديل:** `bash /opt/rive/rive-backend/deploy/update.sh`
 - **نسخ احتياطي:** أوتوماتيك كل يوم 3:30 الصبح في `deploy/backups` (آخر 14 يوم). حمّل نسخة بعيدة من وقت للتاني.
