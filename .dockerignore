@@ -10,3 +10,6 @@ coverage/
 .cursor/
 .copilot/
 memory-bank/
+
+# Self-host deploy: secrets and backups never go into images or git
+deploy/

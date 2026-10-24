@@ -1,0 +1,40 @@
+{
+	email {$ACME_EMAIL}
+}
+
+(common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}
+
+{$DOMAIN} {
+	import common
+	reverse_proxy store:3000
+}
+
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}
+
+admin.{$DOMAIN} {
+	import common
+	reverse_proxy admin:80
+}
+
+api.{$DOMAIN} {
+	import common
+	request_body {
+		max_size 20MB
+	}
+	reverse_proxy backend:3000
+}
+
+n8n.{$DOMAIN} {
+	import common
+	reverse_proxy n8n:5678
+}

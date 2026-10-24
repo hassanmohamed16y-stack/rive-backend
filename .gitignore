@@ -16,3 +16,7 @@ memory-bank/
 
 # Python packages downloaded locally
 *.whl
+
+# Self-host deploy secrets and database backups
+deploy/.env
+deploy/backups/
