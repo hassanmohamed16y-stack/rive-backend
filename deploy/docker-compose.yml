@@ -1,0 +1,173 @@
+# RIVÉ — everything on one server: store, admin, backend, Postgres, n8n.
+#
+# Layout on the server (setup.sh creates it):
+#   /opt/rive/rive-backend   (this repo; compose lives in ./deploy)
+#   /opt/rive/rive-admin
+#   /opt/rive/rive-store
+#
+# Values come from deploy/.env (created by setup.sh, never committed).
+
+name: rive
+
+x-restart: &restart
+  restart: unless-stopped
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+services:
+  postgres:
+    <<: [*restart, *logging]
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: rive
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run setup.sh first}
+      POSTGRES_DB: rive
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rive -d rive"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    <<: [*restart, *logging]
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      TRUST_PROXY_HOPS: "1"
+      DATABASE_URL: postgresql://rive:${POSTGRES_PASSWORD}@postgres:5432/rive?schema=public
+      DIRECT_DATABASE_URL: postgresql://rive:${POSTGRES_PASSWORD}@postgres:5432/rive?schema=public
+      FRONTEND_URL: https://${DOMAIN},https://www.${DOMAIN}
+      ADMIN_FRONTEND_URL: https://admin.${DOMAIN}
+      AGENT_BASE_URL: https://n8n.${DOMAIN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  admin:
+    <<: [*restart, *logging]
+    build:
+      context: ../../rive-admin
+      dockerfile: ../rive-backend/deploy/dockerfiles/admin.Dockerfile
+      args:
+        VITE_API_URL: https://api.${DOMAIN}
+
+  store:
+    <<: [*restart, *logging]
+    build:
+      context: ../../rive-store
+      dockerfile: ../rive-backend/deploy/dockerfiles/store.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
+    environment:
+      NEXT_PUBLIC_API_URL: https://api.${DOMAIN}
+    depends_on:
+      - backend
+
+  n8n:
+    <<: [*restart, *logging]
+    image: n8nio/n8n:${N8N_VERSION:-latest}
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: "5432"
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: rive
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      N8N_HOST: n8n.${DOMAIN}
+      N8N_PROTOCOL: https
+      N8N_PORT: "5678"
+      WEBHOOK_URL: https://n8n.${DOMAIN}/
+      N8N_PROXY_HOPS: "1"
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?run setup.sh first}
+      GENERIC_TIMEZONE: Africa/Cairo
+      TZ: Africa/Cairo
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      # Workflows read the signing secret from $env (no paid "Variables" plan needed).
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      RIVE_AGENT_WEBHOOK_SECRET: ${RIVE_AGENT_WEBHOOK_SECRET}
+      AGENT_SERVICE_TOKEN: ${AGENT_SERVICE_TOKEN}
+      RIVE_API_URL: http://backend:3000
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  caddy:
+    <<: [*restart, *logging]
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?run setup.sh first}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - admin
+      - store
+      - n8n
+
+  # Scheduled calls the backend needs (were GitHub Actions / Vercel Cron before).
+  cron:
+    <<: [*restart, *logging]
+    image: alpine:3.20
+    environment:
+      INTERNAL_CRON_SECRET: ${INTERNAL_CRON_SECRET}
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache curl >/dev/null
+        # crond does not pass the container env to jobs, so the secret is written in at start.
+        cat > /etc/crontabs/root <<EOF
+        */5 * * * * curl -fsS -X POST -H "x-internal-cron-secret: $$INTERNAL_CRON_SECRET" http://backend:3000/api/v1/internal/expire-reservations >/dev/null 2>&1
+        * * * * * curl -fsS -X POST -H "x-internal-cron-secret: $$INTERNAL_CRON_SECRET" http://backend:3000/api/v1/internal/agent-events/dispatch >/dev/null 2>&1
+        EOF
+        chmod 600 /etc/crontabs/root
+        exec crond -f -l 8
+    depends_on:
+      - backend
+
+  # Daily database backups (03:30 server time), kept for 14 days in deploy/backups.
+  backup:
+    <<: [*restart, *logging]
+    image: postgres:17-alpine
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./backups:/backups
+      - ./backup.sh:/usr/local/bin/backup.sh:ro
+    command:
+      - sh
+      - -c
+      - |
+        echo "30 3 * * * PGPASSWORD='$$PGPASSWORD' sh /usr/local/bin/backup.sh >> /backups/backup.log 2>&1" > /etc/crontabs/root
+        chmod 600 /etc/crontabs/root
+        exec crond -f -l 8
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  n8n_data:
+  caddy_data:
+  caddy_config:

@@ -36,7 +36,12 @@ COPY scripts ./scripts
 # `npm run build` runs `prisma generate` followed by `nest build`, so the
 # Prisma Client and query engine binaries are generated here at build time.
 RUN npm run build
-RUN npm prune --omit=dev
+# Keep the Prisma CLI (a dev dependency) at the exact locked version: the
+# entrypoint runs `npx prisma migrate deploy`, and without it npx would fetch
+# whatever Prisma is newest, which may not match this schema/client.
+RUN PRISMA_VERSION=$(node -p "require('prisma/package.json').version") \
+  && npm prune --omit=dev \
+  && npm install --no-save --omit=dev --no-audit --no-fund "prisma@${PRISMA_VERSION}"
 
 FROM node:22-alpine AS runner
 
