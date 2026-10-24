@@ -17,10 +17,13 @@ import { FullAdminGuard } from "./full-admin.guard";
 import { PermissionsService } from "./permissions.service";
 import { CreatePermissionDto } from "./dto/create-permission.dto";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
+import { Roles } from "./roles.decorator";
+import { RolesGuard } from "./roles.guard";
 
 @ApiTags("permissions")
 @Controller(["api/v1/permissions", "permissions"])
-@UseGuards(JwtAuthGuard, FullAdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, FullAdminGuard)
+@Roles("ADMIN")
 @ApiBearerAuth()
 export class PermissionsController {
   constructor(private readonly permissionsService: PermissionsService) {}

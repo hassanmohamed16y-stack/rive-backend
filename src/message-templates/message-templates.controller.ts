@@ -16,10 +16,13 @@ import { PermissionsGuard } from "../auth/permissions.guard";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
 import { UpdateMessageTemplateDto } from "./dto/update-message-template.dto";
 import { MessageTemplatesService } from "./message-templates.service";
+import { Roles } from "../auth/roles.decorator";
+import { RolesGuard } from "../auth/roles.guard";
 
 @ApiTags("message-templates")
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@Roles("ADMIN")
 @Throttle({ default: { limit: getAdminThrottleLimit(), ttl: 60000 } })
 @Controller(["message-templates", "api/v1/message-templates", "api/v1/admin/message-templates"])
 export class MessageTemplatesController {

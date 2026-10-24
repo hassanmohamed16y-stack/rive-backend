@@ -23,10 +23,13 @@ import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { UsersQueryDto } from "./dto/users-query.dto";
 import { AuthenticatedRequest } from "../common/types/authenticated-request";
+import { Roles } from "./roles.decorator";
+import { RolesGuard } from "./roles.guard";
 
 @ApiTags("users")
 @Controller(["api/v1/users", "users"])
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@Roles("ADMIN")
 @ApiBearerAuth()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

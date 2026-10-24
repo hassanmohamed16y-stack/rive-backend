@@ -89,9 +89,11 @@ describe("ListCollectionsQueryDto & Collections Controllers", () => {
 
       await controller.findAll(queryDto);
 
+      // public listing passes publicView=true so draft/archived products stay hidden
       expect(collectionsService.findAll).toHaveBeenCalledWith(
         { search: "spring", isFeatured: false },
         { page: 2, limit: 5 },
+        true,
       );
     });
   });
