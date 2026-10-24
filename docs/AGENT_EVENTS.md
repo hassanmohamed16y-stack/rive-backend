@@ -43,8 +43,8 @@ Implements `rive-agent-kit/contract/EVENTS_CONTRACT.md` v1.
 | `payment.refunded` | admin refund through Paymob |
 | `admin.login` | admin accounts only: success, wrong password, locked |
 
-Not yet: `customer.consent_changed` (no consent field in the schema yet), UTM on
-`order.created` (`utm: null` until the store sends it), shipping events (carrier not chosen, D9).
+Not yet: `customer.consent_changed` (no consent field in the schema yet). UTM is stored on the order
+(`utmSource/Medium/Campaign/Content`) and sent in `order.created.utm` once the store sends it. Shipping events wait for the carrier (D9).
 
 ## Switches (env)
 
