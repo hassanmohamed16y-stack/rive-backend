@@ -82,6 +82,32 @@ export class CreateOrderDto {
   @Length(0, 500)
   notes?: string;
 
+  // Ad attribution (UTM) captured by the store on landing. Used by the AI
+  // agent for cost-per-order reports (P4-01). Free text, trimmed and capped.
+  @ApiPropertyOptional({ example: "facebook", maxLength: 100 })
+  @IsOptional()
+  @IsString()
+  @Length(0, 100)
+  utmSource?: string;
+
+  @ApiPropertyOptional({ example: "paid_social", maxLength: 100 })
+  @IsOptional()
+  @IsString()
+  @Length(0, 100)
+  utmMedium?: string;
+
+  @ApiPropertyOptional({ example: "winter_robes", maxLength: 150 })
+  @IsOptional()
+  @IsString()
+  @Length(0, 150)
+  utmCampaign?: string;
+
+  @ApiPropertyOptional({ example: "video_a", maxLength: 150 })
+  @IsOptional()
+  @IsString()
+  @Length(0, 150)
+  utmContent?: string;
+
   @ApiPropertyOptional({ example: "idemp_1234567890", maxLength: 255 })
   @IsOptional()
   @IsString()

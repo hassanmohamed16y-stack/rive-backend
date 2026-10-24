@@ -4,10 +4,12 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
   UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { AgentEventsService } from "../agent-events/agent-events.service";
 import { Prisma, User } from "@prisma/client";
 import * as bcrypt from "bcrypt";
 import * as crypto from "crypto";
@@ -74,7 +76,27 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly auditLogService: AuditLogService,
     private readonly emailService: EmailService,
+    @Optional() private readonly agentEvents?: AgentEventsService,
   ) {}
+
+  /** admin.login for the AI agent (P1-12). Admin accounts only; never blocks login. */
+  private async emitAdminLogin(
+    user: Pick<User, "id" | "role">,
+    success: boolean,
+    meta: { ip?: string; userAgent?: string } | undefined,
+    extra: Record<string, unknown> = {},
+  ) {
+    if (!this.agentEvents || user.role !== "ADMIN") return;
+    await this.agentEvents.enqueueSafe("admin.login", {
+      admin_id: user.id,
+      ip: meta?.ip ?? null,
+      user_agent: meta?.userAgent?.slice(0, 300) ?? null,
+      country: null,
+      success,
+      ...extra,
+    });
+    void this.agentEvents.kick();
+  }
 
   private sanitizeUser(user: User): SafeUser {
     const {
@@ -228,7 +250,7 @@ export class AuthService {
     return this.issueTokenPair(user);
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, meta?: { ip?: string; userAgent?: string }) {
     const rawIdentifier = (dto.identifier ?? dto.email ?? "").trim();
     const identifier = rawIdentifier.includes("@")
       ? rawIdentifier.toLowerCase()
@@ -258,6 +280,7 @@ export class AuthService {
 
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       await bcrypt.compare(dto.password, DUMMY_HASH_FOR_TIMING);
+      await this.emitAdminLogin(user, false, meta, { reason: "locked" });
       throw new ForbiddenException(
         "Account locked due to too many failed login attempts. Try again later.",
       );
@@ -296,6 +319,11 @@ export class AuthService {
         });
       }
 
+      await this.emitAdminLogin(user, false, meta, {
+        reason: "wrong_password",
+        failed_attempts: isNowLocked ? ACCOUNT_LOCKOUT_THRESHOLD : failedLoginAttempts,
+        now_locked: isNowLocked,
+      });
       throw new UnauthorizedException("Invalid credentials");
     }
 
@@ -330,6 +358,9 @@ export class AuthService {
         { expiresIn: "5m" },
       );
 
+      await this.emitAdminLogin(authenticatedUser, true, meta, {
+        two_factor_pending: true,
+      });
       return {
         twoFactorRequired: true,
         twoFactorToken,
@@ -337,6 +368,7 @@ export class AuthService {
     }
 
     const tokenPair = await this.issueTokenPair(authenticatedUser);
+    await this.emitAdminLogin(authenticatedUser, true, meta);
 
     return {
       ...tokenPair,

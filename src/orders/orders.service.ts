@@ -26,11 +26,26 @@ import {
   resolvePagination,
 } from "../common/utils/pagination";
 import { PrismaService } from "../prisma/prisma.service";
+import { AgentEventsService } from "../agent-events/agent-events.service";
+import {
+  toAddress,
+  toContractStatus,
+  toOrderLines,
+  toOrderRef,
+  toPiasters,
+  toStockChanged,
+} from "../agent-events/agent-events.mapper";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { TrackOrderDto } from "./dto/track-order.dto";
 import { UpdateOrderShippingDto } from "./dto/update-order-shipping.dto";
 
 const RESERVATION_DURATION_MS = 30 * 60 * 1000;
+
+/** Trims a UTM value, drops control characters, returns null when empty. */
+function cleanUtm(value: string | undefined, max: number): string | null {
+  const cleaned = (value ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  return cleaned ? cleaned.slice(0, max) : null;
+}
 
 const allowedTransitions: Record<OrderStatus, OrderStatus[]> = {
   PENDING: [
@@ -83,7 +98,121 @@ export class OrdersService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
     @Optional() private readonly notificationsService?: NotificationsService,
+    @Optional() private readonly agentEvents?: AgentEventsService,
   ) {}
+
+  // ---------------------------------------------------------------------------
+  // AI agent events (EVENTS_CONTRACT.md). All of these run inside the business
+  // transaction, write to the outbox only, and can never fail the order.
+  // ---------------------------------------------------------------------------
+
+  private async emitStockChanges(
+    tx: Prisma.TransactionClient,
+    items: { productVariantId: string; quantity: number }[],
+    sign: 1 | -1,
+    reason: "sale" | "cancel",
+    orderNumber: string,
+  ) {
+    if (!this.agentEvents || items.length === 0) return;
+    const deltas = new Map<string, number>();
+    for (const item of items) {
+      deltas.set(
+        item.productVariantId,
+        (deltas.get(item.productVariantId) ?? 0) + sign * item.quantity,
+      );
+    }
+    const variants = await tx.productVariant.findMany({
+      where: { id: { in: [...deltas.keys()] } },
+      select: { id: true, sku: true, stock: true, productId: true },
+    });
+    for (const variant of variants) {
+      await this.agentEvents.enqueueInTx(
+        tx,
+        "stock.changed",
+        toStockChanged(variant, deltas.get(variant.id) ?? 0, reason, orderNumber),
+      );
+    }
+  }
+
+  private async emitStatusChanged(
+    tx: Prisma.TransactionClient,
+    orderId: string,
+    from: OrderStatus,
+    actor: "customer" | "admin" | "system",
+    reason?: string,
+  ) {
+    if (!this.agentEvents) return;
+    const order = await this.findOrderDetailsById(tx, orderId);
+    if (order.status === from) return;
+    const ref = toOrderRef(order);
+    await this.agentEvents.enqueueInTx(tx, "order.status_changed", {
+      order: ref,
+      from: toContractStatus(from, order.paymentMethod),
+      to: ref.status,
+      backend_from: from,
+      backend_to: order.status,
+      actor,
+      ...(reason ? { reason } : {}),
+    });
+
+    if (
+      order.status === OrderStatus.CANCELLED ||
+      order.status === OrderStatus.EXPIRED
+    ) {
+      await this.agentEvents.enqueueInTx(tx, "order.cancelled", {
+        order: ref,
+        reason_code:
+          reason ??
+          (order.status === OrderStatus.EXPIRED
+            ? "reservation_expired"
+            : `${actor}_cancelled`),
+        actor,
+        was_paid: order.paymentStatus === PaymentStatus.PAID,
+      });
+      await this.emitStockChanges(
+        tx,
+        order.items,
+        1,
+        "cancel",
+        order.orderNumber,
+      );
+    }
+  }
+
+  private async emitOrderCreated(
+    tx: Prisma.TransactionClient,
+    order: Prisma.OrderGetPayload<{ include: typeof orderInclude }>,
+  ) {
+    if (!this.agentEvents) return;
+    await this.agentEvents.enqueueInTx(tx, "order.created", {
+      order: toOrderRef(order),
+      lines: toOrderLines(order.items),
+      address: toAddress(order),
+      customer_name: order.customerName ?? null,
+      subtotal_piasters: toPiasters(order.subtotal),
+      discount_piasters: toPiasters(order.discount),
+      shipping_piasters: toPiasters(order.shippingFee),
+      cod_fee_piasters: toPiasters(order.codFee),
+      coupon_code: order.couponCode ?? null,
+      is_gift: false,
+      utm:
+        order.utmSource || order.utmMedium || order.utmCampaign
+          ? {
+              source: order.utmSource ?? null,
+              medium: order.utmMedium ?? null,
+              campaign: order.utmCampaign ?? null,
+              content: order.utmContent ?? null,
+            }
+          : null,
+      customer_note: order.notes ?? null,
+    });
+    await this.emitStockChanges(tx, order.items, -1, "sale", order.orderNumber);
+  }
+
+  /** Best-effort immediate send after commit (no-op when the agent link is off). */
+  private async kickAgent() {
+    await this.agentEvents?.kick();
+  }
 
   private checkOrderTrackRateLimit(orderNumber: string): void {
     const now = Date.now();
@@ -411,7 +540,7 @@ export class OrdersService implements OnModuleInit {
 
       const totalAmount = totalBeforeCodFee.plus(codFee);
 
-      return tx.order.create({
+      const created = await tx.order.create({
         data: {
           orderNumber: this.generateOrderNumber(),
           idempotencyKey: dto.idempotencyKey || null,
@@ -433,6 +562,10 @@ export class OrdersService implements OnModuleInit {
           shippingPhone: sanitizedPhone,
           shippingZipCode: dto.shippingZipCode,
           notes: dto.notes,
+          utmSource: cleanUtm(dto.utmSource, 100),
+          utmMedium: cleanUtm(dto.utmMedium, 100),
+          utmCampaign: cleanUtm(dto.utmCampaign, 150),
+          utmContent: cleanUtm(dto.utmContent, 150),
           reservationExpiresAt,
           couponId,
           couponCode,
@@ -440,6 +573,8 @@ export class OrdersService implements OnModuleInit {
         },
         include: orderInclude,
       });
+      await this.emitOrderCreated(tx, created);
+      return created;
     }).catch(async (error) => {
       if (isPrismaErrorCode(error, "P2002") && dto.idempotencyKey) {
         const existing = await this.prisma.order.findUnique({
@@ -452,6 +587,8 @@ export class OrdersService implements OnModuleInit {
       }
       throw error;
     });
+
+    await this.kickAgent();
 
     if (order.paymentMethod === PaymentMethod.COD) {
       try {
@@ -506,6 +643,12 @@ export class OrdersService implements OnModuleInit {
     });
     if (updated.count !== 1)
       throw new ConflictException("Order reservation has expired");
+    await this.emitStatusChanged(
+      tx,
+      orderId,
+      order.status,
+      updatedById ? "admin" : "system",
+    );
     return this.findOrderDetailsById(tx, orderId);
   }
 
@@ -549,7 +692,17 @@ export class OrdersService implements OnModuleInit {
         changes: { paymentStatus: { from: order.paymentStatus, to: PaymentStatus.PAID } },
       });
 
-      return this.findOrderDetailsById(tx, orderId);
+      const details = await this.findOrderDetailsById(tx, orderId);
+      await this.agentEvents?.enqueueInTx(tx, "payment.succeeded", {
+        order: toOrderRef(details),
+        payment_id: `cod_${details.id}`,
+        provider: "cod",
+        provider_txn_id: null,
+        amount_piasters: toPiasters(details.totalAmount),
+        paid_at: new Date().toISOString(),
+        collected_by: actorUserId ?? null,
+      });
+      return details;
     });
   }
 
@@ -581,6 +734,7 @@ export class OrdersService implements OnModuleInit {
             orderId,
             nextStatus,
             actorUserId,
+            actorUserId ? "admin" : "system",
           );
           if (!cancelled) {
             throw new ConflictException("Order cannot be cancelled");
@@ -593,6 +747,7 @@ export class OrdersService implements OnModuleInit {
             nextStatus,
             undefined,
             actorUserId,
+            actorUserId ? "admin" : "system",
           );
           if (!released) {
             throw new ConflictException("Order is no longer pending");
@@ -610,10 +765,18 @@ export class OrdersService implements OnModuleInit {
           },
           include: orderInclude,
         });
+        await this.emitStatusChanged(
+          tx,
+          orderId,
+          before.status,
+          actorUserId ? "admin" : "system",
+        );
       }
 
       return { before, after };
     });
+
+    await this.kickAgent();
 
     if (actorUserId && result.before.status !== result.after.status) {
       await this.auditLogService.record({
@@ -645,7 +808,7 @@ export class OrdersService implements OnModuleInit {
   }
 
   async cancelByOrderNumber(orderNumber: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({ where: { orderNumber } });
       if (!order) {
         throw new NotFoundException(`Order ${orderNumber} was not found`);
@@ -664,6 +827,8 @@ export class OrdersService implements OnModuleInit {
           tx,
           order.id,
           OrderStatus.CANCELLED,
+          undefined,
+          "customer",
         );
       } else {
         if (order.status !== OrderStatus.PENDING) {
@@ -673,6 +838,9 @@ export class OrdersService implements OnModuleInit {
           tx,
           order.id,
           OrderStatus.CANCELLED,
+          undefined,
+          undefined,
+          "customer",
         );
       }
       if (!cancelled) {
@@ -680,6 +848,8 @@ export class OrdersService implements OnModuleInit {
       }
       return this.findOrderDetailsById(tx, order.id);
     });
+    await this.kickAgent();
+    return result;
   }
 
   async expireOrder(orderId: string, now = new Date()) {
@@ -704,6 +874,7 @@ export class OrdersService implements OnModuleInit {
     let expiredCount = 0;
     for (const order of orders)
       if (await this.expireOrder(order.id, now)) expiredCount += 1;
+    if (expiredCount > 0) await this.kickAgent();
     return expiredCount;
   }
 
@@ -905,7 +1076,14 @@ export class OrdersService implements OnModuleInit {
     orderId: string,
     status: OrderStatus,
     updatedById?: string,
+    actor: "customer" | "admin" | "system" = updatedById ? "admin" : "system",
   ) {
+    const previous = this.agentEvents
+      ? await tx.order.findUnique({
+          where: { id: orderId },
+          select: { status: true },
+        })
+      : null;
     const updated = await tx.order.updateMany({
       where: {
         id: orderId,
@@ -946,6 +1124,9 @@ export class OrdersService implements OnModuleInit {
         }),
       ),
     );
+    if (previous) {
+      await this.emitStatusChanged(tx, orderId, previous.status, actor);
+    }
     return true;
   }
 
@@ -955,6 +1136,7 @@ export class OrdersService implements OnModuleInit {
     status: "CANCELLED" | "EXPIRED",
     now?: Date,
     updatedById?: string,
+    actor: "customer" | "admin" | "system" = updatedById ? "admin" : "system",
   ) {
     const updated = await tx.order.updateMany({
       where: {
@@ -997,6 +1179,7 @@ export class OrdersService implements OnModuleInit {
         }),
       ),
     );
+    await this.emitStatusChanged(tx, orderId, OrderStatus.PENDING, actor);
     return true;
   }
 
