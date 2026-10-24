@@ -41,6 +41,12 @@ import { UpdateOrderShippingDto } from "./dto/update-order-shipping.dto";
 
 const RESERVATION_DURATION_MS = 30 * 60 * 1000;
 
+/** Trims a UTM value, drops control characters, returns null when empty. */
+function cleanUtm(value: string | undefined, max: number): string | null {
+  const cleaned = (value ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  return cleaned ? cleaned.slice(0, max) : null;
+}
+
 const allowedTransitions: Record<OrderStatus, OrderStatus[]> = {
   PENDING: [
     OrderStatus.CONFIRMED,
@@ -189,7 +195,15 @@ export class OrdersService implements OnModuleInit {
       cod_fee_piasters: toPiasters(order.codFee),
       coupon_code: order.couponCode ?? null,
       is_gift: false,
-      utm: null,
+      utm:
+        order.utmSource || order.utmMedium || order.utmCampaign
+          ? {
+              source: order.utmSource ?? null,
+              medium: order.utmMedium ?? null,
+              campaign: order.utmCampaign ?? null,
+              content: order.utmContent ?? null,
+            }
+          : null,
       customer_note: order.notes ?? null,
     });
     await this.emitStockChanges(tx, order.items, -1, "sale", order.orderNumber);
@@ -548,6 +562,10 @@ export class OrdersService implements OnModuleInit {
           shippingPhone: sanitizedPhone,
           shippingZipCode: dto.shippingZipCode,
           notes: dto.notes,
+          utmSource: cleanUtm(dto.utmSource, 100),
+          utmMedium: cleanUtm(dto.utmMedium, 100),
+          utmCampaign: cleanUtm(dto.utmCampaign, 150),
+          utmContent: cleanUtm(dto.utmContent, 150),
           reservationExpiresAt,
           couponId,
           couponCode,

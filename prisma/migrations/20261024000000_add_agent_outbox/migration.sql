@@ -32,3 +32,9 @@ CREATE TABLE "AgentRequest" (
 
 -- CreateIndex
 CREATE INDEX "AgentRequest_createdAt_idx" ON "AgentRequest"("createdAt");
+
+-- Ad attribution on orders (all optional, no default, no backfill)
+ALTER TABLE "Order" ADD COLUMN "utmSource" TEXT,
+ADD COLUMN "utmMedium" TEXT,
+ADD COLUMN "utmCampaign" TEXT,
+ADD COLUMN "utmContent" TEXT;

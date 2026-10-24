@@ -359,6 +359,10 @@ model Order {
   trackingNumber       String?
   trackingUrl          String?
   notes                String?
+  utmSource            String?
+  utmMedium            String?
+  utmCampaign          String?
+  utmContent           String?
   reservationExpiresAt DateTime?
   paymentSessionId     String?       @unique
   paymobIntentionId    String?       @unique

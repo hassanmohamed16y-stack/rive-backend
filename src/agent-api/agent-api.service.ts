@@ -52,6 +52,12 @@ export class AgentApiService {
       carrier: order.carrier ?? null,
       tracking_number: order.trackingNumber ?? null,
       customer_note: order.notes ?? null,
+      utm: {
+        source: order.utmSource ?? null,
+        medium: order.utmMedium ?? null,
+        campaign: order.utmCampaign ?? null,
+        content: order.utmContent ?? null,
+      },
       created_at: order.createdAt.toISOString(),
       updated_at: order.updatedAt.toISOString(),
     };
