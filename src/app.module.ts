@@ -25,6 +25,8 @@ import { ProductsModule } from "./products/products.module";
 import { MaintenanceGuard } from "./settings/maintenance.guard";
 import { SettingsModule } from "./settings/settings.module";
 import { AutomationModule } from "./automation/automation.module";
+import { AgentEventsModule } from "./agent-events/agent-events.module";
+import { AgentApiModule } from "./agent-api/agent-api.module";
 import { ShippingZonesModule } from "./shipping-zones/shipping-zones.module";
 import { SystemListsModule } from "./system-lists/system-lists.module";
 import { UploadModule } from "./upload/upload.module";
@@ -60,6 +62,8 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
     EmailModule,
     AuthModule,
     AutomationModule,
+    AgentEventsModule,
+    AgentApiModule,
     CategoriesModule,
     CouponsModule,
     ReferralsModule,

@@ -23,6 +23,12 @@ import { timingSafeStringEqual } from "../common/utils/timing-safe-compare";
 import { NotificationsService } from "../notifications/notifications.service";
 import { OrdersService } from "../orders/orders.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { AgentEventsService } from "../agent-events/agent-events.service";
+import {
+  toContractStatus,
+  toOrderRef,
+  toPiasters,
+} from "../agent-events/agent-events.mapper";
 
 @Injectable()
 export class PaymobService {
@@ -34,7 +40,50 @@ export class PaymobService {
     private readonly ordersService: OrdersService,
     @Optional() private readonly auditLogService?: AuditLogService,
     @Optional() private readonly notificationsService?: NotificationsService,
+    @Optional() private readonly agentEvents?: AgentEventsService,
   ) {}
+
+  /** payment.succeeded / payment.failed for the AI agent (outbox only, never throws). */
+  private async emitPaymentEvent(
+    tx: Prisma.TransactionClient,
+    orderId: string,
+    type: "payment.succeeded" | "payment.failed",
+    transactionId: string,
+    paymobObj?: any,
+  ) {
+    if (!this.agentEvents) return;
+    const order = await tx.order.findUnique({ where: { id: orderId } });
+    if (!order) return;
+    const amountCents = Number(paymobObj?.amount_cents);
+    const base = {
+      order: toOrderRef(order),
+      payment_id: `paymob_${transactionId}`,
+      provider: "paymob",
+      provider_txn_id: transactionId,
+    };
+    const data =
+      type === "payment.succeeded"
+        ? {
+            ...base,
+            amount_piasters: Number.isFinite(amountCents)
+              ? Math.round(amountCents)
+              : toPiasters(order.totalAmount),
+            paid_at: new Date().toISOString(),
+          }
+        : {
+            ...base,
+            failure_code: String(
+              paymobObj?.data?.txn_response_code ??
+                paymobObj?.txn_response_code ??
+                "declined",
+            ),
+            failure_text:
+              paymobObj?.data?.message != null
+                ? String(paymobObj.data.message).slice(0, 200)
+                : null,
+          };
+    await this.agentEvents.enqueueInTx(tx, type, data, "paymob");
+  }
 
   private getApiKey(): string {
     return process.env.PAYMOB_API_KEY ?? "";
@@ -461,6 +510,14 @@ export class PaymobService {
             data: { paymobTransactionId: transactionId },
           });
 
+          await this.emitPaymentEvent(
+            tx,
+            orderId,
+            "payment.succeeded",
+            transactionId,
+            obj,
+          );
+
           return {
             received: true,
             orderId: paidOrder.id,
@@ -468,13 +525,20 @@ export class PaymobService {
           };
         }
 
+        await this.emitPaymentEvent(
+          tx,
+          orderId,
+          "payment.failed",
+          transactionId,
+          obj,
+        );
         await this.ordersService.cancelPendingOrderInTransaction(
           tx,
           orderId,
           OrderStatus.CANCELLED,
         );
         return { received: true, orderId, status: OrderStatus.CANCELLED };
-      });
+      }).finally(() => this.agentEvents?.kick());
     } catch (error) {
       if (isPrismaErrorCode(error, "P2002")) {
         return {
@@ -552,13 +616,39 @@ export class PaymobService {
 
       const resData = await response.json();
 
-      await this.prisma.order.update({
+      const refunded = await this.prisma.order.update({
         where: { id: order.id },
         data: {
           status: OrderStatus.REFUNDED,
           paymentStatus: PaymentStatus.REFUNDED,
         },
       });
+
+      if (this.agentEvents) {
+        const ref = toOrderRef(refunded);
+        await this.agentEvents.enqueueSafe("order.status_changed", {
+          order: ref,
+          from: toContractStatus(order.status, order.paymentMethod),
+          to: ref.status,
+          backend_from: order.status,
+          backend_to: refunded.status,
+          actor: "admin",
+          reason: "refund",
+        });
+        await this.agentEvents.enqueueSafe(
+          "payment.refunded",
+          {
+            order: ref,
+            refund_id: `paymob_refund_${String(resData?.id ?? order.paymobTransactionId)}`,
+            amount_piasters: refundAmountCents,
+            partial: refundAmountCents < toPiasters(order.totalAmount),
+            reason_code: "admin_refund",
+            approved_by: "admin",
+          },
+          "paymob",
+        );
+        await this.agentEvents.kick();
+      }
 
       return {
         success: true,
@@ -855,6 +945,14 @@ export class PaymobService {
                     data: { paymobTransactionId: txId },
                   });
 
+                  await this.emitPaymentEvent(
+                    tx,
+                    order.id,
+                    "payment.succeeded",
+                    txId,
+                    txData,
+                  );
+
                   wasRepaired = true;
                 });
               } catch (error) {
@@ -981,6 +1079,31 @@ export class PaymobService {
                       orderId: order.id,
                     },
                   });
+
+                  if (this.agentEvents) {
+                    const repaired = await tx.order.findUnique({
+                      where: { id: order.id },
+                    });
+                    if (repaired) {
+                      const ref = toOrderRef(repaired);
+                      await this.agentEvents.enqueueInTx(tx, "order.status_changed", {
+                        order: ref,
+                        from: "CANCELLED",
+                        to: ref.status,
+                        backend_from: order.status,
+                        backend_to: repaired.status,
+                        actor: "system",
+                        reason: "payment_reconciliation",
+                      });
+                    }
+                    await this.emitPaymentEvent(
+                      tx,
+                      order.id,
+                      "payment.succeeded",
+                      txId,
+                      txData,
+                    );
+                  }
 
                   wasRepaired = true;
                 });

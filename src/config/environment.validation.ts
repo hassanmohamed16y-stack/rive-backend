@@ -144,6 +144,32 @@ export function validateEnvironment(
     throw new Error("META_PAGE_ACCESS_TOKEN must not be empty if specified");
   }
 
+  // AI agent link (optional). Only validated when switched on, so existing
+  // deployments keep starting exactly as before.
+  if (environment.AGENT_EVENTS_ENABLED === "true") {
+    try {
+      const agentUrl = new URL(environment.AGENT_BASE_URL ?? "");
+      if (agentUrl.protocol !== "https:") throw new Error();
+    } catch {
+      throw new Error(
+        "AGENT_BASE_URL must be a valid https URL when AGENT_EVENTS_ENABLED=true",
+      );
+    }
+    if ((environment.RIVE_AGENT_WEBHOOK_SECRET?.length ?? 0) < 32) {
+      throw new Error(
+        "RIVE_AGENT_WEBHOOK_SECRET must be at least 32 characters when AGENT_EVENTS_ENABLED=true",
+      );
+    }
+  }
+
+  if (
+    environment.AGENT_SERVICE_TOKEN !== undefined &&
+    environment.AGENT_SERVICE_TOKEN.trim() !== "" &&
+    environment.AGENT_SERVICE_TOKEN.length < 32
+  ) {
+    throw new Error("AGENT_SERVICE_TOKEN must be at least 32 characters");
+  }
+
   if (
     environment.TWO_FACTOR_ENCRYPTION_KEY !== undefined &&
     environment.TWO_FACTOR_ENCRYPTION_KEY.trim() !== ""

@@ -817,3 +817,33 @@ model DataDeletionRequest {
   @@index([userId])
   @@index([status])
 }
+
+/// Outbox of events for the RIVÉ AI agent (n8n). Rows are written in the same
+/// transaction as the business change and delivered later by a worker.
+/// See docs/AGENT_EVENTS.md.
+model AgentOutbox {
+  id          String    @id
+  type        String
+  payload     Json
+  status      String    @default("pending")
+  attempts    Int       @default(0)
+  nextTryAt   DateTime  @default(now())
+  lastError   String?
+  deliveredAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([status, nextTryAt])
+  @@index([createdAt])
+}
+
+/// Idempotency records for calls the AI agent makes to the backend
+/// (Idempotency-Key header). A repeated key returns the stored response.
+model AgentRequest {
+  key        String   @id
+  endpoint   String
+  statusCode Int
+  response   Json
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}

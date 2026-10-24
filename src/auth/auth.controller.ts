@@ -50,8 +50,12 @@ export class AuthController {
   @ApiOperation({ summary: "Log in and receive a JWT access token" })
   @ApiResponse({ status: 201, description: "Login successful." })
   @ApiResponse({ status: 401, description: "Invalid credentials." })
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @Req() req?: Request) {
+    const userAgent = req?.headers?.["user-agent"];
+    return this.authService.login(dto, {
+      ip: req?.ip,
+      userAgent: typeof userAgent === "string" ? userAgent : undefined,
+    });
   }
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
