@@ -20,7 +20,8 @@ secret() { openssl rand -hex "${1:-32}"; }
 say "1/7 تحديث السيرفر وتثبيت الأدوات"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq git curl openssl ufw ca-certificates >/dev/null
+apt-get install -y -qq git curl openssl ufw ca-certificates fail2ban unattended-upgrades >/dev/null
+systemctl enable --now fail2ban >/dev/null
 if ! command -v docker >/dev/null 2>&1; then
   curl -fsSL https://get.docker.com | sh >/dev/null
 fi

@@ -5,7 +5,9 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_SEND_UTM=true
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_SEND_UTM=$NEXT_PUBLIC_SEND_UTM
 ENV NEXT_TELEMETRY_DISABLED=1
 # Dev dependencies are kept: `next start` loads next.config.ts at runtime.
 RUN npm run build
